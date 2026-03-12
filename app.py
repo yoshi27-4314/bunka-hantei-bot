@@ -14,8 +14,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-anthropic_client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
+anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 # 重複処理防止（同じメッセージを2回処理しない）
 processed_events = set()
@@ -127,6 +128,7 @@ def process_slack_message(event: dict) -> None:
     user_message = event.get("text", "")
 
     print(f"[処理開始] channel={channel_id} ts={thread_ts} message={user_message[:30]}")
+    print(f"[ENV確認] ANTHROPIC_API_KEY={'設定済み' if ANTHROPIC_API_KEY else '未設定'} SLACK_BOT_TOKEN={'設定済み' if SLACK_BOT_TOKEN else '未設定'}")
 
     # 添付画像のURLを取得
     image_url = None
