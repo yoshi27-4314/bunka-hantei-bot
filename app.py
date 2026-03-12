@@ -454,6 +454,19 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         period = re.search(r'在庫予測期間：(.+)', text)
         if period:
             result["inventory_period"] = period.group(1).strip()
+        # 商品情報
+        item = re.search(r'📋 アイテム名：(.+)', text)
+        if item:
+            result["item_name"] = item.group(1).strip()
+        maker = re.search(r'🏭 メーカー/ブランド：(.+)', text)
+        if maker:
+            result["maker"] = maker.group(1).strip()
+        model = re.search(r'🔢 品番/型式：(.+)', text)
+        if model:
+            result["model_number"] = model.group(1).strip()
+        cond = re.search(r'📊 状態：(.+)', text)
+        if cond:
+            result["condition"] = cond.group(1).strip()
         break
     return result
 
