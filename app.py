@@ -369,7 +369,18 @@ def parse_command(text: str):
         return 'saihantei', None
     elif n == '保留':
         return 'horyuu', None
+    elif n in ('削除', 'テスト', 'キャンセル', '取消', '取り消し'):
+        return 'cancel', None
     return None, None
+
+
+def normalize_channel(channel: str) -> str:
+    """チャンネル名の表記ゆれを統一する"""
+    aliases = {
+        '自社使用': '社内利用',
+        '自社利用': '社内利用',
+    }
+    return aliases.get(channel.strip(), channel.strip())
 
 
 def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
@@ -525,13 +536,13 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             post_to_slack(channel_id, thread_ts, ":warning: 判定データが見つかりませんでした。")
             return
 
-        # 確定チャンネルを決定
+        # 確定チャンネルを決定（表記ゆれを正規化）
         if cmd_option == '1':
-            kakutei_channel = judgment.get("first_channel", "")
+            kakutei_channel = normalize_channel(judgment.get("first_channel", ""))
         elif cmd_option == '2':
-            kakutei_channel = judgment.get("second_channel", "")
+            kakutei_channel = normalize_channel(judgment.get("second_channel", ""))
         else:
-            kakutei_channel = cmd_option  # 確定/○○ の場合
+            kakutei_channel = normalize_channel(cmd_option)  # 確定/○○ の場合
 
         # 通販対象チャンネルのみ管理番号発行
         management_number = ""
@@ -576,6 +587,9 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
 
     elif cmd_type == 'horyuu':
         post_to_slack(channel_id, thread_ts, "⏸️ 保留にしました。")
+
+    elif cmd_type == 'cancel':
+        post_to_slack(channel_id, thread_ts, "🗑️ このスレッドの判定を取り消しました。記録はされません。")
 
 
 @app.route("/debug", methods=["GET"])
