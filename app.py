@@ -4,9 +4,11 @@ Slack Events API → Claude API → Slack返信
 """
 
 import os
+import json
 import base64
 import threading
 import httpx
+from datetime import datetime
 from flask import Flask, request, jsonify
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -24,6 +26,81 @@ def get_anthropic_client():
 
 def get_slack_token():
     return os.environ.get("SLACK_BOT_TOKEN", "")
+
+
+def get_monday_token():
+    return os.environ.get("MONDAY_API_TOKEN", "")
+
+
+MONDAY_BOARD_ID = "18403611418"
+MONDAY_API_URL = "https://api.monday.com/v2"
+
+
+def monday_graphql(query: str, variables: dict = None) -> dict:
+    """monday.com GraphQL APIを呼び出す"""
+    token = get_monday_token()
+    if not token:
+        raise RuntimeError("MONDAY_API_TOKEN が設定されていません")
+    headers = {
+        "Authorization": token,
+        "Content-Type": "application/json",
+        "API-Version": "2023-10",
+    }
+    payload = {"query": query}
+    if variables:
+        payload["variables"] = variables
+    response = httpx.post(MONDAY_API_URL, headers=headers, json=payload, timeout=15)
+    return response.json()
+
+
+def generate_management_number() -> str:
+    """管理番号を生成する（例：20250312-103045）"""
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def extract_judgment(response_text: str) -> dict:
+    """Claude応答から判定結果を抽出する"""
+    result = {"first_channel": "", "first_confidence": "", "second_channel": ""}
+    confidence_count = 0
+    for line in response_text.split("\n"):
+        line = line.strip()
+        if line.startswith("第一候補："):
+            result["first_channel"] = line.replace("第一候補：", "").strip()
+        elif line.startswith("第二候補："):
+            result["second_channel"] = line.replace("第二候補：", "").strip()
+        elif line.startswith("確信度："):
+            confidence_count += 1
+            if confidence_count == 1:
+                result["first_confidence"] = line.replace("確信度：", "").strip()
+    return result
+
+
+def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str) -> None:
+    """monday.comにアイテムを登録する"""
+    column_values = json.dumps({
+        "kanri_bango": management_number,
+        "hantei_channel": judgment.get("first_channel", ""),
+        "kakushin_do": judgment.get("first_confidence", ""),
+        "toshosha": user_id,
+    }, ensure_ascii=False)
+
+    query = """
+    mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
+        create_item(board_id: $board_id, item_name: $item_name, column_values: $column_values) {
+            id
+        }
+    }
+    """
+    result = monday_graphql(query, {
+        "board_id": MONDAY_BOARD_ID,
+        "item_name": item_name[:50],
+        "column_values": column_values,
+    })
+    if "errors" in result:
+        raise RuntimeError(f"Monday.com API error: {result['errors']}")
+    item_id = result.get("data", {}).get("create_item", {}).get("id")
+    print(f"[Monday.com] アイテム作成完了 ID={item_id}")
+
 
 # 重複処理防止（同じメッセージを2回処理しない）
 processed_events = set()
@@ -203,9 +280,28 @@ def process_slack_message(event: dict) -> None:
 
     try:
         print("[Claude API呼び出し中...]")
-        judgment = call_claude(user_message, image_url, history)
-        print(f"[Claude応答] {judgment[:50]}")
-        post_to_slack(channel_id, thread_ts, judgment)
+        judgment_text = call_claude(user_message, image_url, history)
+        print(f"[Claude応答] {judgment_text[:50]}")
+
+        # 最初のメッセージ（スレッド履歴なし）のみmonday.comに登録
+        if not history:
+            management_number = generate_management_number()
+            judgment_data = extract_judgment(judgment_text)
+            user_id = event.get("user", "不明")
+            item_name = user_message[:50] if user_message else "商品名未入力"
+
+            reply_text = f"【管理番号：{management_number}】\n\n{judgment_text}"
+
+            try:
+                register_to_monday(management_number, item_name, judgment_data, user_id)
+                print("[Monday.com登録完了]")
+            except Exception as me:
+                print(f"[Monday.com登録エラー] {me}")
+                reply_text += f"\n\n※monday.com登録失敗: {me}"
+        else:
+            reply_text = judgment_text
+
+        post_to_slack(channel_id, thread_ts, reply_text)
         print("[Slack返信完了]")
     except Exception as e:
         print(f"[エラー] {e}")
@@ -221,8 +317,41 @@ def debug():
     return jsonify({
         "ANTHROPIC_API_KEY": "設定済み" if os.environ.get("ANTHROPIC_API_KEY") else "未設定",
         "SLACK_BOT_TOKEN": "設定済み" if os.environ.get("SLACK_BOT_TOKEN") else "未設定",
+        "MONDAY_API_TOKEN": "設定済み" if os.environ.get("MONDAY_API_TOKEN") else "未設定",
         "env_keys_count": len(os.environ),
     })
+
+
+@app.route("/monday-setup", methods=["GET"])
+def monday_setup():
+    """monday.comボードにカラムを作成する（初回のみ実行）"""
+    columns = [
+        ("管理番号", "text", "kanri_bango"),
+        ("判定チャンネル", "text", "hantei_channel"),
+        ("確信度", "text", "kakushin_do"),
+        ("投稿者", "text", "toshosha"),
+    ]
+    results = []
+    for title, col_type, col_id in columns:
+        query = """
+        mutation ($board_id: ID!, $title: String!, $col_type: ColumnType!, $col_id: String!) {
+            create_column(board_id: $board_id, title: $title, column_type: $col_type, id: $col_id) {
+                id
+                title
+            }
+        }
+        """
+        try:
+            result = monday_graphql(query, {
+                "board_id": MONDAY_BOARD_ID,
+                "title": title,
+                "col_type": col_type,
+                "col_id": col_id,
+            })
+            results.append({"title": title, "result": result})
+        except Exception as e:
+            results.append({"title": title, "error": str(e)})
+    return jsonify({"ok": True, "results": results})
 
 
 @app.route("/slack/events", methods=["POST"])
