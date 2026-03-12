@@ -74,14 +74,50 @@ def fetch_image_as_base64(image_url: str) -> tuple[str, str]:
     return image_data, content_type
 
 
-def call_claude(user_message: str, image_url: str | None = None) -> str:
-    """Claude APIを呼び出して分荷判定を返す"""
-    content = []
+def fetch_thread_messages(channel_id: str, thread_ts: str, current_ts: str) -> list[dict]:
+    """Slackスレッドの会話履歴を取得してClaude用のmessagesリストに変換する"""
+    token = get_slack_token()
+    if not token:
+        return []
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"channel": channel_id, "ts": thread_ts}
+    response = httpx.get(url, headers=headers, params=params, timeout=10)
+    data = response.json()
+    if not data.get("ok"):
+        print(f"[スレッド履歴取得エラー] {data.get('error')}")
+        return []
 
+    messages = []
+    for msg in data.get("messages", []):
+        # 現在処理中のメッセージは除外（後で追加する）
+        if msg.get("ts") == current_ts:
+            continue
+        text = msg.get("text", "").strip()
+        if not text:
+            continue
+        role = "assistant" if (msg.get("bot_id") or msg.get("bot_profile")) else "user"
+        # 直前と同じroleの場合はテキストを結合（Claudeは交互要求のため）
+        if messages and messages[-1]["role"] == role:
+            messages[-1]["content"] += f"\n{text}"
+        else:
+            messages.append({"role": role, "content": text})
+
+    # userから始まらないと Claude APIがエラーになるので調整
+    while messages and messages[0]["role"] != "user":
+        messages.pop(0)
+
+    return messages
+
+
+def call_claude(user_message: str, image_url: str | None = None, history: list[dict] | None = None) -> str:
+    """Claude APIを呼び出して分荷判定を返す"""
+    # 現在のメッセージのコンテンツを組み立て
+    current_content = []
     if image_url:
         try:
             image_data, media_type = fetch_image_as_base64(image_url)
-            content.append({
+            current_content.append({
                 "type": "image",
                 "source": {
                     "type": "base64",
@@ -89,17 +125,21 @@ def call_claude(user_message: str, image_url: str | None = None) -> str:
                     "data": image_data,
                 },
             })
-            content.append({
+            current_content.append({
                 "type": "text",
                 "text": f"添付画像も参考にして判定してください。\n\n{user_message}",
             })
         except Exception as e:
-            content.append({
+            current_content.append({
                 "type": "text",
                 "text": f"※画像の取得に失敗しました（{e}）。テキスト情報のみで判定します。\n\n{user_message}",
             })
     else:
-        content.append({"type": "text", "text": user_message})
+        current_content.append({"type": "text", "text": user_message})
+
+    # 会話履歴 + 現在のメッセージを組み立て
+    messages = list(history) if history else []
+    messages.append({"role": "user", "content": current_content})
 
     client = get_anthropic_client()
     if not client:
@@ -108,7 +148,7 @@ def call_claude(user_message: str, image_url: str | None = None) -> str:
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
+        messages=messages,
     )
     return response.content[0].text
 
@@ -137,7 +177,8 @@ def post_to_slack(channel_id: str, thread_ts: str, text: str) -> None:
 def process_slack_message(event: dict) -> None:
     """Slackメッセージをバックグラウンドで処理する"""
     channel_id = event.get("channel")
-    thread_ts = event.get("thread_ts") or event.get("ts")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
     user_message = event.get("text", "")
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -151,9 +192,18 @@ def process_slack_message(event: dict) -> None:
     if files:
         image_url = files[0].get("url_private")
 
+    # スレッド内の返信であれば会話履歴を取得
+    history = []
+    if event.get("thread_ts"):
+        try:
+            history = fetch_thread_messages(channel_id, thread_ts, current_ts)
+            print(f"[会話履歴] {len(history)}件")
+        except Exception as e:
+            print(f"[会話履歴取得エラー] {e}")
+
     try:
         print("[Claude API呼び出し中...]")
-        judgment = call_claude(user_message, image_url)
+        judgment = call_claude(user_message, image_url, history)
         print(f"[Claude応答] {judgment[:50]}")
         post_to_slack(channel_id, thread_ts, judgment)
         print("[Slack返信完了]")
