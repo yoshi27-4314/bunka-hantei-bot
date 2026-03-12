@@ -11,7 +11,7 @@ from flask import Flask, request, jsonify
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()print(f"[起動時ENV一覧] {[k for k in os.environ.keys() if 'ANTHROPIC' in k or 'SLACK' in k]}")
 
 app = Flask(__name__)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
