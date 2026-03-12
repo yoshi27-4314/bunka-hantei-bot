@@ -387,7 +387,7 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         if not (msg.get("bot_id") or msg.get("bot_profile")):
             continue
         text = msg.get("text", "")
-        if "管理番号" not in text:
+        if "分荷判定結果" not in text:
             continue
         mn = re.search(r'管理番号：\*?(\w+)\*?', text)
         if mn:
@@ -495,23 +495,8 @@ def process_slack_message(event: dict) -> None:
         judgment_text = call_claude(user_message, image_urls, history)
         print(f"[Claude応答] {judgment_text[:50]}")
 
-        # 最初のメッセージ（スレッド履歴なし）のみmonday.comに登録
-        if not history:
-            management_number = generate_management_number()
-            judgment_data = extract_judgment(judgment_text)
-            user_id = event.get("user", "不明")
-            item_name = user_message[:50] if user_message else "商品名未入力"
-
-            reply_text = f"🔖 管理番号：*{management_number}*\n\n{judgment_text}"
-
-            try:
-                register_to_monday(management_number, item_name, judgment_data, user_id)
-                print("[Monday.com登録完了]")
-            except Exception as me:
-                print(f"[Monday.com登録エラー] {me}")
-                reply_text += f"\n\n※monday.com登録失敗: {me}"
-        else:
-            reply_text = judgment_text
+        # 管理番号は確定時に発行するため、ここでは判定結果のみ返信
+        reply_text = judgment_text
 
         post_to_slack(channel_id, thread_ts, reply_text)
         print("[Slack返信完了]")
@@ -527,9 +512,16 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
     """コマンド（確定/再判定/保留）を処理する"""
     user_id = event.get("user", "不明")
 
+    # 通販対象チャンネル（管理番号・monday.com登録対象）
+    TSUHAN_CHANNELS = {
+        "eBayシングル", "eBayまとめ",
+        "ヤフオクヴィンテージ", "ヤフオク現行", "ヤフオクまとめ",
+        "ロット販売",
+    }
+
     if cmd_type == 'kakutei':
         judgment = get_judgment_from_thread(channel_id, thread_ts)
-        if not judgment.get("kanri_bango"):
+        if not judgment.get("first_channel"):
             post_to_slack(channel_id, thread_ts, ":warning: 判定データが見つかりませんでした。")
             return
 
@@ -541,9 +533,14 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         else:
             kakutei_channel = cmd_option  # 確定/○○ の場合
 
-        # スプレッドシートに転記
+        # 通販対象チャンネルのみ管理番号発行
+        management_number = ""
+        if kakutei_channel in TSUHAN_CHANNELS:
+            management_number = generate_management_number()
+
+        # スプレッドシートに転記（全チャンネル共通）
         payload = {
-            "kanri_bango":      judgment.get("kanri_bango", ""),
+            "kanri_bango":      management_number,
             "kakutei_channel":  kakutei_channel,
             "first_channel":    judgment.get("first_channel", ""),
             "second_channel":   judgment.get("second_channel", ""),
@@ -555,8 +552,22 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
         }
         send_to_spreadsheet(payload)
-        post_to_slack(channel_id, thread_ts,
-            f"✅ *確定：{kakutei_channel}*\n管理番号 {judgment.get('kanri_bango')} をスプレッドシートに転記しました。")
+
+        # 通販対象のみmonday.comに登録
+        if management_number:
+            try:
+                item_name = judgment.get("first_channel", "商品")
+                register_to_monday(management_number, item_name, judgment, user_id)
+                print("[Monday.com登録完了]")
+            except Exception as me:
+                print(f"[Monday.com登録エラー] {me}")
+
+        # Slack確定返信
+        if management_number:
+            reply = f"✅ *確定：{kakutei_channel}*\n🔖 管理番号：*{management_number}*\nスプレッドシート・monday.comに転記しました。"
+        else:
+            reply = f"✅ *確定：{kakutei_channel}*\nスプレッドシートに転記しました。"
+        post_to_slack(channel_id, thread_ts, reply)
 
     elif cmd_type == 'saihantei':
         post_to_slack(channel_id, thread_ts, "🔄 再判定します...")
