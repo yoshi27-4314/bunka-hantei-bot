@@ -322,6 +322,13 @@ def debug():
     })
 
 
+@app.route("/env-keys", methods=["GET"])
+def env_keys():
+    """全環境変数のキー名一覧を表示（値は非表示）"""
+    keys = sorted(os.environ.keys())
+    return jsonify({"keys": keys, "count": len(keys)})
+
+
 @app.route("/monday-setup", methods=["GET"])
 def monday_setup():
     """monday.comボードにカラムを作成する（初回のみ実行）"""
