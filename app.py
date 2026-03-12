@@ -38,6 +38,7 @@ def get_monday_token():
 
 MONDAY_BOARD_ID = "18403611418"
 MONDAY_API_URL = "https://api.monday.com/v2"
+GAS_URL = "https://script.google.com/macros/s/AKfycbwYn4XOS7vbUSgUW23OpXGSCGDxje9GwsKtWvgOFLMRsSKCCn6Zq3dGm9IC8u_N2DmU/exec"
 
 
 def monday_graphql(query: str, variables: dict = None) -> dict:
@@ -346,6 +347,87 @@ def call_claude(user_message: str, image_urls: list[str] | None = None, history:
     return response.content[0].text
 
 
+def normalize_keyword(text: str) -> str:
+    """全角→半角・漢数字→数字に正規化してコマンド判定しやすくする"""
+    text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
+    text = text.replace('一', '1').replace('二', '2').replace('三', '3')
+    text = text.replace('／', '/').replace('　', ' ')
+    return text.strip()
+
+
+def parse_command(text: str):
+    """テキストがコマンドかどうか判定し (command_type, option) を返す。
+    コマンドでなければ (None, None)"""
+    n = normalize_keyword(text)
+    if n == '確定1':
+        return 'kakutei', '1'
+    elif n == '確定2':
+        return 'kakutei', '2'
+    elif n.startswith('確定/') and len(n) > 3:
+        return 'kakutei', n[3:].strip()
+    elif n == '再判定':
+        return 'saihantei', None
+    elif n == '保留':
+        return 'horyuu', None
+    return None, None
+
+
+def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
+    """スレッド内のBot判定メッセージから判定データを抽出する"""
+    import re
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"channel": channel_id, "ts": thread_ts}
+    response = httpx.get(url, headers=headers, params=params, timeout=10)
+    data = response.json()
+
+    result = {}
+    for msg in data.get("messages", []):
+        if not (msg.get("bot_id") or msg.get("bot_profile")):
+            continue
+        text = msg.get("text", "")
+        if "管理番号" not in text:
+            continue
+        mn = re.search(r'管理番号：\*?(\w+)\*?', text)
+        if mn:
+            result["kanri_bango"] = mn.group(1)
+        kw = re.search(r'推定内部KW：(/\S+)', text)
+        if kw:
+            result["internal_keyword"] = kw.group(1)
+        # 第一候補
+        ch1 = re.search(r'【第一候補】(.+)', text)
+        if ch1:
+            result["first_channel"] = ch1.group(1).strip()
+        # 第二候補
+        ch2 = re.search(r'【第二候補】(.+)', text)
+        if ch2:
+            result["second_channel"] = ch2.group(1).strip()
+        # スコア（最初に出てくるもの）
+        score = re.search(r'総合スコア：(\d+)点', text)
+        if score:
+            result["first_score"] = score.group(1)
+        # 予想価格
+        price = re.search(r'予想販売価格：(¥[\d,]+〜¥[\d,]+)', text)
+        if price:
+            result["predicted_price"] = price.group(1)
+        # 在庫期間
+        period = re.search(r'在庫予測期間：(.+)', text)
+        if period:
+            result["inventory_period"] = period.group(1).strip()
+        break
+    return result
+
+
+def send_to_spreadsheet(payload: dict) -> None:
+    """GAS経由でGoogleスプレッドシートにデータを転記する"""
+    response = httpx.post(GAS_URL, json=payload, timeout=15, follow_redirects=True)
+    result = response.json()
+    if not result.get("ok"):
+        raise RuntimeError(f"GAS error: {result.get('error')}")
+    print("[スプレッドシート転記完了]")
+
+
 def post_to_slack(channel_id: str, thread_ts: str, text: str) -> None:
     """Slackの指定スレッドにメッセージを返信する"""
     token = get_slack_token()
@@ -387,6 +469,18 @@ def process_slack_message(event: dict) -> None:
     if not user_message and image_urls:
         user_message = "添付画像の商品を分荷判定してください。"
 
+    # ── コマンド判定（スレッド返信のみ） ──────────────────
+    if event.get("thread_ts") and user_message:
+        cmd_type, cmd_option = parse_command(user_message)
+        if cmd_type:
+            try:
+                _handle_command(cmd_type, cmd_option, channel_id, thread_ts, event)
+            except Exception as e:
+                print(f"[コマンド処理エラー] {e}")
+                post_to_slack(channel_id, thread_ts, f":warning: コマンド処理エラー: {e}")
+            return  # コマンドならAI判定はしない
+
+    # ── 通常のAI判定フロー ────────────────────────────────
     # スレッド内の返信であれば会話履歴を取得
     history = []
     if event.get("thread_ts"):
@@ -427,6 +521,50 @@ def process_slack_message(event: dict) -> None:
             post_to_slack(channel_id, thread_ts, f":warning: エラーが発生しました: {e}")
         except Exception as e2:
             print(f"[Slack送信エラー] {e2}")
+
+
+def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: str, event: dict) -> None:
+    """コマンド（確定/再判定/保留）を処理する"""
+    user_id = event.get("user", "不明")
+
+    if cmd_type == 'kakutei':
+        judgment = get_judgment_from_thread(channel_id, thread_ts)
+        if not judgment.get("kanri_bango"):
+            post_to_slack(channel_id, thread_ts, ":warning: 判定データが見つかりませんでした。")
+            return
+
+        # 確定チャンネルを決定
+        if cmd_option == '1':
+            kakutei_channel = judgment.get("first_channel", "")
+        elif cmd_option == '2':
+            kakutei_channel = judgment.get("second_channel", "")
+        else:
+            kakutei_channel = cmd_option  # 確定/○○ の場合
+
+        # スプレッドシートに転記
+        payload = {
+            "kanri_bango":      judgment.get("kanri_bango", ""),
+            "kakutei_channel":  kakutei_channel,
+            "first_channel":    judgment.get("first_channel", ""),
+            "second_channel":   judgment.get("second_channel", ""),
+            "predicted_price":  judgment.get("predicted_price", ""),
+            "inventory_period": judgment.get("inventory_period", ""),
+            "score":            judgment.get("first_score", ""),
+            "internal_keyword": judgment.get("internal_keyword", ""),
+            "staff_id":         user_id,
+            "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
+        }
+        send_to_spreadsheet(payload)
+        post_to_slack(channel_id, thread_ts,
+            f"✅ *確定：{kakutei_channel}*\n管理番号 {judgment.get('kanri_bango')} をスプレッドシートに転記しました。")
+
+    elif cmd_type == 'saihantei':
+        post_to_slack(channel_id, thread_ts, "🔄 再判定します...")
+        judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=[])
+        post_to_slack(channel_id, thread_ts, judgment_text)
+
+    elif cmd_type == 'horyuu':
+        post_to_slack(channel_id, thread_ts, "⏸️ 保留にしました。")
 
 
 @app.route("/debug", methods=["GET"])
