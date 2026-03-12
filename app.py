@@ -350,7 +350,6 @@ def call_claude(user_message: str, image_urls: list[str] | None = None, history:
 def normalize_keyword(text: str) -> str:
     """全角→半角・漢数字→数字に正規化してコマンド判定しやすくする"""
     text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
-    text = text.replace('一', '1').replace('二', '2').replace('三', '3')
     text = text.replace('／', '/').replace('　', ' ')
     return text.strip()
 
@@ -359,9 +358,11 @@ def parse_command(text: str):
     """テキストがコマンドかどうか判定し (command_type, option) を返す。
     コマンドでなければ (None, None)"""
     n = normalize_keyword(text)
-    if n == '確定1':
+    # 第一候補確定（第一/第1 どちらも対応）
+    if n in ('第一', '第1'):
         return 'kakutei', '1'
-    elif n == '確定2':
+    # 第二候補確定（第二/第2 どちらも対応）
+    elif n in ('第二', '第2'):
         return 'kakutei', '2'
     elif n.startswith('確定/') and len(n) > 3:
         return 'kakutei', n[3:].strip()
@@ -428,6 +429,56 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
             result["inventory_period"] = period.group(1).strip()
         break
     return result
+
+
+def get_confirmed_kanri_bango(channel_id: str, thread_ts: str) -> str:
+    """スレッド内のBot確定メッセージから管理番号を取得する"""
+    import re
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = httpx.get(url, headers=headers, params={"channel": channel_id, "ts": thread_ts}, timeout=10)
+    for msg in response.json().get("messages", []):
+        if not (msg.get("bot_id") or msg.get("bot_profile")):
+            continue
+        match = re.search(r'管理番号：\*?(\w+)\*?', msg.get("text", ""))
+        if match:
+            return match.group(1)
+    return ""
+
+
+def cancel_monday_item(kanri_bango: str) -> None:
+    """monday.comの該当アイテムのステータスをキャンセルに変更する"""
+    # 管理番号でアイテムを検索
+    search_query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            items_page(limit: 500) {
+                items { id column_values(ids: ["kanri_bango"]) { text } }
+            }
+        }
+    }
+    """
+    result = monday_graphql(search_query, {"board_id": MONDAY_BOARD_ID})
+    items = (result.get("data", {}).get("boards", [{}])[0]
+             .get("items_page", {}).get("items", []))
+    item_id = next(
+        (i["id"] for i in items
+         if i.get("column_values", [{}])[0].get("text") == kanri_bango),
+        None
+    )
+    if not item_id:
+        print(f"[Monday.com] 管理番号 {kanri_bango} のアイテムが見つかりません")
+        return
+    # ステータスをキャンセルに更新
+    update_query = """
+    mutation ($board_id: ID!, $item_id: ID!, $col_vals: JSON!) {
+        change_multiple_column_values(board_id: $board_id, item_id: $item_id, column_values: $col_vals) { id }
+    }
+    """
+    col_vals = json.dumps({"kakushin_do": "キャンセル"}, ensure_ascii=False)
+    monday_graphql(update_query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
+    print(f"[Monday.com] {kanri_bango} をキャンセルに更新")
 
 
 def send_to_spreadsheet(payload: dict) -> None:
@@ -589,7 +640,31 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         post_to_slack(channel_id, thread_ts, "⏸️ 保留にしました。")
 
     elif cmd_type == 'cancel':
-        post_to_slack(channel_id, thread_ts, "🗑️ このスレッドの判定を取り消しました。記録はされません。")
+        kanri_bango = get_confirmed_kanri_bango(channel_id, thread_ts)
+        if kanri_bango:
+            # 確定済み → スプレッドシートにキャンセル行追記・Monday.comステータス更新
+            cancel_payload = {
+                "kanri_bango":     kanri_bango,
+                "kakutei_channel": "キャンセル",
+                "first_channel":   "",
+                "second_channel":  "",
+                "predicted_price": "",
+                "inventory_period": "",
+                "score":           "",
+                "internal_keyword": "",
+                "staff_id":        user_id,
+                "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
+            }
+            send_to_spreadsheet(cancel_payload)
+            try:
+                cancel_monday_item(kanri_bango)
+            except Exception as e:
+                print(f"[Monday.comキャンセルエラー] {e}")
+            post_to_slack(channel_id, thread_ts,
+                f"🗑️ 管理番号 *{kanri_bango}* をキャンセルしました。\n作業時間は実績としてカウントされます。")
+        else:
+            # 確定前キャンセル → 記録なし
+            post_to_slack(channel_id, thread_ts, "🗑️ 判定を取り消しました。記録はされません。")
 
 
 @app.route("/debug", methods=["GET"])
