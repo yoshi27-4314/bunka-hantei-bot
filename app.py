@@ -29,7 +29,7 @@ def get_slack_token():
 
 
 def get_monday_token():
-    return os.environ.get("MONDAY_API_TOKEN", "")
+    return os.environ.get("MONDAY_TOKEN", "") or os.environ.get("MONDAY_API_TOKEN", "")
 
 
 MONDAY_BOARD_ID = "18403611418"
@@ -317,7 +317,7 @@ def debug():
     return jsonify({
         "ANTHROPIC_API_KEY": "設定済み" if os.environ.get("ANTHROPIC_API_KEY") else "未設定",
         "SLACK_BOT_TOKEN": "設定済み" if os.environ.get("SLACK_BOT_TOKEN") else "未設定",
-        "MONDAY_API_TOKEN": "設定済み" if os.environ.get("MONDAY_API_TOKEN") else "未設定",
+        "MONDAY_API_TOKEN": "設定済み" if (os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN")) else "未設定",
         "env_keys_count": len(os.environ),
     })
 
