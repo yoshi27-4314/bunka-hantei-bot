@@ -585,31 +585,41 @@ def cancel_monday_item(kanri_bango: str) -> None:
 
 # ── 動作確認チェックリスト ────────────────────────────────
 
-CHECKLIST_ITEMS = {
-    "1": "電源を入れて動作確認した",
-    "2": "ドア・引き出し・蓋など開閉確認した",
-    "3": "外観・傷・汚れを確認した",
-    "4": "パーツ欠品がないか確認した",
+# 商品状態の選択肢
+CONDITION_MAP = {
+    "1": "新品",
+    "2": "未使用",
+    "3": "中古美品",
+    "4": "中古",
+    "5": "ジャンク（部品取り）",
 }
 
 
 def post_checklist(channel_id: str, thread_ts: str, management_number: str) -> None:
-    """動作確認チェックリストをスレッドに投稿する"""
+    """動作確認・現状確認チェックリストをスレッドに投稿する"""
     text = (
-        f"📋 *{management_number}* の動作確認をしてください\n\n"
-        "1️⃣ 電源を入れて動作確認した\n"
-        "2️⃣ ドア・引き出し・蓋など開閉確認した\n"
-        "3️⃣ 外観・傷・汚れを確認した\n"
-        "4️⃣ パーツ欠品がないか確認した\n\n"
-        "✅ 完了した番号を入力してください（例：`1234`）\n"
-        "※ 全て完了の場合は `完了` でもOKです"
+        f"📋 *{management_number}* の動作確認・現状確認をお願いします\n\n"
+        "*【確認項目】*\n"
+        "• 電源を入れて動作確認\n"
+        "• ドア・引き出し・蓋など開閉確認\n"
+        "• 外観・傷・汚れの確認\n"
+        "• パーツ・付属品の欠品確認\n\n"
+        "*【商品状態を番号で選んでください】*\n"
+        "1️⃣ 新品\n"
+        "2️⃣ 未使用\n"
+        "3️⃣ 中古美品\n"
+        "4️⃣ 中古\n"
+        "5️⃣ ジャンク（部品取り）\n\n"
+        "状態番号＋確認コメントを返信してください\n"
+        "例：`3 電源OK、外観に小傷あり、パーツ全部揃ってます`\n"
+        "※音声入力でも問題ありません"
     )
     post_to_slack(channel_id, thread_ts, text)
 
 
 def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
     """スレッド内のチェックリスト状態を返す。
-    戻り値: {"management_number": str, "confirmed": set, "is_completed": bool}
+    戻り値: {"management_number": str, "is_completed": bool}
     チェックリストがなければ {}
     """
     import re
@@ -621,36 +631,20 @@ def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
 
     management_number = None
     is_completed = False
-    confirmed = set()
-    valid = set("1234")
 
     for msg in data.get("messages", []):
         text = msg.get("text", "")
         is_bot = bool(msg.get("bot_id") or msg.get("bot_profile"))
-
         if is_bot:
-            # チェックリスト投稿を検出
-            m = re.search(r'\*(\w+)\* の動作確認をしてください', text)
+            m = re.search(r'\*(\w+)\* の動作確認・現状確認をお願いします', text)
             if m:
                 management_number = m.group(1)
-            # 完了メッセージを検出
             if "動作確認完了" in text:
                 is_completed = True
-        else:
-            # ユーザーのチェックリスト回答を集計（スレッド内の全回答を累積）
-            n = normalize_keyword(text)
-            if n == "完了":
-                confirmed = {"1", "2", "3", "4"}
-            elif n and all(c in valid for c in n):
-                confirmed.update(n)
 
     if not management_number:
         return {}
-    return {
-        "management_number": management_number,
-        "confirmed": confirmed,
-        "is_completed": is_completed,
-    }
+    return {"management_number": management_number, "is_completed": is_completed}
 
 
 def update_monday_item_status(management_number: str, status_label: str) -> None:
@@ -752,11 +746,11 @@ def process_slack_message(event: dict) -> None:
         checklist = get_checklist_state(channel_id, thread_ts)
         if checklist and not checklist["is_completed"]:
             n = normalize_keyword(user_message)
-            valid = set("1234")
-            is_checklist_input = (n == "完了") or (n and all(c in valid for c in n))
+            # 先頭が1〜5の数字 → 状態番号＋コメントの回答とみなす
+            is_checklist_input = n and n[0] in CONDITION_MAP
             if is_checklist_input:
                 try:
-                    _handle_checklist(checklist, channel_id, thread_ts, event)
+                    _handle_checklist(checklist, user_message, channel_id, thread_ts, event)
                 except Exception as e:
                     print(f"[チェックリスト処理エラー] {e}")
                     post_to_slack(channel_id, thread_ts, f":warning: チェックリスト処理エラー: {e}")
@@ -920,28 +914,44 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
                 mention_user=user_id)
 
 
-def _handle_checklist(checklist: dict, channel_id: str, thread_ts: str, event: dict) -> None:
-    """チェックリスト応答を処理する（累積集計・完了判定）"""
+def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts: str, event: dict) -> None:
+    """チェックリスト応答（状態番号＋フリーコメント）を処理する"""
     user_id = event.get("user", "")
     management_number = checklist["management_number"]
-    confirmed = checklist["confirmed"]  # 累積済み（今回の入力も含まれる）
-    all_items = {"1", "2", "3", "4"}
-    missing = sorted(all_items - confirmed)
 
-    if missing:
-        missing_text = "\n".join([f"{i}️⃣ {CHECKLIST_ITEMS[i]}" for i in missing])
-        post_to_slack(channel_id, thread_ts,
-            f"⚠️ 以下の項目がまだ完了していません：\n{missing_text}\n\n"
-            f"残りの番号を入力してください（例：`{''.join(missing)}`）",
-            mention_user=user_id)
-    else:
-        post_to_slack(channel_id, thread_ts,
-            f"✅ *動作確認完了* {management_number}\nすべての項目が確認されました。",
-            mention_user=user_id)
-        try:
-            update_monday_item_status(management_number, "動作確認済み")
-        except Exception as e:
-            print(f"[Monday.com動作確認更新エラー] {e}")
+    # 先頭の数字を状態番号として取得、残りをコメントとして扱う
+    n = normalize_keyword(raw_text)
+    condition_key = n[0]
+    condition_label = CONDITION_MAP.get(condition_key, "")
+    comment = n[1:].strip() if len(n) > 1 else ""
+
+    reply = (
+        f"✅ *動作確認完了* {management_number}\n"
+        f"📊 状態：*{condition_label}*\n"
+    )
+    if comment:
+        reply += f"💬 {comment}"
+
+    post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
+
+    # Monday.comのステータスと状態を更新
+    try:
+        update_monday_item_status(management_number, "動作確認済み")
+    except Exception as e:
+        print(f"[Monday.com動作確認更新エラー] {e}")
+
+    # スプレッドシートに動作確認結果を記録
+    try:
+        send_to_spreadsheet({
+            "action":           "checklist_update",
+            "kanri_bango":      management_number,
+            "condition":        condition_label,
+            "checklist_comment": comment,
+            "staff_id":         get_staff_code(user_id),
+            "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
+        })
+    except Exception as e:
+        print(f"[スプレッドシート動作確認更新エラー] {e}")
 
 
 @app.route("/debug", methods=["GET"])
