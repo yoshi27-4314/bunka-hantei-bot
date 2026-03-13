@@ -729,6 +729,11 @@ def process_slack_message(event: dict) -> None:
         handle_satsuei_channel(event)
         return
 
+    shuppinon_channel_id = os.environ.get("SHUPPINON_CHANNEL_ID", "")
+    if shuppinon_channel_id and channel_id == shuppinon_channel_id:
+        handle_shuppinon_channel(event)
+        return
+
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
@@ -1156,6 +1161,242 @@ def handle_satsuei_channel(event: dict) -> None:
             })
         except Exception as e:
             print(f"[スプレッドシート撮影済み更新エラー] {e}")
+
+
+# ── 出品チャンネル ────────────────────────────────
+
+# 出品データの一時保管（スレッドTS → 出品セッション）
+listing_sessions = {}
+
+LISTING_COMMANDS = {
+    "タイトル":  "title",
+    "開始価格":  "start_price",
+    "即決価格":  "buyout_price",
+    "説明文":    "description",
+    "サイズ":    "size",
+}
+
+
+def parse_listing_command(text: str):
+    """出品データ修正コマンドを解析して (field, value) を返す"""
+    n = normalize_keyword(text)
+    for jp, field in LISTING_COMMANDS.items():
+        for sep in ("：", ":"):
+            prefix = f"{jp}{sep}"
+            if n.startswith(prefix):
+                return field, n[len(prefix):].strip()
+    return None, None
+
+
+def get_item_from_monday(management_number: str) -> dict:
+    """monday.comから管理番号に対応するアイテムデータを取得する"""
+    query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            items_page(limit: 500) {
+                items {
+                    name
+                    column_values { id text }
+                }
+            }
+        }
+    }
+    """
+    result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
+    items = (result.get("data", {}).get("boards", [{}])[0]
+             .get("items_page", {}).get("items", []))
+    for item in items:
+        cols = {cv["id"]: cv["text"] for cv in item.get("column_values", [])}
+        if cols.get("kanri_bango") == management_number:
+            return {"monday_name": item["name"], **cols}
+    return {}
+
+
+def generate_listing_content(management_number: str, item_data: dict) -> dict:
+    """Claudeでヤフオク出品タイトル・説明文・価格を生成する"""
+    import re
+    client = get_anthropic_client()
+    if not client:
+        return {}
+    prompt = (
+        f"以下の商品情報をもとに、ヤフオクの出品データをJSON形式で作成してください。\n\n"
+        f"管理番号：{management_number}\n"
+        f"販売チャンネル：{item_data.get('hantei_channel', '')}\n"
+        f"予想販売価格：{item_data.get('yosou_kakaku', '')}\n"
+        f"在庫予測期間：{item_data.get('zaiko_kikan', '')}\n"
+        f"内部KW：{item_data.get('internal_keyword', '')}\n\n"
+        "以下のJSON形式のみで返してください（説明文不要）：\n"
+        '{"title":"出品タイトル（40文字以内）",'
+        '"description":"商品説明文（200〜400文字）",'
+        '"start_price":開始価格の数字,'
+        '"buyout_price":即決価格の数字}'
+    )
+    try:
+        response = get_anthropic_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=600,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = response.content[0].text.strip()
+        m = re.search(r'\{.*\}', text, re.DOTALL)
+        if m:
+            return json.loads(m.group(0))
+    except Exception as e:
+        print(f"[出品コンテンツ生成エラー] {e}")
+    return {}
+
+
+def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention_user: str = "") -> None:
+    """出品データをSlackに整形して表示する"""
+    mn = session["management_number"]
+    start = session.get("start_price", 0)
+    buyout = session.get("buyout_price", 0)
+    size = session.get("size", "")
+    text = (
+        f"📦 *{mn}* 出品データ確認\n\n"
+        f"📋 タイトル：{session.get('title', '（未設定）')}\n"
+        f"📊 状態：{session.get('condition', '（未確認）')}\n"
+        f"💰 開始価格：¥{start:,}\n"
+        f"💴 即決価格：¥{buyout:,}\n"
+        f"📐 梱包サイズ：{size + 'サイズ' if size else '（推定中）'}\n\n"
+        f"📝 説明文：\n{session.get('description', '（未生成）')}\n\n"
+        "─────────────────────\n"
+        "*修正する場合はコマンドで入力してください：*\n"
+        "`タイトル：新しいタイトル`\n"
+        "`開始価格：5000`\n"
+        "`即決価格：15000`\n"
+        "`説明文：新しい説明文`\n"
+        "`サイズ：120`\n\n"
+        "✅ 準備ができたら *保管ロケーション番号* を入力してください（例：`A-12`）"
+    )
+    post_to_slack(channel_id, thread_ts, text, mention_user=mention_user)
+
+
+def execute_listing(session: dict, location: str, channel_id: str, thread_ts: str, user_id: str) -> None:
+    """出品を実行する（スプレッドシート記録 + Monday.com更新）"""
+    import re
+    management_number = session["management_number"]
+
+    # スプレッドシートに出品データを記録
+    try:
+        send_to_spreadsheet({
+            "action":       "shuppinon_listing",
+            "kanri_bango":  management_number,
+            "title":        session.get("title", ""),
+            "description":  session.get("description", ""),
+            "condition":    session.get("condition", ""),
+            "start_price":  str(session.get("start_price", "")),
+            "buyout_price": str(session.get("buyout_price", "")),
+            "size":         session.get("size", ""),
+            "location":     location,
+            "staff_id":     get_staff_code(user_id),
+            "timestamp":    datetime.now().strftime("%Y/%m/%d %H:%M"),
+        })
+    except Exception as e:
+        print(f"[スプレッドシート出品記録エラー] {e}")
+
+    # Monday.comステータスを「出品中」に更新
+    try:
+        update_monday_item_status(management_number, "出品中")
+    except Exception as e:
+        print(f"[Monday.com出品中更新エラー] {e}")
+
+    # TODO: ヤフオク自動出品（オークタウンAPI確認後に実装予定）
+    start = session.get("start_price", 0)
+    buyout = session.get("buyout_price", 0)
+    post_to_slack(channel_id, thread_ts,
+        f"✅ *{management_number}* 出品処理を登録しました\n"
+        f"📍 保管場所：*{location}*\n"
+        f"📋 タイトル：{session.get('title', '')}\n"
+        f"💰 開始：¥{start:,} ／ 即決：¥{buyout:,}\n\n"
+        "🔜 ヤフオクAPI連携は4/1以降に追加予定です",
+        mention_user=user_id)
+
+
+def handle_shuppinon_channel(event: dict) -> None:
+    """出品チャンネルのイベントを処理する"""
+    import re
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
+    user_id = event.get("user", "")
+    files = event.get("files", [])
+    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
+    text = normalize_keyword(event.get("text", ""))
+    is_new_post = not event.get("thread_ts")
+
+    # ── 新規投稿（テプラ写真）──────────────────────────
+    if is_new_post:
+        if not image_urls:
+            return
+        post_to_slack(channel_id, current_ts,
+            "🔍 管理番号を読み取り中...", mention_user=user_id)
+        management_number = extract_management_number_from_image(image_urls[0])
+        if not management_number:
+            post_to_slack(channel_id, current_ts,
+                "⚠️ テプラの管理番号を読み取れませんでした。\n"
+                "管理番号がはっきり写るよう再度投稿してください。")
+            return
+
+        # Monday.comからデータ取得
+        item_data = get_item_from_monday(management_number)
+        if not item_data:
+            post_to_slack(channel_id, current_ts,
+                f"⚠️ *{management_number}* のデータが見つかりませんでした。\n"
+                "管理番号を確認してください。")
+            return
+
+        # Claudeで出品コンテンツ生成
+        post_to_slack(channel_id, current_ts, "⏳ 出品データを生成中...")
+        listing = generate_listing_content(management_number, item_data)
+
+        # 梱包サイズを内部KWから推定（例: /S80/ → 80）
+        kw = item_data.get("internal_keyword", "")
+        size_m = re.search(r'/[A-Z]+(\d+)/', kw)
+        size = size_m.group(1) if size_m else ""
+
+        session = {
+            "management_number": management_number,
+            "title":       listing.get("title", management_number),
+            "description": listing.get("description", ""),
+            "condition":   item_data.get("kakushin_do", ""),
+            "start_price": listing.get("start_price", 0),
+            "buyout_price": listing.get("buyout_price", 0),
+            "size":        size,
+            "item_data":   item_data,
+        }
+        listing_sessions[current_ts] = session
+        post_listing_summary(channel_id, current_ts, session, mention_user=user_id)
+        return
+
+    # ── スレッド内（修正コマンド or ロケーション番号）──
+    session = listing_sessions.get(thread_ts)
+    if not session:
+        return  # セッションなし（再起動後など）
+
+    # 修正コマンドの判定
+    field, value = parse_listing_command(text)
+    if field:
+        if field == "start_price":
+            try:
+                session["start_price"] = int(re.sub(r'[^\d]', '', value))
+            except Exception:
+                pass
+        elif field == "buyout_price":
+            try:
+                session["buyout_price"] = int(re.sub(r'[^\d]', '', value))
+            except Exception:
+                pass
+        else:
+            session[field] = value
+        listing_sessions[thread_ts] = session
+        post_listing_summary(channel_id, thread_ts, session, mention_user=user_id)
+        return
+
+    # ロケーション番号（修正コマンド以外のすべてのテキスト）
+    if text:
+        execute_listing(session, text, channel_id, thread_ts, user_id)
+        del listing_sessions[thread_ts]
 
 
 @app.route("/debug", methods=["GET"])
