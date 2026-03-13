@@ -688,7 +688,16 @@ def send_to_spreadsheet(payload: dict) -> None:
     print("[スプレッドシート転記完了]")
 
 
-def post_to_slack(channel_id: str, thread_ts: str, text: str, mention_user: str = "") -> None:
+# チャンネルごとのBot表示名
+BOT_NAMES = {
+    "bunika":    "北大路魯山人",  # 分荷判定
+    "satsuei":   "白洲次郎",     # 写真撮影
+    "shuppinon": "岩崎弥太郎",   # 出品・保管
+    "konpo":     "黒田官兵衛",   # 梱包・出荷（未実装）
+}
+
+
+def post_to_slack(channel_id: str, thread_ts: str, text: str, mention_user: str = "", bot_role: str = "bunika") -> None:
     """Slackの指定スレッドにメッセージを返信する"""
     if mention_user:
         text = f"<@{mention_user}> {text}"
@@ -704,6 +713,7 @@ def post_to_slack(channel_id: str, thread_ts: str, text: str, mention_user: str 
         "channel": channel_id,
         "thread_ts": thread_ts,
         "text": text,
+        "username": BOT_NAMES.get(bot_role, "北大路魯山人"),
     }
     response = httpx.post(url, headers=headers, json=payload, timeout=10)
     result = response.json()
@@ -1118,14 +1128,16 @@ def handle_satsuei_channel(event: dict) -> None:
         if not management_number:
             post_to_slack(channel_id, current_ts,
                 "⚠️ テプラの管理番号を読み取れませんでした。\n"
-                "管理番号がはっきり写るよう再度投稿してください。")
+                "管理番号がはっきり写るよう再度投稿してください。",
+                bot_role="satsuei")
             return
         # テプラ画像をDriveに保存
         upload_images_to_drive(management_number, [image_urls[0]], is_tepura=True)
         post_to_slack(channel_id, current_ts,
             f"📸 管理番号 *{management_number}* を確認しました。\n"
             "商品写真をこのスレッドに投稿してください。\n"
-            "※複数枚まとめてOKです。撮影完了後は `完了` と入力してください。")
+            "※複数枚まとめてOKです。撮影完了後は `完了` と入力してください。",
+            bot_role="satsuei")
         return
 
     # ── スレッド内（商品写真 or 完了）──────────────────
@@ -1140,13 +1152,13 @@ def handle_satsuei_channel(event: dict) -> None:
         post_to_slack(channel_id, thread_ts,
             f"📷 {len(image_urls)}枚を保存しました。\n"
             "追加写真を投稿するか `完了` と入力してください。",
-            mention_user=user_id)
+            mention_user=user_id, bot_role="satsuei")
 
     # 完了コマンド
     if text == "完了":
         post_to_slack(channel_id, thread_ts,
             f"✅ *{management_number}* 撮影完了しました！",
-            mention_user=user_id)
+            mention_user=user_id, bot_role="satsuei")
         try:
             update_monday_item_status(management_number, "撮影済み")
         except Exception as e:
@@ -1269,7 +1281,7 @@ def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention
         "`サイズ：120`\n\n"
         "✅ 準備ができたら *保管ロケーション番号* を入力してください（例：`A-12`）"
     )
-    post_to_slack(channel_id, thread_ts, text, mention_user=mention_user)
+    post_to_slack(channel_id, thread_ts, text, mention_user=mention_user, bot_role="shuppinon")
 
 
 def execute_listing(session: dict, location: str, channel_id: str, thread_ts: str, user_id: str) -> None:
@@ -1310,7 +1322,7 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
         f"📋 タイトル：{session.get('title', '')}\n"
         f"💰 開始：¥{start:,} ／ 即決：¥{buyout:,}\n\n"
         "🔜 ヤフオクAPI連携は4/1以降に追加予定です",
-        mention_user=user_id)
+        mention_user=user_id, bot_role="shuppinon")
 
 
 def handle_shuppinon_channel(event: dict) -> None:
@@ -1330,12 +1342,13 @@ def handle_shuppinon_channel(event: dict) -> None:
         if not image_urls:
             return
         post_to_slack(channel_id, current_ts,
-            "🔍 管理番号を読み取り中...", mention_user=user_id)
+            "🔍 管理番号を読み取り中...", mention_user=user_id, bot_role="shuppinon")
         management_number = extract_management_number_from_image(image_urls[0])
         if not management_number:
             post_to_slack(channel_id, current_ts,
                 "⚠️ テプラの管理番号を読み取れませんでした。\n"
-                "管理番号がはっきり写るよう再度投稿してください。")
+                "管理番号がはっきり写るよう再度投稿してください。",
+                bot_role="shuppinon")
             return
 
         # Monday.comからデータ取得
@@ -1343,11 +1356,12 @@ def handle_shuppinon_channel(event: dict) -> None:
         if not item_data:
             post_to_slack(channel_id, current_ts,
                 f"⚠️ *{management_number}* のデータが見つかりませんでした。\n"
-                "管理番号を確認してください。")
+                "管理番号を確認してください。",
+                bot_role="shuppinon")
             return
 
         # Claudeで出品コンテンツ生成
-        post_to_slack(channel_id, current_ts, "⏳ 出品データを生成中...")
+        post_to_slack(channel_id, current_ts, "⏳ 出品データを生成中...", bot_role="shuppinon")
         listing = generate_listing_content(management_number, item_data)
 
         # 梱包サイズを内部KWから推定（例: /S80/ → 80）
