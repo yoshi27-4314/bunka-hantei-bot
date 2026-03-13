@@ -58,9 +58,20 @@ def monday_graphql(query: str, variables: dict = None) -> dict:
     return response.json()
 
 
-def get_monthly_sequence() -> int:
-    """今月の管理番号通し番号をmonday.comのアイテム数から取得する"""
+# 確定チャンネル → アカウント区分 (V=ビンテージ / G=現行品 / M=まとめ売り / E=eBay)
+CHANNEL_TO_ACCOUNT_TYPE = {
+    "ヤフオクヴィンテージ": "V",
+    "ヤフオク現行":         "G",
+    "ヤフオクまとめ":       "M",
+    "eBayシングル":         "E",
+    "eBayまとめ":           "E",
+}
+
+
+def get_monthly_sequence(account_type: str) -> int:
+    """今月・アカウント区分ごとの通し番号をmonday.comのアイテム数から取得する"""
     yymm = datetime.now().strftime("%y%m")
+    prefix = f"{yymm}{account_type}"   # 例: 2603V
     query = """
     query ($board_id: ID!) {
         boards(ids: [$board_id]) {
@@ -82,19 +93,23 @@ def get_monthly_sequence() -> int:
                  .get("items", []))
         count = sum(
             1 for item in items
-            if item.get("column_values", [{}])[0].get("text", "").startswith(yymm)
+            if item.get("column_values", [{}])[0].get("text", "").startswith(prefix)
         )
         return count + 1
     except Exception as e:
         print(f"[通し番号取得エラー] {e}")
-        return int(datetime.now().strftime("%S%f")[:3]) + 1
+        return int(datetime.now().strftime("%S%f")[:4]) + 1
 
 
-def generate_management_number() -> str:
-    """管理番号を生成する（例：2602001）西暦下2桁+月2桁+月次通し番号3桁"""
+def generate_management_number(account_type: str) -> str:
+    """管理番号を生成する（例：2603V0001）
+    西暦下2桁 + 月2桁 + アカウント区分(V/G/M/E) + 月次通し番号4桁
+    V=ヤフオクビンテージ / G=ヤフオク現行 / M=ヤフオクまとめ / E=eBay
+    ※ロット販売・社内利用・スクラップ・廃棄は管理番号なし
+    """
     yymm = datetime.now().strftime("%y%m")
-    seq = get_monthly_sequence()
-    return f"{yymm}{seq:03d}"
+    seq = get_monthly_sequence(account_type)
+    return f"{yymm}{account_type}{seq:04d}"
 
 
 def extract_judgment(response_text: str) -> dict:
@@ -471,8 +486,11 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
     return result
 
 
-def get_confirmed_kanri_bango(channel_id: str, thread_ts: str) -> str:
-    """スレッド内のBot確定メッセージから管理番号を取得する"""
+def get_confirmation_from_thread(channel_id: str, thread_ts: str) -> dict:
+    """スレッド内のBot確定メッセージから管理番号と確定チャンネルを取得する。
+    管理番号なしの確定（社内利用・スクラップ・廃棄・ロット販売）も検出する。
+    戻り値: {"kanri_bango": str, "kakutei_channel": str}
+    """
     import re
     token = get_slack_token()
     url = "https://slack.com/api/conversations.replies"
@@ -481,10 +499,26 @@ def get_confirmed_kanri_bango(channel_id: str, thread_ts: str) -> str:
     for msg in response.json().get("messages", []):
         if not (msg.get("bot_id") or msg.get("bot_profile")):
             continue
-        match = re.search(r'管理番号：\*?(\w+)\*?', msg.get("text", ""))
-        if match:
-            return match.group(1)
-    return ""
+        text = msg.get("text", "")
+        # 確定メッセージかどうか判定（管理番号あり・なし両方）
+        if "確定：" not in text:
+            continue
+        kanri_bango = ""
+        kakutei_channel = ""
+        m_kanri = re.search(r'管理番号：\*?(\w+)\*?', text)
+        if m_kanri:
+            kanri_bango = m_kanri.group(1)
+        m_channel = re.search(r'確定：\*?(.+?)\*?(?:\n|$)', text)
+        if m_channel:
+            kakutei_channel = m_channel.group(1).strip()
+        if kakutei_channel:
+            return {"kanri_bango": kanri_bango, "kakutei_channel": kakutei_channel}
+    return {"kanri_bango": "", "kakutei_channel": ""}
+
+
+def get_confirmed_kanri_bango(channel_id: str, thread_ts: str) -> str:
+    """後方互換用。get_confirmation_from_thread に委譲する"""
+    return get_confirmation_from_thread(channel_id, thread_ts)["kanri_bango"]
 
 
 def cancel_monday_item(kanri_bango: str) -> None:
@@ -616,10 +650,10 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
     user_id = event.get("user", "不明")
 
     # 通販対象チャンネル（管理番号・monday.com登録対象）
+    # ロット販売・社内利用・スクラップ・廃棄は管理番号なし・スプレッドシートのみ
     TSUHAN_CHANNELS = {
         "eBayシングル", "eBayまとめ",
         "ヤフオクヴィンテージ", "ヤフオク現行", "ヤフオクまとめ",
-        "ロット販売",
     }
 
     if cmd_type == 'kakutei':
@@ -636,10 +670,12 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         else:
             kakutei_channel = normalize_channel(cmd_option)  # 確定/○○ の場合
 
-        # 通販対象チャンネルのみ管理番号発行
+        # 通販対象チャンネルのみ管理番号発行（アカウント区分を自動判定）
         management_number = ""
         if kakutei_channel in TSUHAN_CHANNELS:
-            management_number = generate_management_number()
+            account_type = CHANNEL_TO_ACCOUNT_TYPE.get(kakutei_channel, "G")
+            management_number = generate_management_number(account_type)
+            print(f"[管理番号発行] {management_number} (区分:{account_type} チャンネル:{kakutei_channel})")
 
         # スプレッドシートに転記（全チャンネル共通）
         payload = {
@@ -685,29 +721,40 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         post_to_slack(channel_id, thread_ts, "⏸️ 保留にしました。")
 
     elif cmd_type == 'cancel':
-        kanri_bango = get_confirmed_kanri_bango(channel_id, thread_ts)
-        if kanri_bango:
-            # 確定済み → スプレッドシートにキャンセル行追記・Monday.comステータス更新
+        confirmation = get_confirmation_from_thread(channel_id, thread_ts)
+        kanri_bango = confirmation["kanri_bango"]
+        confirmed_channel = confirmation["kakutei_channel"]
+
+        if confirmed_channel:
+            # 確定済み（管理番号あり・なし両方）→ スプレッドシートにキャンセル行追記
             cancel_payload = {
-                "kanri_bango":     kanri_bango,
-                "kakutei_channel": "キャンセル",
-                "first_channel":   "",
-                "second_channel":  "",
-                "predicted_price": "",
+                # 管理番号なしの場合は「---」を記入してキャンセル行と識別できるようにする
+                "kanri_bango":      kanri_bango if kanri_bango else "---",
+                "kakutei_channel":  f"キャンセル（{confirmed_channel}）",
+                "first_channel":    "",
+                "second_channel":   "",
+                "predicted_price":  "",
                 "inventory_period": "",
-                "score":           "",
+                "score":            "",
                 "internal_keyword": "",
-                "staff_id":        user_id,
-                "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
+                "staff_id":         user_id,
+                "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
             }
             send_to_spreadsheet(cancel_payload)
-            try:
-                cancel_monday_item(kanri_bango)
-            except Exception as e:
-                print(f"[Monday.comキャンセルエラー] {e}")
-            post_to_slack(channel_id, thread_ts,
-                f"🗑️ 管理番号 *{kanri_bango}* をキャンセルしました。\n作業時間は実績としてカウントされます。",
-                mention_user=user_id)
+
+            # 管理番号ありの場合のみMonday.comも更新
+            if kanri_bango:
+                try:
+                    cancel_monday_item(kanri_bango)
+                except Exception as e:
+                    print(f"[Monday.comキャンセルエラー] {e}")
+                post_to_slack(channel_id, thread_ts,
+                    f"🗑️ 管理番号 *{kanri_bango}* をキャンセルしました。\n作業時間は実績としてカウントされます。",
+                    mention_user=user_id)
+            else:
+                post_to_slack(channel_id, thread_ts,
+                    f"🗑️ *{confirmed_channel}* の確定をキャンセルしました。\nスプレッドシートに記録しました。",
+                    mention_user=user_id)
         else:
             # 確定前キャンセル → 記録なし
             post_to_slack(channel_id, thread_ts, "🗑️ 判定を取り消しました。記録はされません。",
