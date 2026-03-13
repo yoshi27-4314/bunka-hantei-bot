@@ -723,6 +723,12 @@ def process_slack_message(event: dict) -> None:
     print(f"[処理開始] channel={channel_id} ts={thread_ts} message={user_message[:30]}")
     print(f"[ENV確認] ANTHROPIC_API_KEY={'設定済み' if anthropic_key else '未設定'} SLACK_BOT_TOKEN={'設定済み' if slack_token else '未設定'}")
 
+    # ── チャンネルルーティング ────────────────────────────
+    satsuei_channel_id = os.environ.get("SATSUEI_CHANNEL_ID", "")
+    if satsuei_channel_id and channel_id == satsuei_channel_id:
+        handle_satsuei_channel(event)
+        return
+
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
@@ -952,6 +958,204 @@ def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts
         })
     except Exception as e:
         print(f"[スプレッドシート動作確認更新エラー] {e}")
+
+
+# ── 撮影確認チャンネル ────────────────────────────────
+
+def get_drive_service():
+    """Google Drive APIサービスを返す。認証情報未設定の場合はNone"""
+    import base64
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    json_b64 = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    if not json_b64:
+        print("[Google Drive] GOOGLE_SERVICE_ACCOUNT_JSON 未設定・スキップ")
+        return None
+    try:
+        creds_dict = json.loads(base64.b64decode(json_b64).decode())
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        print(f"[Google Drive認証エラー] {e}")
+        return None
+
+
+def get_or_create_drive_folder(service, parent_id: str, folder_name: str) -> str:
+    """指定フォルダ内のサブフォルダを取得または作成してIDを返す"""
+    query = (
+        f"name='{folder_name}' and '{parent_id}' in parents and "
+        f"mimeType='application/vnd.google-apps.folder' and trashed=false"
+    )
+    results = service.files().list(q=query, fields="files(id)").execute()
+    files = results.get("files", [])
+    if files:
+        return files[0]["id"]
+    metadata = {
+        "name": folder_name,
+        "mimeType": "application/vnd.google-apps.folder",
+        "parents": [parent_id],
+    }
+    folder = service.files().create(body=metadata, fields="id").execute()
+    return folder["id"]
+
+
+def upload_images_to_drive(management_number: str, image_urls: list, is_tepura: bool = False) -> str:
+    """画像をGoogle Driveの管理番号フォルダにアップロードし、フォルダURLを返す"""
+    import io
+    from googleapiclient.http import MediaIoBaseUpload
+
+    service = get_drive_service()
+    root_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+    if not service or not root_folder_id:
+        return ""
+
+    # フォルダ構成: TakeBack商品画像/YYMM/管理番号/
+    yymm = management_number[:4]
+    yymm_id = get_or_create_drive_folder(service, root_folder_id, yymm)
+    item_id = get_or_create_drive_folder(service, yymm_id, management_number)
+
+    # 既存ファイル数から採番開始番号を決定
+    existing = service.files().list(
+        q=f"'{item_id}' in parents and trashed=false",
+        fields="files(name)"
+    ).execute().get("files", [])
+    next_num = len(existing) + 1
+
+    token = get_slack_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
+
+    for i, url in enumerate(image_urls):
+        try:
+            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+            ext = ext_map.get(content_type, "jpg")
+            filename = f"01_テプラ.{ext}" if is_tepura else f"{next_num + i:02d}_商品.{ext}"
+            media = MediaIoBaseUpload(io.BytesIO(resp.content), mimetype=content_type)
+            service.files().create(
+                body={"name": filename, "parents": [item_id]},
+                media_body=media, fields="id"
+            ).execute()
+            print(f"[Drive] {filename} アップロード完了")
+        except Exception as e:
+            print(f"[Drive] アップロードエラー: {e}")
+
+    return f"https://drive.google.com/drive/folders/{item_id}"
+
+
+def extract_management_number_from_image(image_url: str) -> str:
+    """テプラ画像からClaude Visionで管理番号を読み取る"""
+    import re
+    try:
+        image_data, media_type = fetch_image_as_base64(image_url)
+        client = get_anthropic_client()
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=50,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
+                    {"type": "text", "text": (
+                        "この画像のテプラ（ラベル）に書かれた管理番号を読み取ってください。"
+                        "管理番号は「2603V0001」のような形式です（年月2桁+月2桁+英字1文字[V/G/M/E]+数字4桁）。"
+                        "管理番号だけを返してください。見つからない場合は「不明」と返してください。"
+                    )}
+                ]
+            }]
+        )
+        text = response.content[0].text.strip()
+        m = re.search(r'\d{4}[VGME]\d{4}', text)
+        return m.group(0) if m else ""
+    except Exception as e:
+        print(f"[管理番号読取エラー] {e}")
+        return ""
+
+
+def get_management_number_from_satsuei_thread(channel_id: str, thread_ts: str) -> str:
+    """撮影スレッド内のBot確認メッセージから管理番号を取得する"""
+    import re
+    token = get_slack_token()
+    response = httpx.get(
+        "https://slack.com/api/conversations.replies",
+        headers={"Authorization": f"Bearer {token}"},
+        params={"channel": channel_id, "ts": thread_ts}, timeout=10
+    )
+    for msg in response.json().get("messages", []):
+        if not (msg.get("bot_id") or msg.get("bot_profile")):
+            continue
+        m = re.search(r'管理番号\s*\*?(\d{4}[VGME]\d{4})\*?', msg.get("text", ""))
+        if m:
+            return m.group(1)
+    return ""
+
+
+def handle_satsuei_channel(event: dict) -> None:
+    """撮影確認チャンネルのイベントを処理する"""
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
+    user_id = event.get("user", "")
+    files = event.get("files", [])
+    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
+    text = normalize_keyword(event.get("text", ""))
+    is_new_post = not event.get("thread_ts")
+
+    # ── 新規投稿（テプラ写真）──────────────────────────
+    if is_new_post:
+        if not image_urls:
+            return
+        management_number = extract_management_number_from_image(image_urls[0])
+        if not management_number:
+            post_to_slack(channel_id, current_ts,
+                "⚠️ テプラの管理番号を読み取れませんでした。\n"
+                "管理番号がはっきり写るよう再度投稿してください。")
+            return
+        # テプラ画像をDriveに保存
+        upload_images_to_drive(management_number, [image_urls[0]], is_tepura=True)
+        post_to_slack(channel_id, current_ts,
+            f"📸 管理番号 *{management_number}* を確認しました。\n"
+            "商品写真をこのスレッドに投稿してください。\n"
+            "※複数枚まとめてOKです。撮影完了後は `完了` と入力してください。")
+        return
+
+    # ── スレッド内（商品写真 or 完了）──────────────────
+    management_number = get_management_number_from_satsuei_thread(channel_id, thread_ts)
+    if not management_number:
+        return
+
+    # 商品写真をDriveに保存
+    folder_url = ""
+    if image_urls:
+        folder_url = upload_images_to_drive(management_number, image_urls, is_tepura=False)
+        post_to_slack(channel_id, thread_ts,
+            f"📷 {len(image_urls)}枚を保存しました。\n"
+            "追加写真を投稿するか `完了` と入力してください。",
+            mention_user=user_id)
+
+    # 完了コマンド
+    if text == "完了":
+        post_to_slack(channel_id, thread_ts,
+            f"✅ *{management_number}* 撮影完了しました！",
+            mention_user=user_id)
+        try:
+            update_monday_item_status(management_number, "撮影済み")
+        except Exception as e:
+            print(f"[Monday.com撮影済み更新エラー] {e}")
+        try:
+            send_to_spreadsheet({
+                "action":           "satsuei_update",
+                "kanri_bango":      management_number,
+                "drive_folder_url": folder_url,
+                "staff_id":         get_staff_code(user_id),
+                "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
+            })
+        except Exception as e:
+            print(f"[スプレッドシート撮影済み更新エラー] {e}")
 
 
 @app.route("/debug", methods=["GET"])
