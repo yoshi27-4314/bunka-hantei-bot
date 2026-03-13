@@ -583,6 +583,108 @@ def cancel_monday_item(kanri_bango: str) -> None:
     print(f"[Monday.com] {kanri_bango} をキャンセルに更新")
 
 
+# ── 動作確認チェックリスト ────────────────────────────────
+
+CHECKLIST_ITEMS = {
+    "1": "電源を入れて動作確認した",
+    "2": "ドア・引き出し・蓋など開閉確認した",
+    "3": "外観・傷・汚れを確認した",
+    "4": "パーツ欠品がないか確認した",
+}
+
+
+def post_checklist(channel_id: str, thread_ts: str, management_number: str) -> None:
+    """動作確認チェックリストをスレッドに投稿する"""
+    text = (
+        f"📋 *{management_number}* の動作確認をしてください\n\n"
+        "1️⃣ 電源を入れて動作確認した\n"
+        "2️⃣ ドア・引き出し・蓋など開閉確認した\n"
+        "3️⃣ 外観・傷・汚れを確認した\n"
+        "4️⃣ パーツ欠品がないか確認した\n\n"
+        "✅ 完了した番号を入力してください（例：`1234`）\n"
+        "※ 全て完了の場合は `完了` でもOKです"
+    )
+    post_to_slack(channel_id, thread_ts, text)
+
+
+def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
+    """スレッド内のチェックリスト状態を返す。
+    戻り値: {"management_number": str, "confirmed": set, "is_completed": bool}
+    チェックリストがなければ {}
+    """
+    import re
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = httpx.get(url, headers=headers, params={"channel": channel_id, "ts": thread_ts}, timeout=10)
+    data = response.json()
+
+    management_number = None
+    is_completed = False
+    confirmed = set()
+    valid = set("1234")
+
+    for msg in data.get("messages", []):
+        text = msg.get("text", "")
+        is_bot = bool(msg.get("bot_id") or msg.get("bot_profile"))
+
+        if is_bot:
+            # チェックリスト投稿を検出
+            m = re.search(r'\*(\w+)\* の動作確認をしてください', text)
+            if m:
+                management_number = m.group(1)
+            # 完了メッセージを検出
+            if "動作確認完了" in text:
+                is_completed = True
+        else:
+            # ユーザーのチェックリスト回答を集計（スレッド内の全回答を累積）
+            n = normalize_keyword(text)
+            if n == "完了":
+                confirmed = {"1", "2", "3", "4"}
+            elif n and all(c in valid for c in n):
+                confirmed.update(n)
+
+    if not management_number:
+        return {}
+    return {
+        "management_number": management_number,
+        "confirmed": confirmed,
+        "is_completed": is_completed,
+    }
+
+
+def update_monday_item_status(management_number: str, status_label: str) -> None:
+    """monday.comの該当アイテムのstatusを更新する"""
+    search_query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            items_page(limit: 500) {
+                items { id column_values(ids: ["kanri_bango"]) { text } }
+            }
+        }
+    }
+    """
+    result = monday_graphql(search_query, {"board_id": MONDAY_BOARD_ID})
+    items = (result.get("data", {}).get("boards", [{}])[0]
+             .get("items_page", {}).get("items", []))
+    item_id = next(
+        (i["id"] for i in items
+         if i.get("column_values", [{}])[0].get("text") == management_number),
+        None
+    )
+    if not item_id:
+        print(f"[Monday.com] 管理番号 {management_number} が見つかりません")
+        return
+    col_vals = json.dumps({"status": {"label": status_label}}, ensure_ascii=False)
+    update_query = """
+    mutation ($board_id: ID!, $item_id: ID!, $col_vals: JSON!) {
+        change_multiple_column_values(board_id: $board_id, item_id: $item_id, column_values: $col_vals) { id }
+    }
+    """
+    monday_graphql(update_query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
+    print(f"[Monday.com] {management_number} のステータスを「{status_label}」に更新")
+
+
 def send_to_spreadsheet(payload: dict) -> None:
     """GAS経由でGoogleスプレッドシートにデータを転記する"""
     response = httpx.post(GAS_URL, json=payload, timeout=15, follow_redirects=True)
@@ -645,6 +747,20 @@ def process_slack_message(event: dict) -> None:
                 print(f"[コマンド処理エラー] {e}")
                 post_to_slack(channel_id, thread_ts, f":warning: コマンド処理エラー: {e}")
             return  # コマンドならAI判定はしない
+
+        # ── チェックリスト応答判定 ─────────────────────────
+        checklist = get_checklist_state(channel_id, thread_ts)
+        if checklist and not checklist["is_completed"]:
+            n = normalize_keyword(user_message)
+            valid = set("1234")
+            is_checklist_input = (n == "完了") or (n and all(c in valid for c in n))
+            if is_checklist_input:
+                try:
+                    _handle_checklist(checklist, channel_id, thread_ts, event)
+                except Exception as e:
+                    print(f"[チェックリスト処理エラー] {e}")
+                    post_to_slack(channel_id, thread_ts, f":warning: チェックリスト処理エラー: {e}")
+                return
 
     # ── 通常のAI判定フロー ────────────────────────────────
     # スレッド内の返信であれば会話履歴を取得
@@ -751,6 +867,10 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             reply = f"✅ *確定：{kakutei_channel}*\nスプレッドシートに転記しました。"
         post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
 
+        # 通販系チャンネルのみ動作確認チェックリストを表示
+        if management_number:
+            post_checklist(channel_id, thread_ts, management_number)
+
     elif cmd_type == 'saihantei':
         post_to_slack(channel_id, thread_ts, "🔄 再判定します...")
         judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=[])
@@ -798,6 +918,30 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             # 確定前キャンセル → 記録なし
             post_to_slack(channel_id, thread_ts, "🗑️ 判定を取り消しました。記録はされません。",
                 mention_user=user_id)
+
+
+def _handle_checklist(checklist: dict, channel_id: str, thread_ts: str, event: dict) -> None:
+    """チェックリスト応答を処理する（累積集計・完了判定）"""
+    user_id = event.get("user", "")
+    management_number = checklist["management_number"]
+    confirmed = checklist["confirmed"]  # 累積済み（今回の入力も含まれる）
+    all_items = {"1", "2", "3", "4"}
+    missing = sorted(all_items - confirmed)
+
+    if missing:
+        missing_text = "\n".join([f"{i}️⃣ {CHECKLIST_ITEMS[i]}" for i in missing])
+        post_to_slack(channel_id, thread_ts,
+            f"⚠️ 以下の項目がまだ完了していません：\n{missing_text}\n\n"
+            f"残りの番号を入力してください（例：`{''.join(missing)}`）",
+            mention_user=user_id)
+    else:
+        post_to_slack(channel_id, thread_ts,
+            f"✅ *動作確認完了* {management_number}\nすべての項目が確認されました。",
+            mention_user=user_id)
+        try:
+            update_monday_item_status(management_number, "動作確認済み")
+        except Exception as e:
+            print(f"[Monday.com動作確認更新エラー] {e}")
 
 
 @app.route("/debug", methods=["GET"])
