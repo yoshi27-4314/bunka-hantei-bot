@@ -58,6 +58,27 @@ def monday_graphql(query: str, variables: dict = None) -> dict:
     return response.json()
 
 
+# 担当者Slack UserID → スタッフコード対応表
+# UserIDはSlackプロフィール→「その他」→「メンバーIDをコピー」で取得
+STAFF_MAP = {
+    # "UXXXXXXXX": "YA",  # 浅野儀頼
+    # "UXXXXXXXX": "KH",  # 林和人
+    # "UXXXXXXXX": "MH",  # 平野光雄
+    # "UXXXXXXXX": "YY",  # 横山優
+    # "UXXXXXXXX": "KM",  # 三島圭織
+    # "UXXXXXXXX": "TM",  # 松本豊彦
+    # "UXXXXXXXX": "TK",  # 北瀬孝
+    # "UXXXXXXXX": "YM",  # 桃井侑菜
+    # "UXXXXXXXX": "SI",  # 伊藤佐和子
+    # "UXXXXXXXX": "YS",  # 白木雄介
+}
+
+
+def get_staff_code(user_id: str) -> str:
+    """Slack UserIDからスタッフコードを返す。未登録の場合はUserIDをそのまま返す"""
+    return STAFF_MAP.get(user_id, user_id)
+
+
 # 確定チャンネル → アカウント区分 (V=ビンテージ / G=現行品 / M=まとめ売り / E=eBay)
 CHANNEL_TO_ACCOUNT_TYPE = {
     "ヤフオクヴィンテージ": "V",
@@ -159,14 +180,21 @@ def extract_judgment(response_text: str) -> dict:
     return result
 
 
-def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str) -> None:
+def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str, sakugyou_jikan: int = 0) -> None:
     """monday.comにアイテムを登録する"""
-    column_values = json.dumps({
-        "kanri_bango": management_number,
+    col = {
+        "kanri_bango":    management_number,
         "hantei_channel": judgment.get("first_channel", ""),
-        "kakushin_do": judgment.get("first_confidence", ""),
-        "toshosha": user_id,
-    }, ensure_ascii=False)
+        "kakushin_do":    judgment.get("first_confidence", ""),
+        "toshosha":       get_staff_code(user_id),
+        "yosou_kakaku":   judgment.get("predicted_price", ""),
+        "zaiko_kikan":    judgment.get("inventory_period", ""),
+        "score":          judgment.get("first_score", ""),
+        "status":         {"label": "査定待ち"},
+    }
+    if sakugyou_jikan > 0:
+        col["sakugyou_jikan"] = sakugyou_jikan
+    column_values = json.dumps(col, ensure_ascii=False)
 
     query = """
     mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
@@ -482,7 +510,7 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         cond = re.search(r'状態：(中古|ジャンク[・\-]現状品|中古美品|新品[・\-]未使用品)', text)
         if cond:
             result["condition"] = cond.group(1).strip()
-        break
+        # breakしない → 全メッセージを走査し、最新の判定（再判定含む）で上書きされる
     return result
 
 
@@ -677,6 +705,16 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             management_number = generate_management_number(account_type)
             print(f"[管理番号発行] {management_number} (区分:{account_type} チャンネル:{kakutei_channel})")
 
+        # 分荷作業時間を計算（投稿タイムスタンプ〜確定コマンドの経過時間・分）
+        sakugyou_jikan = 0
+        try:
+            post_ts = float(thread_ts)
+            confirm_ts = float(event.get("ts", thread_ts))
+            sakugyou_jikan = max(0, int((confirm_ts - post_ts) / 60))
+            print(f"[作業時間] {sakugyou_jikan}分")
+        except Exception as e:
+            print(f"[作業時間計算エラー] {e}")
+
         # スプレッドシートに転記（全チャンネル共通）
         payload = {
             "kanri_bango":      management_number,
@@ -691,7 +729,8 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             "inventory_period": judgment.get("inventory_period", ""),
             "score":            judgment.get("first_score", ""),
             "internal_keyword": judgment.get("internal_keyword", ""),
-            "staff_id":         user_id,
+            "staff_id":         get_staff_code(user_id),
+            "sakugyou_jikan":   sakugyou_jikan,
             "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
         }
         send_to_spreadsheet(payload)
@@ -700,7 +739,7 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         if management_number:
             try:
                 item_name = judgment.get("first_channel", "商品")
-                register_to_monday(management_number, item_name, judgment, user_id)
+                register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan)
                 print("[Monday.com登録完了]")
             except Exception as me:
                 print(f"[Monday.com登録エラー] {me}")
