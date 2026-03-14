@@ -1120,19 +1120,27 @@ def handle_satsuei_channel(event: dict) -> None:
     text = normalize_keyword(event.get("text", ""))
     is_new_post = not event.get("thread_ts")
 
-    # ── 新規投稿（テプラ写真）──────────────────────────
+    # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
     if is_new_post:
-        if not image_urls:
+        import re as _re
+        # テキストで管理番号が直接入力された場合
+        text_mn = _re.search(r'\d{4}[VGME]\d{4}', text)
+        if not image_urls and not text_mn:
             return
-        management_number = extract_management_number_from_image(image_urls[0])
-        if not management_number:
-            post_to_slack(channel_id, current_ts,
-                "⚠️ テプラの管理番号を読み取れませんでした。\n"
-                "管理番号がはっきり写るよう再度投稿してください。",
-                bot_role="satsuei")
+        if text_mn and not image_urls:
+            management_number = text_mn.group(0)
+        elif image_urls:
+            management_number = extract_management_number_from_image(image_urls[0])
+            if not management_number:
+                post_to_slack(channel_id, current_ts,
+                    "⚠️ テプラの管理番号を読み取れませんでした。\n"
+                    "もう一度管理番号を送信してください。",
+                    bot_role="satsuei")
+                return
+            # テプラ画像をDriveに保存
+            upload_images_to_drive(management_number, [image_urls[0]], is_tepura=True)
+        else:
             return
-        # テプラ画像をDriveに保存
-        upload_images_to_drive(management_number, [image_urls[0]], is_tepura=True)
         post_to_slack(channel_id, current_ts,
             f"📸 管理番号 *{management_number}* を確認しました。\n"
             "商品写真をこのスレッドに投稿してください。\n"
@@ -1337,17 +1345,22 @@ def handle_shuppinon_channel(event: dict) -> None:
     text = normalize_keyword(event.get("text", ""))
     is_new_post = not event.get("thread_ts")
 
-    # ── 新規投稿（テプラ写真）──────────────────────────
+    # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
     if is_new_post:
-        if not image_urls:
+        import re as _re
+        text_mn = _re.search(r'\d{4}[VGME]\d{4}', text)
+        if not image_urls and not text_mn:
             return
-        post_to_slack(channel_id, current_ts,
-            "🔍 管理番号を読み取り中...", mention_user=user_id, bot_role="shuppinon")
-        management_number = extract_management_number_from_image(image_urls[0])
+        if text_mn and not image_urls:
+            management_number = text_mn.group(0)
+        elif image_urls:
+            post_to_slack(channel_id, current_ts,
+                "🔍 管理番号を読み取り中...", mention_user=user_id, bot_role="shuppinon")
+            management_number = extract_management_number_from_image(image_urls[0])
         if not management_number:
             post_to_slack(channel_id, current_ts,
-                "⚠️ テプラの管理番号を読み取れませんでした。\n"
-                "管理番号がはっきり写るよう再度投稿してください。",
+                "⚠️ 管理番号を確認できませんでした。\n"
+                "もう一度管理番号を送信してください。",
                 bot_role="shuppinon")
             return
 
@@ -1355,8 +1368,8 @@ def handle_shuppinon_channel(event: dict) -> None:
         item_data = get_item_from_monday(management_number)
         if not item_data:
             post_to_slack(channel_id, current_ts,
-                f"⚠️ *{management_number}* のデータが見つかりませんでした。\n"
-                "管理番号を確認してください。",
+                f"⚠️ *{management_number}* は確認できません。\n"
+                "もう一度管理番号を確認して送信してください。",
                 bot_role="shuppinon")
             return
 
