@@ -1441,6 +1441,80 @@ def handle_shuppinon_channel(event: dict) -> None:
 
 konpo_sessions = {}
 
+CARRIER_MAP = {
+    "1": "佐川急便",
+    "2": "アートデリバリー",
+    "3": "西濃運輸",
+    "4": "直接引き取り",
+    "5": "後日発送",
+}
+
+CARRIER_MENU = (
+    "運送会社を番号で選んでください：\n"
+    "1️⃣ 佐川急便\n"
+    "2️⃣ アートデリバリー\n"
+    "3️⃣ 西濃運輸\n"
+    "4️⃣ 直接引き取り\n"
+    "5️⃣ 後日発送"
+)
+
+
+def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
+    """送り状ラベル写真から追跡番号をOCR抽出する"""
+    import httpx as _httpx, base64 as _b64
+    token = os.environ.get("SLACK_BOT_TOKEN", "")
+    try:
+        resp = _httpx.get(image_url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+        image_b64 = _b64.standard_b64encode(resp.content).decode()
+    except Exception as e:
+        print(f"[送り状画像取得エラー] {e}")
+        return ""
+    try:
+        result = anthropic.Anthropic().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=100,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                    {"type": "text", "text": (
+                        f"この{carrier}の送り状ラベルから追跡番号（伝票番号）のみを抽出してください。"
+                        "数字のみで答えてください。見つからない場合は「なし」と答えてください。"
+                    )},
+                ],
+            }],
+        )
+        answer = result.content[0].text.strip()
+        return "" if answer == "なし" else answer
+    except Exception as e:
+        print(f"[追跡番号OCRエラー] {e}")
+        return ""
+
+
+def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number):
+    """出荷手配完了の共通処理"""
+    tracking_text = f"📮 追跡番号：*{tracking_number}*\n" if tracking_number else ""
+    post_to_slack(channel_id, thread_ts,
+        f"🚚 *{management_number}* 出荷手配完了！\n"
+        f"🏢 運送会社：{carrier}\n"
+        f"{tracking_text}",
+        mention_user=user_id, bot_role="konpo")
+    try:
+        update_monday_item_status(management_number, "出荷済み")
+    except Exception as e:
+        print(f"[Monday.com出荷済み更新エラー] {e}")
+    try:
+        send_to_spreadsheet({
+            "action":          "shipping_update",
+            "kanri_bango":     management_number,
+            "carrier":         carrier,
+            "tracking_number": tracking_number,
+            "staff_id":        get_staff_code(user_id),
+            "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
+        })
+    except Exception as e:
+        print(f"[スプレッドシート出荷更新エラー] {e}")
+
 
 def handle_konpo_channel(event: dict) -> None:
     """梱包出荷チャンネルのイベントを処理する"""
@@ -1454,8 +1528,17 @@ def handle_konpo_channel(event: dict) -> None:
     text = normalize_keyword(event.get("text", ""))
     is_new_post = not event.get("thread_ts")
 
-    # ── 新規投稿（管理番号）──────────────────────────────
+    # ── 新規投稿 ──────────────────────────────────────────
     if is_new_post:
+        # 後日発送の送り状後入力: 「管理番号 運送会社 追跡番号」
+        delayed_m = _re.match(r'(\d{4}[VGME]\d{4})\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
+        if delayed_m:
+            mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
+            carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
+            _finish_shipping(channel_id, current_ts, user_id, mn, carrier_name, tracking)
+            return
+
+        # 通常の梱包開始
         text_mn = _re.search(r'\d{4}[VGME]\d{4}', text)
         if not text_mn and not image_urls:
             return
@@ -1486,6 +1569,8 @@ def handle_konpo_channel(event: dict) -> None:
             "management_number": management_number,
             "size": size,
             "packed": False,
+            "carrier": None,
+            "waiting_label": False,
         }
         post_to_slack(channel_id, current_ts,
             f"📦 *{management_number}* の梱包情報\n\n"
@@ -1496,17 +1581,18 @@ def handle_konpo_channel(event: dict) -> None:
             mention_user=user_id, bot_role="konpo")
         return
 
-    # ── スレッド内（梱包完了 or 送り状番号）────────────────
+    # ── スレッド内 ────────────────────────────────────────
     session = konpo_sessions.get(thread_ts)
     if not session:
         return
     management_number = session["management_number"]
 
-    if text in ("梱包完了", "梱包"):
+    # ① 梱包完了 → 運送会社選択へ
+    if text in ("梱包完了", "梱包") and not session["packed"]:
         session["packed"] = True
         konpo_sessions[thread_ts] = session
         post_to_slack(channel_id, thread_ts,
-            "✅ 梱包完了を確認しました。\n送り状番号を入力してください。",
+            f"✅ 梱包完了を確認しました。\n\n{CARRIER_MENU}",
             mention_user=user_id, bot_role="konpo")
         try:
             update_monday_item_status(management_number, "梱包済み")
@@ -1514,25 +1600,42 @@ def handle_konpo_channel(event: dict) -> None:
             print(f"[Monday.com梱包済み更新エラー] {e}")
         return
 
-    if session.get("packed") and text:
-        post_to_slack(channel_id, thread_ts,
-            f"🚚 *{management_number}* 出荷完了！\n"
-            f"📮 送り状番号：*{text}*",
-            mention_user=user_id, bot_role="konpo")
-        try:
-            update_monday_item_status(management_number, "出荷済み")
-        except Exception as e:
-            print(f"[Monday.com出荷済み更新エラー] {e}")
-        try:
-            send_to_spreadsheet({
-                "action":          "shipping_update",
-                "kanri_bango":     management_number,
-                "tracking_number": text,
-                "staff_id":        get_staff_code(user_id),
-                "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
-            })
-        except Exception as e:
-            print(f"[スプレッドシート出荷更新エラー] {e}")
+    # ② 運送会社選択（1〜5）
+    if session["packed"] and not session["carrier"] and text in CARRIER_MAP:
+        carrier = CARRIER_MAP[text]
+        session["carrier"] = carrier
+        konpo_sessions[thread_ts] = session
+
+        if text == "4":  # 直接引き取り
+            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "")
+            del konpo_sessions[thread_ts]
+        elif text == "5":  # 後日発送
+            post_to_slack(channel_id, thread_ts,
+                f"📋 *{management_number}* を「梱包済み（発送待ち）」として保留しました。\n\n"
+                "後日発送時は新規メッセージで以下の形式で投稿してください：\n"
+                "`管理番号 運送会社 追跡番号`\n"
+                "例）`2603G0001 佐川 1234567890`",
+                mention_user=user_id, bot_role="konpo")
+            del konpo_sessions[thread_ts]
+        else:  # 佐川・アート・西濃
+            session["waiting_label"] = True
+            konpo_sessions[thread_ts] = session
+            post_to_slack(channel_id, thread_ts,
+                f"📸 {carrier}の送り状ラベルの写真を送ってください。",
+                mention_user=user_id, bot_role="konpo")
+        return
+
+    # ③ 送り状ラベル写真 → OCRで追跡番号抽出
+    if session.get("waiting_label") and image_urls:
+        carrier = session["carrier"]
+        post_to_slack(channel_id, thread_ts, "🔍 追跡番号を読み取り中...", bot_role="konpo")
+        tracking_number = extract_tracking_number_from_image(image_urls[0], carrier)
+        if not tracking_number:
+            post_to_slack(channel_id, thread_ts,
+                "⚠️ 追跡番号を読み取れませんでした。\nもう一度写真を送ってください。",
+                mention_user=user_id, bot_role="konpo")
+            return
+        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number)
         del konpo_sessions[thread_ts]
 
 
