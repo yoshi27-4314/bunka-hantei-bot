@@ -63,7 +63,7 @@ def monday_graphql(query: str, variables: dict = None) -> dict:
 STAFF_MAP = {
     # "UXXXXXXXX": "YA",  # 浅野儀頼
     "U0ALQ4BJNSV": "KH",  # 林和人
-    # "UXXXXXXXX": "MH",  # 平野光雄
+    "U0AL4R1EMMZ": "MH",  # 平野光雄
     # "UXXXXXXXX": "YY",  # 横山優
     # "UXXXXXXXX": "KM",  # 三島圭織
     # "UXXXXXXXX": "TM",  # 松本豊彦
