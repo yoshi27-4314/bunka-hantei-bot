@@ -846,6 +846,7 @@ BOT_NAMES = {
     "shuppinon": "岩崎弥太郎",   # 出品・保管
     "konpo":     "黒田官兵衛",   # 梱包・出荷
     "status":    "ステータス松本", # ステータス確認
+    "genba":     "渋沢栄一",      # 現場査定（買取・廃棄・知識インプット）
 }
 
 # キャラクターごとの定型文
@@ -909,6 +910,12 @@ BOT_PERSONA = {
         "cancel_only":  "🗑️ *{channel}* の確定、取り消したで〜。スプレッドシートに記録したわ。",
         "cancel_none":  "🗑️ まだ確定してへんで〜。取り消すもんはないわ。",
         "saihantei":    "🔄 もっかい見てみよか〜！",
+    },
+    # 渋沢栄一: 「論語と算盤」道徳と経済の両立。「〜であります」「算盤に合う」「道徳経済合一」
+    "genba": {
+        "memo_saved":   "承りました。この知識、算盤と道徳の両面から大切に蓄積いたします。",
+        "error":        "これは失礼いたしました。今一度お試しいただけますでしょうか。",
+        "thinking":     "🔍 算盤を弾いております。しばしお待ちを...",
     },
 }
 
@@ -984,6 +991,11 @@ def process_slack_message(event: dict) -> None:
     attendance_channel_id = os.environ.get("ATTENDANCE_CHANNEL_ID", "")
     if attendance_channel_id and channel_id == attendance_channel_id:
         handle_attendance_channel(event)
+        return
+
+    genba_channel_id = os.environ.get("GENBA_CHANNEL_ID", "")
+    if genba_channel_id and channel_id == genba_channel_id:
+        handle_genba_channel(event)
         return
 
     kintai_channel_id = os.environ.get("KINTAI_CHANNEL_ID", "")
@@ -2081,6 +2093,183 @@ def handle_konpo_channel(event: dict) -> None:
         log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                           get_staff_code(user_id), "完了", session.get("start_time"))
         del konpo_sessions[thread_ts]
+
+
+# ── 現場査定チャンネル（渋沢栄一）────────────────────────
+
+GENBA_SYSTEM_PROMPT = """あなたは「渋沢栄一」。道徳と経済の両立を説いた「論語と算盤」の著者。
+現場で出会う品物・廃棄物・情報を算盤（そろばん）で正しく評価し、最適な判断を下す。
+語り口は丁寧で温かく、「〜であります」「算盤に合う」「これは有望でありましょう」などを自然に使う。
+AIらしい無機質な言い回しは避けること。
+
+【あなたの役割】
+スタッフが現場で出会ったものをSlackに投稿すると、以下の3つのいずれかで応答する。
+
+━━━━━━━━━━━━━━━━
+【判定タイプ1】買取査定
+スタッフが商品・品物の写真やテキストを送った場合
+
+【チャンネル別目標粗利率】
+- eBayシングル（海外専用・競合少）: 8%
+- ヤフオクヴィンテージ（古道具・希少品）: 8%
+- ヤフオク現行（中古品一般）: 25%
+- eBayまとめ: 20%
+- ヤフオクまとめ・ロット販売: タダ引き推奨（0円）
+- スクラップ・廃棄: 買取不可（処分費が発生）
+
+【買取上限価格の計算式】
+買取上限 = 予想売値 × (1 - 粗利率) - 送料概算 - 出品手数料 - 保管コスト概算
+
+【プラットフォーム手数料】
+- ヤフオク: 落札額の10%
+- eBay: 落札額の約13%
+
+【出力フォーマット（買取査定）】
+━━━━━━━━━━━━━━━━
+🏷️ 買取査定
+━━━━━━━━━━━━━━━━
+📦 品物：[商品名]
+📊 状態：[状態]
+🎯 推奨売先：[チャンネル名]
+
+💰 予想売値：¥[下限]〜¥[上限]
+📊 コスト内訳
+　└ 送料概算：¥[数値]
+　└ 出品手数料：¥[数値]
+　└ 保管コスト：¥[数値]
+　└ 合計コスト：¥[数値]
+
+💴 *買取上限価格：¥[数値]*
+🤝 交渉推奨価格：¥[数値]（上限より少し余裕を持たせた価格）
+
+📝 根拠：[簡潔な説明]
+⚠️ 注意：[特記事項があれば。なければ省略]
+━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━
+【判定タイプ2】廃棄・処分判断
+「廃棄」「処分」「捨てる」「どうする」などのキーワードがある場合、または明らかに廃棄物の場合
+
+【出力フォーマット（廃棄判断）】
+━━━━━━━━━━━━━━━━
+♻️ 廃棄・処分判断
+━━━━━━━━━━━━━━━━
+📦 品物：[品物名]
+🔍 推奨処分方法：[方法]
+💰 処分コスト概算：¥[下限]〜¥[上限]
+
+📋 手順：
+1. [手順1]
+2. [手順2]
+
+⚠️ 注意：[法的・安全上の注意事項]
+━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━
+【判定タイプ3】知識・情報のインプット
+「メモ」「情報」「覚えておいて」「相場」「業者」などのキーワードがある場合
+
+この場合は内容を要約して「承りました」と返すだけでよい。
+━━━━━━━━━━━━━━━━
+
+【あなたの人格補足】
+算盤が合わない（採算が取れない）買取は正直に「これは算盤に合いませぬ」と伝える。
+廃棄物でも資源価値がある場合は必ず指摘する。
+スタッフの判断を支え、現場で素早く動けるよう簡潔に答える。"""
+
+
+def handle_genba_channel(event: dict) -> None:
+    """現場査定チャンネル（渋沢の算盤_現場の力）のイベントを処理する"""
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
+    user_id = event.get("user", "")
+    text = event.get("text", "")
+    files = event.get("files", [])
+    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
+
+    # テキストも画像もない場合はスキップ
+    if not text and not image_urls:
+        return
+
+    # 知識インプット判定（「メモ」「情報」「覚えておいて」「相場」などのキーワード）
+    memo_keywords = ["メモ", "情報", "覚えておいて", "相場", "業者", "単価", "注意", "ポイント", "コツ"]
+    n = normalize_keyword(text)
+    is_memo = any(kw in text for kw in memo_keywords)
+
+    if is_memo and not image_urls:
+        # 知識をスプレッドシートに保存
+        try:
+            send_to_spreadsheet({
+                "action":    "genba_memo",
+                "staff_id":  get_staff_code(user_id),
+                "message":   text,
+                "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+            })
+        except Exception as e:
+            print(f"[現場メモ保存エラー] {e}")
+        post_to_slack(channel_id, current_ts,
+            BOT_PERSONA["genba"]["memo_saved"],
+            mention_user=user_id, bot_role="genba")
+        return
+
+    # 買取査定 or 廃棄判断 → Claudeに投げる
+    post_to_slack(channel_id, current_ts,
+        BOT_PERSONA["genba"]["thinking"],
+        bot_role="genba")
+
+    try:
+        messages = []
+        # 画像がある場合は画像を含める
+        if image_urls:
+            content = []
+            if text:
+                content.append({"type": "text", "text": text})
+            for url in image_urls[:3]:  # 最大3枚
+                try:
+                    img_data, img_type = fetch_image_as_base64(url)
+                    content.append({
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": img_type, "data": img_data},
+                    })
+                except Exception as e:
+                    print(f"[画像取得エラー] {e}")
+            messages.append({"role": "user", "content": content})
+        else:
+            messages.append({"role": "user", "content": text})
+
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not anthropic_key:
+            raise RuntimeError("ANTHROPIC_API_KEY が設定されていません")
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=anthropic_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system=GENBA_SYSTEM_PROMPT,
+            messages=messages,
+        )
+        result_text = response.content[0].text
+        post_to_slack(channel_id, current_ts, result_text,
+            mention_user=user_id, bot_role="genba")
+
+        # スプレッドシートに査定記録を保存
+        try:
+            send_to_spreadsheet({
+                "action":    "genba_satei",
+                "staff_id":  get_staff_code(user_id),
+                "input":     text[:200] if text else "（画像のみ）",
+                "result":    result_text[:500],
+                "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+            })
+        except Exception as e:
+            print(f"[現場査定記録エラー] {e}")
+
+    except Exception as e:
+        print(f"[現場査定エラー] {e}")
+        post_to_slack(channel_id, current_ts,
+            BOT_PERSONA["genba"]["error"],
+            mention_user=user_id, bot_role="genba")
 
 
 # ── ステータス確認チャンネル（松本）────────────────────
