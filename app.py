@@ -1202,7 +1202,6 @@ listing_sessions = {}
 LISTING_COMMANDS = {
     "タイトル":  "title",
     "開始価格":  "start_price",
-    "即決価格":  "buyout_price",
     "説明文":    "description",
     "サイズ":    "size",
 }
@@ -1259,8 +1258,7 @@ def generate_listing_content(management_number: str, item_data: dict) -> dict:
         "以下のJSON形式のみで返してください（説明文不要）：\n"
         '{"title":"出品タイトル（40文字以内）",'
         '"description":"商品説明文（200〜400文字）",'
-        '"start_price":開始価格の数字,'
-        '"buyout_price":即決価格の数字}'
+        '"start_price":開始価格の数字}'
     )
     try:
         response = get_anthropic_client().messages.create(
@@ -1281,21 +1279,19 @@ def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention
     """出品データをSlackに整形して表示する"""
     mn = session["management_number"]
     start = session.get("start_price", 0)
-    buyout = session.get("buyout_price", 0)
     size = session.get("size", "")
     text = (
-        f"📦 *{mn}* 出品データ確認\n\n"
-        f"📋 タイトル：{session.get('title', '（未設定）')}\n"
+        f"📦 管理番号：*{mn}*\n"
+        "─────────────────────\n"
+        f"📋 タイトル：{session.get('title', '（未設定）')}\n\n"
         f"📊 状態：{session.get('condition', '（未確認）')}\n"
         f"💰 開始価格：¥{start:,}\n"
-        f"💴 即決価格：¥{buyout:,}\n"
         f"📐 梱包サイズ：{size + 'サイズ' if size else '（推定中）'}\n\n"
         f"📝 説明文：\n{session.get('description', '（未生成）')}\n\n"
         "─────────────────────\n"
         "*修正する場合はコマンドで入力してください：*\n"
         "`タイトル：新しいタイトル`\n"
         "`開始価格：5000`\n"
-        "`即決価格：15000`\n"
         "`説明文：新しい説明文`\n"
         "`サイズ：120`\n\n"
         "✅ 準備ができたら *保管ロケーション番号* を入力してください（例：`A-12`）"
@@ -1334,12 +1330,11 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
 
     # TODO: ヤフオク自動出品（オークタウンAPI確認後に実装予定）
     start = session.get("start_price", 0)
-    buyout = session.get("buyout_price", 0)
     post_to_slack(channel_id, thread_ts,
         f"✅ *{management_number}* 出品処理を登録しました\n"
         f"📍 保管場所：*{location}*\n"
         f"📋 タイトル：{session.get('title', '')}\n"
-        f"💰 開始：¥{start:,} ／ 即決：¥{buyout:,}\n\n"
+        f"💰 開始価格：¥{start:,}\n\n"
         "🔜 ヤフオクAPI連携は4/1以降に追加予定です",
         mention_user=user_id, bot_role="shuppinon")
 
