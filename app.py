@@ -3073,7 +3073,7 @@ def handle_attendance_channel(event: dict) -> None:
         f"📊 *本日の作業実績*\n\n"
         f"{summary_text}",
         bot_role="bunika")
-        return
+    return
 
 
 # ── 勤怠連絡チャンネル（サイレント記録）──────────────────
