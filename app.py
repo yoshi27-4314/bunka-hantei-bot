@@ -693,7 +693,8 @@ BOT_NAMES = {
     "bunika":    "北大路魯山人",  # 分荷判定
     "satsuei":   "白洲次郎",     # 写真撮影
     "shuppinon": "岩崎弥太郎",   # 出品・保管
-    "konpo":     "黒田官兵衛",   # 梱包・出荷（未実装）
+    "konpo":     "黒田官兵衛",   # 梱包・出荷
+    "status":    "松本",         # ステータス確認
 }
 
 
@@ -742,6 +743,16 @@ def process_slack_message(event: dict) -> None:
     shuppinon_channel_id = os.environ.get("SHUPPINON_CHANNEL_ID", "")
     if shuppinon_channel_id and channel_id == shuppinon_channel_id:
         handle_shuppinon_channel(event)
+        return
+
+    konpo_channel_id = os.environ.get("KONPO_CHANNEL_ID", "")
+    if konpo_channel_id and channel_id == konpo_channel_id:
+        handle_konpo_channel(event)
+        return
+
+    status_channel_id = os.environ.get("STATUS_CHANNEL_ID", "")
+    if status_channel_id and channel_id == status_channel_id:
+        handle_status_channel(event)
         return
 
     # 添付画像のURLを取得（複数対応）
@@ -1424,6 +1435,165 @@ def handle_shuppinon_channel(event: dict) -> None:
     if text:
         execute_listing(session, text, channel_id, thread_ts, user_id)
         del listing_sessions[thread_ts]
+
+
+# ── 梱包出荷チャンネル（黒田官兵衛）────────────────────
+
+konpo_sessions = {}
+
+
+def handle_konpo_channel(event: dict) -> None:
+    """梱包出荷チャンネルのイベントを処理する"""
+    import re as _re
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
+    user_id = event.get("user", "")
+    files = event.get("files", [])
+    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
+    text = normalize_keyword(event.get("text", ""))
+    is_new_post = not event.get("thread_ts")
+
+    # ── 新規投稿（管理番号）──────────────────────────────
+    if is_new_post:
+        text_mn = _re.search(r'\d{4}[VGME]\d{4}', text)
+        if not text_mn and not image_urls:
+            return
+        if text_mn:
+            management_number = text_mn.group(0)
+        else:
+            post_to_slack(channel_id, current_ts, "🔍 管理番号を読み取り中...", bot_role="konpo")
+            management_number = extract_management_number_from_image(image_urls[0])
+            if not management_number:
+                post_to_slack(channel_id, current_ts,
+                    "⚠️ 管理番号を確認できませんでした。\nもう一度送信してください。",
+                    bot_role="konpo")
+                return
+
+        item_data = get_item_from_monday(management_number)
+        if not item_data:
+            post_to_slack(channel_id, current_ts,
+                f"⚠️ *{management_number}* は確認できません。\n"
+                "もう一度管理番号を確認して送信してください。",
+                bot_role="konpo")
+            return
+
+        kw = item_data.get("internal_keyword", "")
+        size_m = _re.search(r'/[A-Z]+(\d+)/', kw)
+        size = size_m.group(1) if size_m else "不明"
+
+        konpo_sessions[current_ts] = {
+            "management_number": management_number,
+            "size": size,
+            "packed": False,
+        }
+        post_to_slack(channel_id, current_ts,
+            f"📦 *{management_number}* の梱包情報\n\n"
+            f"📐 梱包サイズ：{size}サイズ\n"
+            f"📋 判定チャンネル：{item_data.get('hantei_channel', '')}\n"
+            f"💰 予想販売価格：{item_data.get('yosou_kakaku', '')}\n\n"
+            "梱包が完了したら `梱包完了` と入力してください。",
+            mention_user=user_id, bot_role="konpo")
+        return
+
+    # ── スレッド内（梱包完了 or 送り状番号）────────────────
+    session = konpo_sessions.get(thread_ts)
+    if not session:
+        return
+    management_number = session["management_number"]
+
+    if text in ("梱包完了", "梱包"):
+        session["packed"] = True
+        konpo_sessions[thread_ts] = session
+        post_to_slack(channel_id, thread_ts,
+            "✅ 梱包完了を確認しました。\n送り状番号を入力してください。",
+            mention_user=user_id, bot_role="konpo")
+        try:
+            update_monday_item_status(management_number, "梱包済み")
+        except Exception as e:
+            print(f"[Monday.com梱包済み更新エラー] {e}")
+        return
+
+    if session.get("packed") and text:
+        post_to_slack(channel_id, thread_ts,
+            f"🚚 *{management_number}* 出荷完了！\n"
+            f"📮 送り状番号：*{text}*",
+            mention_user=user_id, bot_role="konpo")
+        try:
+            update_monday_item_status(management_number, "出荷済み")
+        except Exception as e:
+            print(f"[Monday.com出荷済み更新エラー] {e}")
+        try:
+            send_to_spreadsheet({
+                "action":          "shipping_update",
+                "kanri_bango":     management_number,
+                "tracking_number": text,
+                "staff_id":        get_staff_code(user_id),
+                "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
+            })
+        except Exception as e:
+            print(f"[スプレッドシート出荷更新エラー] {e}")
+        del konpo_sessions[thread_ts]
+
+
+# ── ステータス確認チャンネル（松本）────────────────────
+
+def handle_status_channel(event: dict) -> None:
+    """ステータス確認チャンネルのイベントを処理する"""
+    import re as _re
+    from datetime import date
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    thread_ts = event.get("thread_ts") or current_ts
+    user_id = event.get("user", "")
+    files = event.get("files", [])
+    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
+    text = normalize_keyword(event.get("text", ""))
+
+    text_mn = _re.search(r'\d{4}[VGME]\d{4}', text)
+    if not text_mn and not image_urls:
+        return
+
+    if text_mn:
+        management_number = text_mn.group(0)
+    else:
+        management_number = extract_management_number_from_image(image_urls[0])
+        if not management_number:
+            post_to_slack(channel_id, current_ts,
+                "⚠️ 管理番号を確認できませんでした。\nもう一度送信してください。",
+                bot_role="status")
+            return
+
+    item_data = get_item_from_monday(management_number)
+    if not item_data:
+        post_to_slack(channel_id, current_ts,
+            f"⚠️ *{management_number}* は確認できません。\n"
+            "もう一度管理番号を確認して送信してください。",
+            bot_role="status")
+        return
+
+    # 登録からの経過日数（管理番号のYYMMから計算）
+    days_elapsed = ""
+    try:
+        yymm = management_number[:4]
+        reg_date = date(int("20" + yymm[:2]), int(yymm[2:4]), 1)
+        days_elapsed = (date.today() - reg_date).days
+    except Exception:
+        pass
+
+    status = item_data.get("status", "不明")
+    reply = (
+        f"📊 *{management_number}* のステータス\n\n"
+        f"🏷️ 現在のステータス：*{status}*\n"
+        f"📦 判定チャンネル：{item_data.get('hantei_channel', '不明')}\n"
+        f"💰 予想販売価格：{item_data.get('yosou_kakaku', '不明')}\n"
+        f"📅 在庫予測期間：{item_data.get('zaiko_kikan', '不明')}\n"
+        f"⭐ スコア：{item_data.get('score', '不明')}点\n"
+    )
+    if days_elapsed:
+        reply += f"🕐 登録からの経過：約{days_elapsed}日"
+
+    post_to_slack(channel_id, current_ts, reply, mention_user=user_id, bot_role="status")
 
 
 @app.route("/debug", methods=["GET"])
