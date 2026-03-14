@@ -857,65 +857,359 @@ BOT_NAMES = {
 # ステータス松本: トータス松本オマージュ。関西ロックマン。「〜やで」「ありがとさん」熱くて人情味たっぷり
 BOT_PERSONA = {
     "bunika": {
-        "search_none":  "ふむ…「{keyword}」は在庫に見当たらぬな。別の言葉で探してみよ。",
-        "search_found": "「{keyword}」の在庫が {count} 件ある。見てみぬフリはできぬぞ。",
-        "confirm":      "よかろう。\n✅ *確定：{channel}*\n🔖 管理番号：*{kanri}*\nスプレッドシート・monday.comに転記した。",
-        "confirm_only": "よかろう。\n✅ *確定：{channel}*\nスプレッドシートに転記した。",
-        "horyuu":       "⏸️ 保留か。焦らず、じっくり見極めるのも職人の心得じゃ。",
-        "cancel_kanri": "🗑️ 管理番号 *{kanri}* を取り消した。作業時間は実績としてカウントされる。",
-        "cancel_only":  "🗑️ *{channel}* の確定を取り消した。スプレッドシートに記録した。",
-        "cancel_none":  "🗑️ 確定前じゃな。取り消すものは何もない。",
-        "saihantei":    "🔄 もう一度見定めよう。",
+        "search_none": (
+            "ふむ…\n\n"
+            "🔍 *「{keyword}」* の在庫は\n"
+            "見当たらぬな。\n\n"
+            "別の言葉で探してみよ。"
+        ),
+        "search_found": (
+            "ほう、これは。\n\n"
+            "🔍 *「{keyword}」* の在庫が\n"
+            "*{count} 件* ある。\n\n"
+            "見てみぬフリはできぬぞ。"
+        ),
+        "confirm": (
+            "よかろう。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "📋 スプレッドシート・Monday.com\n"
+            "　転記完了じゃ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "confirm_only": (
+            "よかろう。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "📋 スプレッドシートへ\n"
+            "　転記完了じゃ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "horyuu": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にしました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "焦らず、じっくり見極めるのも\n"
+            "職人の心得じゃ。"
+        ),
+        "cancel_kanri": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "作業時間は実績として\n"
+            "カウントされる。"
+        ),
+        "cancel_only": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *確定を取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 対象チャンネル\n"
+            "　*{channel}*\n\n"
+            "スプレッドシートに記録した。"
+        ),
+        "cancel_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *確定前です*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "取り消すものは何もない。"
+        ),
+        "saihantei": "🔄 もう一度見定めよう。",
     },
     "satsuei": {
-        "search_none":  "…「{keyword}」は見当たらない。別の言葉で試してくれ。",
-        "search_found": "「{keyword}」で {count} 件。確認してくれ。",
-        "confirm":      "✅ 了解した。*確定：{channel}*\n🔖 管理番号：*{kanri}*\n記録完了だ。",
-        "confirm_only": "✅ 了解した。*確定：{channel}*\n記録完了だ。",
-        "horyuu":       "⏸️ 保留。それでいい。",
-        "cancel_kanri": "🗑️ *{kanri}* の撮影、取り消した。",
-        "cancel_only":  "🗑️ *{channel}* の確定を取り消した。",
-        "cancel_none":  "🗑️ 取り消すものはない。",
-        "saihantei":    "🔄 もう一度やろう。",
+        "search_none": (
+            "…\n\n"
+            "🔍 *「{keyword}」* は見当たらない。\n\n"
+            "別の言葉で試してくれ。"
+        ),
+        "search_found": (
+            "🔍 *「{keyword}」*\n\n"
+            "*{count} 件* 確認できた。\n\n"
+            "内容を確認してくれ。"
+        ),
+        "confirm": (
+            "了解した。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "記録完了だ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "confirm_only": (
+            "了解した。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "記録完了だ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "horyuu": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にした*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "それでいい。"
+        ),
+        "cancel_kanri": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消した*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "撮影作業の記録を取り消した。"
+        ),
+        "cancel_only": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消した*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 対象チャンネル\n"
+            "　*{channel}*\n\n"
+            "確定を取り消した。"
+        ),
+        "cancel_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *確定前です*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "取り消すものはない。"
+        ),
+        "saihantei": "🔄 もう一度やろう。",
     },
     "shuppinon": {
-        "search_none":  "おおっ、「{keyword}」は在庫になかったか！商機はまだこれからじゃ！",
-        "search_found": "「{keyword}」で {count} 件見つかったぞ！これは儲かる予感がするのう！",
-        "confirm":      "ようやった！\n✅ *確定：{channel}*\n🔖 管理番号：*{kanri}*\n転記完了じゃ！どんどん稼ごう！",
-        "confirm_only": "ようやった！\n✅ *確定：{channel}*\n転記完了じゃ！",
-        "horyuu":       "⏸️ 保留か！慎重なのも大事じゃ。その判断、儂は支持するぞ！",
-        "cancel_kanri": "🗑️ 管理番号 *{kanri}* を取り消した。次の商いで取り返せばよい！",
-        "cancel_only":  "🗑️ *{channel}* の確定を取り消した。気にするな、前を向こう！",
-        "cancel_none":  "🗑️ まだ確定前じゃ。取り消すものはないぞ。",
-        "saihantei":    "🔄 もう一度見てみよう！必ず活路はある！",
+        "search_none": (
+            "おおっ！\n\n"
+            "🔍 *「{keyword}」* は在庫になかったか！\n\n"
+            "商機はまだこれからじゃ！"
+        ),
+        "search_found": (
+            "これは！\n\n"
+            "🔍 *「{keyword}」* で\n"
+            "*{count} 件* 見つかったぞ！\n\n"
+            "儲かる予感がするのう！"
+        ),
+        "confirm": (
+            "ようやった！\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "転記完了じゃ！\n"
+            "どんどん稼いでいこう！\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "confirm_only": (
+            "ようやった！\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "転記完了じゃ！\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "horyuu": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にしました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "慎重なのも大事じゃ。\n"
+            "その判断、儂は支持するぞ！"
+        ),
+        "cancel_kanri": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "次の商いで取り返せばよい！"
+        ),
+        "cancel_only": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *確定を取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 対象チャンネル\n"
+            "　*{channel}*\n\n"
+            "気にするな、前を向こう！"
+        ),
+        "cancel_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *まだ確定前です*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "取り消すものはないぞ。"
+        ),
+        "saihantei": "🔄 もう一度見てみよう！必ず活路はある！",
     },
     "konpo": {
-        "search_none":  "「{keyword}」は在庫に見当たらぬ。別の言葉で探されよ。",
-        "search_found": "「{keyword}」で {count} 件確認できた。詳細を確認されよ。",
-        "confirm":      "承知した。\n✅ *確定：{channel}*\n🔖 管理番号：*{kanri}*\n万全の態勢で転記完了であるぞ。",
-        "confirm_only": "承知した。\n✅ *確定：{channel}*\n転記完了であるぞ。",
-        "horyuu":       "⏸️ 保留か。案ずるな、必要な時間をとることも重要な判断じゃ。",
-        "cancel_kanri": "🗑️ 管理番号 *{kanri}* を取り消した。作業時間は実績として残る。よきかな。",
-        "cancel_only":  "🗑️ *{channel}* の確定を取り消した。スプレッドシートに記録済みであるぞ。",
-        "cancel_none":  "🗑️ まだ確定前じゃ。取り消せるものはない。",
-        "saihantei":    "🔄 再度見定めよう。最善の判断を下すためじゃ。",
+        "search_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🔍 *在庫なし*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "「{keyword}」は在庫に\n"
+            "見当たらぬ。\n\n"
+            "別の言葉で探されよ。"
+        ),
+        "search_found": (
+            "🔍 *「{keyword}」*\n\n"
+            "*{count} 件* 確認できた。\n\n"
+            "詳細を確認されよ。"
+        ),
+        "confirm": (
+            "承知した。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "万全の態勢で転記完了\n"
+            "であるぞ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "confirm_only": (
+            "承知した。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "転記完了であるぞ。\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "horyuu": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にしました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "案ずるな。\n"
+            "必要な時間をとることも\n"
+            "重要な判断じゃ。"
+        ),
+        "cancel_kanri": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "作業時間は実績として残る。\n"
+            "よきかな。"
+        ),
+        "cancel_only": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *確定を取り消しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 対象チャンネル\n"
+            "　*{channel}*\n\n"
+            "スプレッドシートに\n"
+            "記録済みであるぞ。"
+        ),
+        "cancel_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *まだ確定前です*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "取り消せるものはない。"
+        ),
+        "saihantei": "🔄 再度見定めよう。最善の判断を下すためじゃ。",
     },
     "status": {
-        "search_none":  "おっと〜、「{keyword}」の在庫は見つからへんかったで〜。別の言葉で試してみてな！",
-        "search_found": "「{keyword}」で {count} 件ヒットしたで〜！ほんまにありがとさん！",
-        "confirm":      "ありがとさん！\n✅ *確定：{channel}*\n🔖 管理番号：*{kanri}*\nしっかり転記したで〜！",
-        "confirm_only": "ありがとさん！\n✅ *確定：{channel}*\n転記したで〜！",
-        "horyuu":       "⏸️ 保留やな。そやな、焦らんでええで。ゆっくり考えてな！",
-        "cancel_kanri": "🗑️ 管理番号 *{kanri}* 取り消したで〜。作業時間はちゃんと残るから安心してな！",
-        "cancel_only":  "🗑️ *{channel}* の確定、取り消したで〜。スプレッドシートに記録したわ。",
-        "cancel_none":  "🗑️ まだ確定してへんで〜。取り消すもんはないわ。",
-        "saihantei":    "🔄 もっかい見てみよか〜！",
+        "search_none": (
+            "おっと〜！\n\n"
+            "🔍 *「{keyword}」* の在庫は\n"
+            "見つからへんかったで〜。\n\n"
+            "別の言葉で試してみてな！"
+        ),
+        "search_found": (
+            "おっ、ありがとさん！\n\n"
+            "🔍 *「{keyword}」* で\n"
+            "*{count} 件* ヒットしたで〜！"
+        ),
+        "confirm": (
+            "ありがとさん！\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了やで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "しっかり転記したで〜！\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "confirm_only": (
+            "ありがとさん！\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *確定完了やで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 確定チャンネル\n"
+            "　*{channel}*\n\n"
+            "転記したで〜！\n"
+            "━━━━━━━━━━━━━━━━"
+        ),
+        "horyuu": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にしたで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "そやな、焦らんでええで。\n"
+            "ゆっくり考えてな！"
+        ),
+        "cancel_kanri": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *取り消したで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "🔖 管理番号\n"
+            "　*{kanri}*\n\n"
+            "作業時間はちゃんと残るから\n"
+            "安心してな！"
+        ),
+        "cancel_only": (
+            "━━━━━━━━━━━━━━━━\n"
+            "🗑️ *確定を取り消したで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "📌 対象チャンネル\n"
+            "　*{channel}*\n\n"
+            "スプレッドシートに記録したわ。"
+        ),
+        "cancel_none": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *まだ確定してへんで〜*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "取り消すもんはないわ。"
+        ),
+        "saihantei": "🔄 もっかい見てみよか〜！",
     },
-    # 渋沢栄一: 「論語と算盤」道徳と経済の両立。「〜であります」「算盤に合う」「道徳経済合一」
     "genba": {
-        "memo_saved":   "承りました。この知識、算盤と道徳の両面から大切に蓄積いたします。",
-        "error":        "これは失礼いたしました。今一度お試しいただけますでしょうか。",
-        "thinking":     "🔍 算盤を弾いております。しばしお待ちを...",
+        "memo_saved": (
+            "━━━━━━━━━━━━━━━━\n"
+            "📝 *知識を記録いたしました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "算盤と道徳の両面から\n"
+            "大切に蓄積いたします。"
+        ),
+        "error": (
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *エラーが発生しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "これは失礼いたしました。\n"
+            "今一度お試しいただけますでしょうか。"
+        ),
+        "thinking": (
+            "🔍 算盤を弾いております。\n\n"
+            "しばしお待ちを..."
+        ),
     },
 }
 
@@ -964,7 +1258,11 @@ def process_slack_message(event: dict) -> None:
                 _handle_zaiko_search(cmd_option, channel_id, thread_ts, event)
             except Exception as e:
                 print(f"[在庫検索エラー] {e}")
-                post_to_slack(channel_id, thread_ts, f":warning: 在庫検索エラー: {e}")
+                post_to_slack(channel_id, thread_ts,
+                    "━━━━━━━━━━━━━━━━\n"
+                    "⚠️ *在庫検索エラー*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    f"{e}")
             return
 
     # ── チャンネルルーティング ────────────────────────────
@@ -1020,7 +1318,11 @@ def process_slack_message(event: dict) -> None:
                 _handle_command(cmd_type, cmd_option, channel_id, thread_ts, event)
             except Exception as e:
                 print(f"[コマンド処理エラー] {e}")
-                post_to_slack(channel_id, thread_ts, f":warning: コマンド処理エラー: {e}")
+                post_to_slack(channel_id, thread_ts,
+                    "━━━━━━━━━━━━━━━━\n"
+                    "⚠️ *コマンド処理エラー*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    f"{e}")
             return  # コマンドならAI判定はしない
 
         # ── チェックリスト応答判定 ─────────────────────────
@@ -1034,7 +1336,11 @@ def process_slack_message(event: dict) -> None:
                     _handle_checklist(checklist, user_message, channel_id, thread_ts, event)
                 except Exception as e:
                     print(f"[チェックリスト処理エラー] {e}")
-                    post_to_slack(channel_id, thread_ts, f":warning: チェックリスト処理エラー: {e}")
+                    post_to_slack(channel_id, thread_ts,
+                        "━━━━━━━━━━━━━━━━\n"
+                        "⚠️ *チェックリスト処理エラー*\n"
+                        "━━━━━━━━━━━━━━━━\n\n"
+                        f"{e}")
                 return
 
     # ── 通常のAI判定フロー ────────────────────────────────
@@ -1059,7 +1365,11 @@ def process_slack_message(event: dict) -> None:
     except Exception as e:
         print(f"[エラー] {e}")
         try:
-            post_to_slack(channel_id, thread_ts, f":warning: エラーが発生しました: {e}")
+            post_to_slack(channel_id, thread_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *エラーが発生しました*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"{e}")
         except Exception as e2:
             print(f"[Slack送信エラー] {e2}")
 
@@ -1075,23 +1385,29 @@ def _handle_zaiko_search(keyword: str, channel_id: str, thread_ts: str, event: d
         return
 
     header = persona["search_found"].format(keyword=keyword, count=len(results))
-    lines = [f"🔍 *{header}*\n"]
-    for i, r in enumerate(results[:10], 1):  # 最大10件
+    monday_url = f"https://monday.com/boards/{MONDAY_BOARD_ID}"
+    lines = [
+        f"{header}",
+        "━━━━━━━━━━━━━━━━",
+    ]
+    for i, r in enumerate(results[:10], 1):
         kanri = r["kanri_bango"] or "番号なし"
         status = r["status"] or "不明"
-        zaiko = r["zaiko_kikan"] or ""
-        channel = r["channel"] or ""
-        monday_url = f"https://monday.com/boards/{MONDAY_BOARD_ID}"
-        line = f"*{i}. {r['name']}*\n"
-        line += f"　管理番号: `{kanri}` ／ チャンネル: {channel}\n"
-        line += f"　状態: {status}"
-        if zaiko:
-            line += f" ／ 在庫期間: {zaiko}"
-        line += f"\n　<{monday_url}|Monday.comで詳細・画像確認>"
+        zaiko = r["zaiko_kikan"] or "─"
+        channel = r["channel"] or "─"
+        line = (
+            f"*{i}. {r['name']}*\n\n"
+            f"　🔖 管理番号　：`{kanri}`\n\n"
+            f"　📺 チャンネル：{channel}\n\n"
+            f"　📊 ステータス：{status}\n\n"
+            f"　📅 在庫期間　：{zaiko}\n\n"
+            f"　<{monday_url}|📷 Monday.comで詳細・画像を確認>\n\n"
+            "─────────────────"
+        )
         lines.append(line)
 
     if len(results) > 10:
-        lines.append(f"\n_...他 {len(results) - 10}件。Monday.comで全件確認できます。_")
+        lines.append(f"_他 {len(results) - 10} 件はMonday.comで確認できます。_")
 
     post_to_slack(channel_id, thread_ts, "\n".join(lines), mention_user=user_id, bot_role="status")
 
@@ -1110,7 +1426,12 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
     if cmd_type == 'kakutei':
         judgment = get_judgment_from_thread(channel_id, thread_ts)
         if not judgment.get("first_channel"):
-            post_to_slack(channel_id, thread_ts, ":warning: 判定データが見つかりませんでした。")
+            post_to_slack(channel_id, thread_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *判定データなし*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "判定データが見つかりませんでした。\n\n"
+                "先に分荷判定を実行してください。")
             return
 
         # 確定チャンネルを決定（表記ゆれを正規化）
@@ -1249,11 +1570,17 @@ def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts
     comment = n[1:].strip() if len(n) > 1 else ""
 
     reply = (
-        f"✅ *動作確認完了* {management_number}\n"
-        f"📊 状態：*{condition_label}*\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "✅ *動作確認完了*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{management_number}*\n\n"
+        f"📊 状態\n"
+        f"　*{condition_label}*"
     )
     if comment:
-        reply += f"💬 {comment}"
+        reply += f"\n\n💬 コメント\n　{comment}"
+    reply += "\n━━━━━━━━━━━━━━━━"
 
     post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
 
@@ -1435,7 +1762,10 @@ def handle_satsuei_channel(event: dict) -> None:
             management_number = extract_management_number_from_image(image_urls[0])
             if not management_number:
                 post_to_slack(channel_id, current_ts,
-                    "⚠️ テプラの管理番号を読み取れませんでした。\n"
+                    "━━━━━━━━━━━━━━━━\n"
+                    "⚠️ *読み取りエラー*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    "テプラの管理番号を読み取れませんでした。\n\n"
                     "もう一度管理番号を送信してください。",
                     bot_role="satsuei")
                 return
@@ -1444,9 +1774,14 @@ def handle_satsuei_channel(event: dict) -> None:
         else:
             return
         post_to_slack(channel_id, current_ts,
-            f"📸 管理番号 *{management_number}* を確認しました。\n"
-            "商品写真をこのスレッドに投稿してください。\n"
-            "※複数枚まとめてOKです。撮影完了後は `完了` と入力してください。",
+            "━━━━━━━━━━━━━━━━\n"
+            "📸 *撮影セッション開始*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "商品写真をこのスレッドに投稿してください。\n\n"
+            "　• 複数枚まとめてOKです\n"
+            "　• 撮影完了後は `完了` と入力してください",
             bot_role="satsuei")
         return
 
@@ -1466,7 +1801,12 @@ def handle_satsuei_channel(event: dict) -> None:
     if text in CANCEL_WORDS:
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "キャンセル")
         post_to_slack(channel_id, thread_ts,
-            f"⏹️ *{management_number}* の撮影作業をキャンセルしました。",
+            "━━━━━━━━━━━━━━━━\n"
+            "⏹️ *撮影作業キャンセル*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "撮影作業をキャンセルしました。",
             mention_user=user_id, bot_role="satsuei")
         return
 
@@ -1480,14 +1820,21 @@ def handle_satsuei_channel(event: dict) -> None:
     if image_urls:
         folder_url = upload_images_to_drive(management_number, image_urls, is_tepura=False)
         post_to_slack(channel_id, thread_ts,
-            f"📷 {len(image_urls)}枚を保存しました。\n"
-            "追加写真を投稿するか `完了` と入力してください。",
+            f"📷 *{len(image_urls)}枚* を保存しました。\n\n"
+            "追加写真を投稿するか、\n"
+            "撮影完了後は `完了` と入力してください。",
             mention_user=user_id, bot_role="satsuei")
 
     # 完了コマンド
     if text == "完了":
         post_to_slack(channel_id, thread_ts,
-            f"✅ *{management_number}* 撮影完了しました！",
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *撮影完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "お疲れ様です。\n"
+            "写真の保存が完了しました。",
             mention_user=user_id, bot_role="satsuei")
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         try:
@@ -1552,9 +1899,13 @@ def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_n
         "bot_role":     bot_role,
     }
     post_to_slack(channel_id, thread_ts,
-        "🗑️ 削除する管理番号を入力してください。\n"
-        "（例：`2603G0001`）\n\n"
-        "⚠️ 削除するとMonday.comのステータスが「要確認」に戻ります。",
+        "━━━━━━━━━━━━━━━━\n"
+        "🗑️ *削除確認*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        "削除する管理番号を入力してください。\n\n"
+        "　例：`2603G0001`\n\n"
+        "⚠️ 削除するとMonday.comのステータスが\n"
+        "　「要確認」に戻ります。",
         mention_user=user_id, bot_role=bot_role)
 
 
@@ -1578,8 +1929,13 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
         print(f"[Monday.com削除更新エラー] {e}")
     log_work_activity(channel_name, management_number, staff_id, "削除")
     post_to_slack(channel_id, thread_ts,
-        f"🗑️ *{management_number}* を削除しました。\n"
-        "Monday.comのステータスを「要確認」に戻しました。",
+        "━━━━━━━━━━━━━━━━\n"
+        "🗑️ *削除完了*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{management_number}*\n\n"
+        "Monday.comのステータスを\n"
+        "「要確認」に戻しました。",
         mention_user=user_id, bot_role=bot_role)
     return True
 
@@ -1671,20 +2027,31 @@ def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention
     start = session.get("start_price", 0)
     size = session.get("size", "")
     text = (
-        f"📦 管理番号：*{mn}*\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "📦 *出品データ確認*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{mn}*\n\n"
+        f"📋 タイトル\n"
+        f"　{session.get('title', '（未設定）')}\n\n"
+        f"📊 状態\n"
+        f"　{session.get('condition', '（未確認）')}\n\n"
+        f"💰 開始価格\n"
+        f"　¥{start:,}\n\n"
+        f"📐 梱包サイズ\n"
+        f"　{size + 'サイズ' if size else '（推定中）'}\n\n"
+        f"📝 説明文\n"
+        f"{session.get('description', '（未生成）')}\n\n"
         "─────────────────────\n"
-        f"📋 タイトル：{session.get('title', '（未設定）')}\n\n"
-        f"📊 状態：{session.get('condition', '（未確認）')}\n"
-        f"💰 開始価格：¥{start:,}\n"
-        f"📐 梱包サイズ：{size + 'サイズ' if size else '（推定中）'}\n\n"
-        f"📝 説明文：\n{session.get('description', '（未生成）')}\n\n"
+        "*修正する場合はコマンドで入力：*\n\n"
+        "　`タイトル：新しいタイトル`\n"
+        "　`開始価格：5000`\n"
+        "　`説明文：新しい説明文`\n"
+        "　`サイズ：120`\n\n"
         "─────────────────────\n"
-        "*修正する場合はコマンドで入力してください：*\n"
-        "`タイトル：新しいタイトル`\n"
-        "`開始価格：5000`\n"
-        "`説明文：新しい説明文`\n"
-        "`サイズ：120`\n\n"
-        "✅ 準備ができたら *保管ロケーション番号* を入力してください（例：`A-12`）"
+        "✅ 準備ができたら\n"
+        "　*保管ロケーション番号* を入力してください\n"
+        "　例：`A-12`"
     )
     post_to_slack(channel_id, thread_ts, text, mention_user=mention_user, bot_role="shuppinon")
 
@@ -1721,10 +2088,17 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
     # TODO: ヤフオク自動出品（オークタウンAPI確認後に実装予定）
     start = session.get("start_price", 0)
     post_to_slack(channel_id, thread_ts,
-        f"✅ *{management_number}* 出品処理を登録しました\n"
-        f"📍 保管場所：*{location}*\n"
-        f"📋 タイトル：{session.get('title', '')}\n"
-        f"💰 開始価格：¥{start:,}\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "✅ *出品登録完了*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{management_number}*\n\n"
+        f"📍 保管場所\n"
+        f"　*{location}*\n\n"
+        f"📋 タイトル\n"
+        f"　{session.get('title', '')}\n\n"
+        f"💰 開始価格\n"
+        f"　¥{start:,}\n\n"
         "🔜 ヤフオクAPI連携は4/1以降に追加予定です",
         mention_user=user_id, bot_role="shuppinon")
 
@@ -1755,7 +2129,10 @@ def handle_shuppinon_channel(event: dict) -> None:
             management_number = extract_management_number_from_image(image_urls[0])
         if not management_number:
             post_to_slack(channel_id, current_ts,
-                "⚠️ 管理番号を確認できませんでした。\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *読み取りエラー*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "管理番号を確認できませんでした。\n\n"
                 "もう一度管理番号を送信してください。",
                 bot_role="shuppinon")
             return
@@ -1764,8 +2141,11 @@ def handle_shuppinon_channel(event: dict) -> None:
         item_data = get_item_from_monday(management_number)
         if not item_data:
             post_to_slack(channel_id, current_ts,
-                f"⚠️ *{management_number}* は確認できません。\n"
-                "もう一度管理番号を確認して送信してください。",
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *該当なし*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"*{management_number}* は確認できません。\n\n"
+                "管理番号を確認して再送信してください。",
                 bot_role="shuppinon")
             return
 
@@ -1813,7 +2193,12 @@ def handle_shuppinon_channel(event: dict) -> None:
                           get_staff_code(user_id), "キャンセル", session.get("start_time"))
         del listing_sessions[thread_ts]
         post_to_slack(channel_id, thread_ts,
-            f"⏹️ *{management_number}* の出品作業をキャンセルしました。",
+            "━━━━━━━━━━━━━━━━\n"
+            "⏹️ *出品作業キャンセル*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "出品作業をキャンセルしました。",
             mention_user=user_id, bot_role="shuppinon")
         return
 
@@ -1905,11 +2290,16 @@ def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
 
 def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number):
     """出荷手配完了の共通処理"""
-    tracking_text = f"📮 追跡番号：*{tracking_number}*\n" if tracking_number else ""
+    tracking_line = f"\n📮 追跡番号\n　*{tracking_number}*" if tracking_number else ""
     post_to_slack(channel_id, thread_ts,
-        f"🚚 *{management_number}* 出荷手配完了！\n"
-        f"🏢 運送会社：{carrier}\n"
-        f"{tracking_text}",
+        "━━━━━━━━━━━━━━━━\n"
+        "🚚 *出荷手配完了*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{management_number}*\n\n"
+        f"🏢 運送会社\n"
+        f"　{carrier}"
+        f"{tracking_line}",
         mention_user=user_id, bot_role="konpo")
     try:
         update_monday_item_status(management_number, "出荷済み")
@@ -1961,15 +2351,22 @@ def handle_konpo_channel(event: dict) -> None:
             management_number = extract_management_number_from_image(image_urls[0])
             if not management_number:
                 post_to_slack(channel_id, current_ts,
-                    "⚠️ 管理番号を確認できませんでした。\nもう一度送信してください。",
+                    "━━━━━━━━━━━━━━━━\n"
+                    "⚠️ *読み取りエラー*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    "管理番号を確認できませんでした。\n\n"
+                    "もう一度送信してください。",
                     bot_role="konpo")
                 return
 
         item_data = get_item_from_monday(management_number)
         if not item_data:
             post_to_slack(channel_id, current_ts,
-                f"⚠️ *{management_number}* は確認できません。\n"
-                "もう一度管理番号を確認して送信してください。",
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *該当なし*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"*{management_number}* は確認できません。\n\n"
+                "管理番号を確認して再送信してください。",
                 bot_role="konpo")
             return
 
@@ -1986,10 +2383,18 @@ def handle_konpo_channel(event: dict) -> None:
             "start_time": datetime.now(),
         }
         post_to_slack(channel_id, current_ts,
-            f"📦 *{management_number}* の梱包情報\n\n"
-            f"📐 梱包サイズ：{size}サイズ\n"
-            f"📋 判定チャンネル：{item_data.get('hantei_channel', '')}\n"
-            f"💰 予想販売価格：{item_data.get('yosou_kakaku', '')}\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📦 *梱包情報確認*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            f"📐 梱包サイズ\n"
+            f"　{size}サイズ\n\n"
+            f"📺 判定チャンネル\n"
+            f"　{item_data.get('hantei_channel', '')}\n\n"
+            f"💰 予想販売価格\n"
+            f"　{item_data.get('yosou_kakaku', '')}\n\n"
+            "━━━━━━━━━━━━━━━━\n"
             "梱包が完了したら `梱包完了` と入力してください。",
             mention_user=user_id, bot_role="konpo")
         return
@@ -2013,7 +2418,12 @@ def handle_konpo_channel(event: dict) -> None:
                           get_staff_code(user_id), "キャンセル", session.get("start_time"))
         del konpo_sessions[thread_ts]
         post_to_slack(channel_id, thread_ts,
-            f"⏹️ *{management_number}* の梱包作業をキャンセルしました。",
+            "━━━━━━━━━━━━━━━━\n"
+            "⏹️ *梱包作業キャンセル*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "梱包作業をキャンセルしました。",
             mention_user=user_id, bot_role="konpo")
         return
 
@@ -2027,7 +2437,10 @@ def handle_konpo_channel(event: dict) -> None:
         session["packed"] = True
         konpo_sessions[thread_ts] = session
         post_to_slack(channel_id, thread_ts,
-            f"✅ 梱包完了を確認しました。\n\n{CARRIER_MENU}",
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ *梱包完了確認*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"{CARRIER_MENU}",
             mention_user=user_id, bot_role="konpo")
         try:
             update_monday_item_status(management_number, "梱包済み")
@@ -2075,7 +2488,8 @@ def handle_konpo_channel(event: dict) -> None:
             session["waiting_label"] = True
             konpo_sessions[thread_ts] = session
             post_to_slack(channel_id, thread_ts,
-                f"📸 {carrier}の送り状ラベルの写真を送ってください。",
+                f"📸 *{carrier}* の\n"
+                "送り状ラベルの写真を送ってください。",
                 mention_user=user_id, bot_role="konpo")
         return
 
@@ -2086,7 +2500,11 @@ def handle_konpo_channel(event: dict) -> None:
         tracking_number = extract_tracking_number_from_image(image_urls[0], carrier)
         if not tracking_number:
             post_to_slack(channel_id, thread_ts,
-                "⚠️ 追跡番号を読み取れませんでした。\nもう一度写真を送ってください。",
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *読み取りエラー*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "追跡番号を読み取れませんでした。\n\n"
+                "もう一度写真を送ってください。",
                 mention_user=user_id, bot_role="konpo")
             return
         _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number)
@@ -2096,6 +2514,214 @@ def handle_konpo_channel(event: dict) -> None:
 
 
 # ── 現場査定チャンネル（渋沢栄一）────────────────────────
+
+# 古物台帳フローのセッション管理
+# key: "{channel_id}_{user_id}"
+# value: {"step": 1〜3, "price": int, "item_name": str, "staff_id": str, "timestamp": str, "id_info": dict}
+kaitori_sessions = {}
+
+
+def _extract_id_info(image_url: str) -> dict:
+    """身分証の写真からClaudeで情報を抽出する（古物台帳記載用）"""
+    img_data, img_type = fetch_image_as_base64(image_url)
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    import anthropic as _anthropic
+    import json as _json
+    import re as _re
+    client = _anthropic.Anthropic(api_key=anthropic_key)
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=512,
+        system="""身分証明書の画像から以下の情報をJSON形式のみで返してください。
+読み取れない項目は「読取不可」としてください。
+{
+  "doc_type": "運転免許証 または マイナンバーカード または パスポート",
+  "name": "氏名（姓名）",
+  "address": "住所",
+  "birthdate": "生年月日（YYYY/MM/DD形式）",
+  "id_number": "証明書番号（免許証番号など）"
+}
+※マイナンバー（12桁の個人番号）は絶対に記録しないこと。
+※JSON以外のテキストは一切出力しないこと。""",
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "この身分証から情報を抽出してください。"},
+                {"type": "image", "source": {"type": "base64", "media_type": img_type, "data": img_data}},
+            ]
+        }],
+    )
+    text = response.content[0].text
+    m = _re.search(r'\{.*\}', text, _re.DOTALL)
+    if m:
+        try:
+            return _json.loads(m.group(0))
+        except Exception:
+            pass
+    return {}
+
+
+def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
+                         user_id: str, text: str, image_urls: list) -> bool:
+    """古物台帳フロー（買取確定〜身分証確認〜台帳登録）を処理する。
+    フロー処理した場合はTrueを返す。"""
+    import re as _re
+    session_key = f"{channel_id}_{user_id}"
+
+    # ── Step 0: 「買取確定 ¥3000」でフロー開始 ──
+    m = _re.search(r'買取確定\s*[¥￥]?\s*([\d,]+)', text or "")
+    if m:
+        price = int(m.group(1).replace(",", ""))
+        kaitori_sessions[session_key] = {
+            "step": 1,
+            "price": price,
+            "staff_id": get_staff_code(user_id),
+            "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+        }
+        post_to_slack(channel_id, current_ts,
+            f"買取価格 *¥{price:,}* で記録いたします。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📦 *品物の名称・特徴を教えてください*\n\n"
+            "記入例：\n"
+            "`パナソニック 洗濯機 NA-F60B14 中古 動作OK`\n"
+            "━━━━━━━━━━━━━━━━",
+            mention_user=user_id, bot_role="genba")
+        return True
+
+    # セッションがなければフロー外
+    session = kaitori_sessions.get(session_key)
+    if not session:
+        return False
+
+    step = session["step"]
+
+    # ── Step 1: 品物名を受け取る ──
+    if step == 1 and text and not image_urls:
+        session["item_name"] = text
+        session["step"] = 2
+        kaitori_sessions[session_key] = session
+        post_to_slack(channel_id, current_ts,
+            "承りました。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "🪪 *相手方の身分証をお送りください*\n\n"
+            "古物営業法に基づく確認が必要です。\n\n"
+            "📸 対応書類：\n"
+            "　・運転免許証\n"
+            "　・マイナンバーカード（番号面は不要）\n"
+            "　・パスポート\n\n"
+            "氏名・住所・生年月日・証明書番号が\n"
+            "確認できる面の写真を送信してください。\n"
+            "━━━━━━━━━━━━━━━━",
+            mention_user=user_id, bot_role="genba")
+        return True
+
+    # ── Step 2: 身分証写真を受け取る ──
+    if step == 2 and image_urls:
+        post_to_slack(channel_id, current_ts,
+            "🔍 身分証の情報を読み取っております...\n"
+            "しばしお待ちを。",
+            bot_role="genba")
+        try:
+            id_info = _extract_id_info(image_urls[0])
+            session["id_info"] = id_info
+            session["step"] = 3
+            kaitori_sessions[session_key] = session
+            post_to_slack(channel_id, current_ts,
+                "読み取り完了でございます。\n"
+                "内容をご確認ください。\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "📋 *古物台帳　記載内容確認*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"📅 取引日時　：{session['timestamp']}\n\n"
+                f"📦 品　　物　：{session['item_name']}\n\n"
+                f"💴 買取価格　：¥{session['price']:,}\n\n"
+                f"👤 氏　　名　：{id_info.get('name', '読取不可')}\n\n"
+                f"🏠 住　　所　：{id_info.get('address', '読取不可')}\n\n"
+                f"🎂 生年月日　：{id_info.get('birthdate', '読取不可')}\n\n"
+                f"🪪 証明書番号：{id_info.get('id_number', '読取不可')}\n\n"
+                f"📋 確認書類　：{id_info.get('doc_type', '運転免許証')}\n\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "✅ 正しければ `登録` と送信してください。\n"
+                "✏️ 修正がある場合は\n"
+                "　`修正 氏名：正しい名前`\n"
+                "　のように送信してください。",
+                mention_user=user_id, bot_role="genba")
+        except Exception as e:
+            print(f"[身分証読取エラー] {e}")
+            post_to_slack(channel_id, current_ts,
+                "⚠️ 身分証の読み取りに失敗いたしました。\n\n"
+                "もう一度、鮮明な写真をお送りください。",
+                mention_user=user_id, bot_role="genba")
+        return True
+
+    # ── Step 3: 登録確認 or 修正 ──
+    if step == 3:
+        n = normalize_keyword(text or "")
+        if n == "登録":
+            id_info = session.get("id_info", {})
+            try:
+                send_to_spreadsheet({
+                    "action":     "kobutsu_daichou",
+                    "timestamp":  session["timestamp"],
+                    "item_name":  session["item_name"],
+                    "price":      session["price"],
+                    "staff_id":   session["staff_id"],
+                    "name":       id_info.get("name", ""),
+                    "address":    id_info.get("address", ""),
+                    "birthdate":  id_info.get("birthdate", ""),
+                    "id_number":  id_info.get("id_number", ""),
+                    "doc_type":   id_info.get("doc_type", "運転免許証"),
+                })
+                del kaitori_sessions[session_key]
+                post_to_slack(channel_id, current_ts,
+                    "━━━━━━━━━━━━━━━━\n"
+                    "✅ *古物台帳への記録が完了いたしました*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    "道徳と算盤、両面から\n"
+                    "適切な取引でありました。\n\n"
+                    "スプレッドシートの\n"
+                    "「古物台帳」シートをご確認ください。",
+                    mention_user=user_id, bot_role="genba")
+            except Exception as e:
+                post_to_slack(channel_id, current_ts,
+                    f"⚠️ 記録に失敗いたしました。\n\n"
+                    f"もう一度 `登録` と送信してください。\n"
+                    f"エラー：{e}",
+                    mention_user=user_id, bot_role="genba")
+            return True
+
+        # 修正コマンド処理
+        import re as _re2
+        fix = _re2.match(r'修正\s+(.+?)[:：](.+)', text or "")
+        if fix:
+            field_name = fix.group(1).strip()
+            new_value = fix.group(2).strip()
+            field_map = {
+                "氏名": "name", "住所": "address",
+                "生年月日": "birthdate", "証明書番号": "id_number",
+                "確認書類": "doc_type",
+            }
+            field_key = field_map.get(field_name)
+            if field_key:
+                session["id_info"][field_key] = new_value
+                kaitori_sessions[session_key] = session
+            id_info = session["id_info"]
+            post_to_slack(channel_id, current_ts,
+                f"✏️ *{field_name}* を修正しました。\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "📋 *修正後の内容*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"👤 氏　　名　：{id_info.get('name', '読取不可')}\n\n"
+                f"🏠 住　　所　：{id_info.get('address', '読取不可')}\n\n"
+                f"🎂 生年月日　：{id_info.get('birthdate', '読取不可')}\n\n"
+                f"🪪 証明書番号：{id_info.get('id_number', '読取不可')}\n\n"
+                f"📋 確認書類　：{id_info.get('doc_type', '運転免許証')}\n\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "✅ 正しければ `登録` と送信してください。",
+                mention_user=user_id, bot_role="genba")
+            return True
+
+    return False
 
 GENBA_SYSTEM_PROMPT = """あなたは「渋沢栄一」。道徳と経済の両立を説いた「論語と算盤」の著者。
 現場で出会う品物・廃棄物・情報を算盤（そろばん）で正しく評価し、最適な判断を下す。
@@ -2192,9 +2818,12 @@ def handle_genba_channel(event: dict) -> None:
     if not text and not image_urls:
         return
 
+    # ── 古物台帳フローを最優先で処理 ──
+    if _handle_kaitori_flow(event, channel_id, current_ts, user_id, text, image_urls):
+        return
+
     # 知識インプット判定（「メモ」「情報」「覚えておいて」「相場」などのキーワード）
     memo_keywords = ["メモ", "情報", "覚えておいて", "相場", "業者", "単価", "注意", "ポイント", "コツ"]
-    n = normalize_keyword(text)
     is_memo = any(kw in text for kw in memo_keywords)
 
     if is_memo and not image_urls:
@@ -2296,15 +2925,22 @@ def handle_status_channel(event: dict) -> None:
         management_number = extract_management_number_from_image(image_urls[0])
         if not management_number:
             post_to_slack(channel_id, current_ts,
-                "⚠️ 管理番号を確認できませんでした。\nもう一度送信してください。",
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *読み取りエラー*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "管理番号を確認できませんでした。\n\n"
+                "もう一度送信してください。",
                 bot_role="status")
             return
 
     item_data = get_item_from_monday(management_number)
     if not item_data:
         post_to_slack(channel_id, current_ts,
-            f"⚠️ *{management_number}* は確認できません。\n"
-            "もう一度管理番号を確認して送信してください。",
+            "━━━━━━━━━━━━━━━━\n"
+            "⚠️ *該当なし*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"*{management_number}* は確認できません。\n\n"
+            "管理番号を確認して再送信してください。",
             bot_role="status")
         return
 
@@ -2319,15 +2955,25 @@ def handle_status_channel(event: dict) -> None:
 
     status = item_data.get("status", "不明")
     reply = (
-        f"📊 *{management_number}* のステータス\n\n"
-        f"🏷️ 現在のステータス：*{status}*\n"
-        f"📦 判定チャンネル：{item_data.get('hantei_channel', '不明')}\n"
-        f"💰 予想販売価格：{item_data.get('yosou_kakaku', '不明')}\n"
-        f"📅 在庫予測期間：{item_data.get('zaiko_kikan', '不明')}\n"
-        f"⭐ スコア：{item_data.get('score', '不明')}点\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "📊 *ステータス確認*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号\n"
+        f"　*{management_number}*\n\n"
+        f"📌 現在のステータス\n"
+        f"　*{status}*\n\n"
+        f"📺 判定チャンネル\n"
+        f"　{item_data.get('hantei_channel', '不明')}\n\n"
+        f"💰 予想販売価格\n"
+        f"　{item_data.get('yosou_kakaku', '不明')}\n\n"
+        f"📅 在庫予測期間\n"
+        f"　{item_data.get('zaiko_kikan', '不明')}\n\n"
+        f"⭐ スコア\n"
+        f"　{item_data.get('score', '不明')} 点"
     )
     if days_elapsed:
-        reply += f"🕐 登録からの経過：約{days_elapsed}日"
+        reply += f"\n\n🕐 登録からの経過\n　約 {days_elapsed} 日"
+    reply += "\n━━━━━━━━━━━━━━━━"
 
     post_to_slack(channel_id, current_ts, reply, mention_user=user_id, bot_role="status")
 
@@ -2356,8 +3002,13 @@ def handle_attendance_channel(event: dict) -> None:
         except Exception as e:
             print(f"[出勤記録エラー] {e}")
         post_to_slack(channel_id, current_ts,
-            f"🌅 おはようございます！\n"
-            f"*{staff_id}* の出勤を記録しました（{timestamp}）",
+            "━━━━━━━━━━━━━━━━\n"
+            "🌅 *出勤記録*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "おはようございます！\n\n"
+            f"👤 {staff_id}\n\n"
+            f"🕐 {timestamp}\n\n"
+            "本日もよろしくお願いします。",
             bot_role="bunika")
         return
 
@@ -2389,9 +3040,15 @@ def handle_attendance_channel(event: dict) -> None:
             del daily_stats[staff_id]
 
         post_to_slack(channel_id, current_ts,
-            f"🌙 お疲れさまでした！\n"
-            f"*{staff_id}* の退勤を記録しました（{timestamp}）\n\n"
-            f"📊 *本日の作業実績*\n{summary_text}",
+            "━━━━━━━━━━━━━━━━\n"
+            "🌙 *退勤記録*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "お疲れさまでした！\n\n"
+            f"👤 {staff_id}\n\n"
+            f"🕐 {timestamp}\n\n"
+            "─────────────────\n"
+            f"📊 *本日の作業実績*\n\n"
+            f"{summary_text}",
             bot_role="bunika")
         return
 
@@ -2531,7 +3188,11 @@ def webhook():
     except Exception as e:
         error_msg = f"判定処理でエラーが発生しました: {e}"
         try:
-            post_to_slack(channel_id, thread_ts, f":warning: {error_msg}")
+            post_to_slack(channel_id, thread_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *処理エラー*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"{error_msg}")
         except Exception:
             pass
         return jsonify({"ok": False, "error": error_msg}), 500
