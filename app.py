@@ -32,7 +32,6 @@ def get_monday_token():
     return (
         os.environ.get("MONDAY_TOKEN", "")
         or os.environ.get("MONDAY_API_TOKEN", "")
-        or "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjYzMjExNTAzOCwiYWFpIjoxMSwidWlkIjoyMjMyNzQ0MywiaWFkIjoiMjAyNi0wMy0xMlQwNTowMzo1Mi4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6OTA4Mjg2MSwicmduIjoidXNlMSJ9.a_LqA3-PQBVnXoApomC0rjaYMoq57C7GJGj2lW1zWTA"
     )
 
 
