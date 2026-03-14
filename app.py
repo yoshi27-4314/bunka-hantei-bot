@@ -755,6 +755,11 @@ def process_slack_message(event: dict) -> None:
         handle_status_channel(event)
         return
 
+    attendance_channel_id = os.environ.get("ATTENDANCE_CHANNEL_ID", "")
+    if attendance_channel_id and channel_id == attendance_channel_id:
+        handle_attendance_channel(event)
+        return
+
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
@@ -1159,9 +1164,29 @@ def handle_satsuei_channel(event: dict) -> None:
             bot_role="satsuei")
         return
 
-    # ── スレッド内（商品写真 or 完了）──────────────────
+    # ── スレッド内（商品写真 or 完了 or キャンセル/削除）──
+    # 削除確認待ちの処理
+    if handle_delete_step2(channel_id, thread_ts, user_id, text):
+        return
+
     management_number = get_management_number_from_satsuei_thread(channel_id, thread_ts)
     if not management_number:
+        # 削除コマンド（セッションなし）
+        if text == "削除":
+            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["satsuei"], "satsuei")
+        return
+
+    # キャンセル・中断
+    if text in CANCEL_WORDS:
+        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "キャンセル")
+        post_to_slack(channel_id, thread_ts,
+            f"⏹️ *{management_number}* の撮影作業をキャンセルしました。",
+            mention_user=user_id, bot_role="satsuei")
+        return
+
+    # 削除コマンド
+    if text == "削除":
+        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["satsuei"], "satsuei")
         return
 
     # 商品写真をDriveに保存
@@ -1178,6 +1203,7 @@ def handle_satsuei_channel(event: dict) -> None:
         post_to_slack(channel_id, thread_ts,
             f"✅ *{management_number}* 撮影完了しました！",
             mention_user=user_id, bot_role="satsuei")
+        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         try:
             update_monday_item_status(management_number, "撮影済み")
         except Exception as e:
@@ -1192,6 +1218,84 @@ def handle_satsuei_channel(event: dict) -> None:
             })
         except Exception as e:
             print(f"[スプレッドシート撮影済み更新エラー] {e}")
+
+
+# ── 共通：キャンセル・削除・作業ログ ──────────────────────
+
+delete_confirm_sessions = {}  # {thread_ts: {"channel_id":..,"management_number":..,"channel_name":..,"staff_id":..}}
+daily_stats = {}              # {staff_id: {"完了": 0, "キャンセル": 0, "削除": 0}}
+
+CHANNEL_NAMES = {
+    "satsuei":   "商品撮影",
+    "shuppinon": "出品保管",
+    "konpo":     "梱包出荷",
+}
+
+CANCEL_WORDS = ("キャンセル", "中断")
+
+
+def log_work_activity(channel_name: str, management_number: str, staff_id: str,
+                      operation: str, start_time=None) -> None:
+    """作業ログをスプレッドシートに送り、日次カウントを更新する"""
+    now = datetime.now()
+    duration = int((now - start_time).total_seconds()) if start_time else 0
+    if staff_id not in daily_stats:
+        daily_stats[staff_id] = {"完了": 0, "キャンセル": 0, "削除": 0}
+    if operation in daily_stats[staff_id]:
+        daily_stats[staff_id][operation] += 1
+    try:
+        send_to_spreadsheet({
+            "action":           "work_activity",
+            "channel":          channel_name,
+            "kanri_bango":      management_number,
+            "staff_id":         staff_id,
+            "operation":        operation,
+            "duration_seconds": str(duration),
+            "timestamp":        now.strftime("%Y/%m/%d %H:%M"),
+        })
+    except Exception as e:
+        print(f"[作業ログ送信エラー] {e}")
+
+
+def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_name: str, bot_role: str) -> None:
+    """削除コマンド受付：管理番号の入力を求める"""
+    delete_confirm_sessions[thread_ts] = {
+        "channel_id":   channel_id,
+        "channel_name": channel_name,
+        "staff_id":     get_staff_code(user_id),
+        "bot_role":     bot_role,
+    }
+    post_to_slack(channel_id, thread_ts,
+        "🗑️ 削除する管理番号を入力してください。\n"
+        "（例：`2603G0001`）\n\n"
+        "⚠️ 削除するとMonday.comのステータスが「要確認」に戻ります。",
+        mention_user=user_id, bot_role=bot_role)
+
+
+def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str) -> bool:
+    """削除確認：管理番号が一致したら削除を実行。処理した場合Trueを返す"""
+    import re as _re
+    pending = delete_confirm_sessions.get(thread_ts)
+    if not pending:
+        return False
+    mn_m = _re.search(r'\d{4}[VGME]\d{4}', text)
+    if not mn_m:
+        return False
+    management_number = mn_m.group(0)
+    channel_name = pending["channel_name"]
+    bot_role = pending["bot_role"]
+    staff_id = pending["staff_id"]
+    del delete_confirm_sessions[thread_ts]
+    try:
+        update_monday_item_status(management_number, "要確認")
+    except Exception as e:
+        print(f"[Monday.com削除更新エラー] {e}")
+    log_work_activity(channel_name, management_number, staff_id, "削除")
+    post_to_slack(channel_id, thread_ts,
+        f"🗑️ *{management_number}* を削除しました。\n"
+        "Monday.comのステータスを「要確認」に戻しました。",
+        mention_user=user_id, bot_role=bot_role)
+    return True
 
 
 # ── 出品チャンネル ────────────────────────────────
@@ -1397,15 +1501,40 @@ def handle_shuppinon_channel(event: dict) -> None:
             "buyout_price": listing.get("buyout_price", 0),
             "size":        size,
             "item_data":   item_data,
+            "start_time":  datetime.now(),
         }
         listing_sessions[current_ts] = session
         post_listing_summary(channel_id, current_ts, session, mention_user=user_id)
         return
 
     # ── スレッド内（修正コマンド or ロケーション番号）──
+    # 削除確認待ちの処理
+    if handle_delete_step2(channel_id, thread_ts, user_id, text):
+        return
+
     session = listing_sessions.get(thread_ts)
     if not session:
-        return  # セッションなし（再起動後など）
+        # 削除コマンド（セッションなし）
+        if text == "削除":
+            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
+        return
+
+    management_number = session["management_number"]
+
+    # キャンセル・中断
+    if text in CANCEL_WORDS:
+        log_work_activity(CHANNEL_NAMES["shuppinon"], management_number,
+                          get_staff_code(user_id), "キャンセル", session.get("start_time"))
+        del listing_sessions[thread_ts]
+        post_to_slack(channel_id, thread_ts,
+            f"⏹️ *{management_number}* の出品作業をキャンセルしました。",
+            mention_user=user_id, bot_role="shuppinon")
+        return
+
+    # 削除コマンド
+    if text == "削除":
+        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
+        return
 
     # 修正コマンドの判定
     field, value = parse_listing_command(text)
@@ -1426,9 +1555,11 @@ def handle_shuppinon_channel(event: dict) -> None:
         post_listing_summary(channel_id, thread_ts, session, mention_user=user_id)
         return
 
-    # ロケーション番号（修正コマンド以外のすべてのテキスト）
+    # ロケーション番号（修正コマンド以外のすべてのテキスト）→ 出品確定
     if text:
         execute_listing(session, text, channel_id, thread_ts, user_id)
+        log_work_activity(CHANNEL_NAMES["shuppinon"], session["management_number"],
+                          get_staff_code(user_id), "完了", session.get("start_time"))
         del listing_sessions[thread_ts]
 
 
@@ -1566,6 +1697,7 @@ def handle_konpo_channel(event: dict) -> None:
             "packed": False,
             "carrier": None,
             "waiting_label": False,
+            "start_time": datetime.now(),
         }
         post_to_slack(channel_id, current_ts,
             f"📦 *{management_number}* の梱包情報\n\n"
@@ -1577,10 +1709,32 @@ def handle_konpo_channel(event: dict) -> None:
         return
 
     # ── スレッド内 ────────────────────────────────────────
+    # 削除確認待ちの処理
+    if handle_delete_step2(channel_id, thread_ts, user_id, text):
+        return
+
     session = konpo_sessions.get(thread_ts)
     if not session:
+        # 削除コマンド（セッションなし）
+        if text == "削除":
+            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
         return
     management_number = session["management_number"]
+
+    # キャンセル・中断
+    if text in CANCEL_WORDS:
+        log_work_activity(CHANNEL_NAMES["konpo"], management_number,
+                          get_staff_code(user_id), "キャンセル", session.get("start_time"))
+        del konpo_sessions[thread_ts]
+        post_to_slack(channel_id, thread_ts,
+            f"⏹️ *{management_number}* の梱包作業をキャンセルしました。",
+            mention_user=user_id, bot_role="konpo")
+        return
+
+    # 削除コマンド
+    if text == "削除":
+        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
+        return
 
     # ① 梱包完了 → 運送会社選択へ
     if text in ("梱包完了", "梱包") and not session["packed"]:
@@ -1603,6 +1757,8 @@ def handle_konpo_channel(event: dict) -> None:
 
         if text == "4":  # 直接引き取り
             _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "")
+            log_work_activity(CHANNEL_NAMES["konpo"], management_number,
+                              get_staff_code(user_id), "完了", session.get("start_time"))
             del konpo_sessions[thread_ts]
         elif text == "5":  # 後日発送
             post_to_slack(channel_id, thread_ts,
@@ -1648,6 +1804,8 @@ def handle_konpo_channel(event: dict) -> None:
                 mention_user=user_id, bot_role="konpo")
             return
         _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number)
+        log_work_activity(CHANNEL_NAMES["konpo"], management_number,
+                          get_staff_code(user_id), "完了", session.get("start_time"))
         del konpo_sessions[thread_ts]
 
 
@@ -1709,6 +1867,70 @@ def handle_status_channel(event: dict) -> None:
         reply += f"🕐 登録からの経過：約{days_elapsed}日"
 
     post_to_slack(channel_id, current_ts, reply, mention_user=user_id, bot_role="status")
+
+
+# ── 出退勤チャンネル ──────────────────────────────────────
+
+def handle_attendance_channel(event: dict) -> None:
+    """出退勤チャンネルのイベントを処理する"""
+    channel_id = event.get("channel")
+    current_ts = event.get("ts", "")
+    user_id = event.get("user", "")
+    text = normalize_keyword(event.get("text", ""))
+    staff_id = get_staff_code(user_id)
+    now = datetime.now()
+    timestamp = now.strftime("%Y/%m/%d %H:%M")
+
+    if text == "出勤":
+        # 出勤記録
+        try:
+            send_to_spreadsheet({
+                "action":    "attendance",
+                "staff_id":  staff_id,
+                "type":      "出勤",
+                "timestamp": timestamp,
+            })
+        except Exception as e:
+            print(f"[出勤記録エラー] {e}")
+        post_to_slack(channel_id, current_ts,
+            f"🌅 おはようございます！\n"
+            f"*{staff_id}* の出勤を記録しました（{timestamp}）",
+            bot_role="bunika")
+        return
+
+    if text == "退勤":
+        # 本日の作業サマリー集計
+        stats = daily_stats.get(staff_id, {"完了": 0, "キャンセル": 0, "削除": 0})
+        summary_lines = []
+        if stats["完了"] > 0:
+            summary_lines.append(f"✅ 完了：{stats['完了']}件")
+        if stats["キャンセル"] > 0:
+            summary_lines.append(f"⏹️ キャンセル：{stats['キャンセル']}件")
+        if stats["削除"] > 0:
+            summary_lines.append(f"🗑️ 削除：{stats['削除']}件")
+        summary_text = "\n".join(summary_lines) if summary_lines else "本日の作業記録なし"
+
+        try:
+            send_to_spreadsheet({
+                "action":    "attendance",
+                "staff_id":  staff_id,
+                "type":      "退勤",
+                "timestamp": timestamp,
+                "kanri_bango": str(stats.get("完了", 0)),  # 完了件数を流用
+            })
+        except Exception as e:
+            print(f"[退勤記録エラー] {e}")
+
+        # daily_statsをリセット
+        if staff_id in daily_stats:
+            del daily_stats[staff_id]
+
+        post_to_slack(channel_id, current_ts,
+            f"🌙 お疲れさまでした！\n"
+            f"*{staff_id}* の退勤を記録しました（{timestamp}）\n\n"
+            f"📊 *本日の作業実績*\n{summary_text}",
+            bot_role="bunika")
+        return
 
 
 @app.route("/debug", methods=["GET"])
