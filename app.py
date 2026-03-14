@@ -760,6 +760,11 @@ def process_slack_message(event: dict) -> None:
         handle_attendance_channel(event)
         return
 
+    kintai_channel_id = os.environ.get("KINTAI_CHANNEL_ID", "")
+    if kintai_channel_id and channel_id == kintai_channel_id:
+        handle_kintai_channel(event)
+        return
+
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
@@ -1931,6 +1936,26 @@ def handle_attendance_channel(event: dict) -> None:
             f"📊 *本日の作業実績*\n{summary_text}",
             bot_role="bunika")
         return
+
+
+# ── 勤怠連絡チャンネル（サイレント記録）──────────────────
+
+def handle_kintai_channel(event: dict) -> None:
+    """勤怠連絡チャンネルのメッセージをスプレッドシートにサイレント記録する"""
+    user_id = event.get("user", "")
+    text = event.get("text", "")
+    if not text:
+        return
+    staff_id = get_staff_code(user_id)
+    try:
+        send_to_spreadsheet({
+            "action":    "kintai_renraku",
+            "staff_id":  staff_id,
+            "message":   text,
+            "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+        })
+    except Exception as e:
+        print(f"[勤怠連絡記録エラー] {e}")
 
 
 @app.route("/debug", methods=["GET"])
