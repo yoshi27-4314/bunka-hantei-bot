@@ -877,6 +877,17 @@ def process_slack_message(event: dict) -> None:
     print(f"[処理開始] channel={channel_id} ts={thread_ts} message={user_message[:30]}")
     print(f"[ENV確認] ANTHROPIC_API_KEY={'設定済み' if anthropic_key else '未設定'} SLACK_BOT_TOKEN={'設定済み' if slack_token else '未設定'}")
 
+    # ── 在庫検索はチャンネルに関わらず最優先で処理 ──────────
+    if user_message:
+        cmd_type, cmd_option = parse_command(user_message)
+        if cmd_type == 'zaiko_search':
+            try:
+                _handle_zaiko_search(cmd_option, channel_id, thread_ts, event)
+            except Exception as e:
+                print(f"[在庫検索エラー] {e}")
+                post_to_slack(channel_id, thread_ts, f":warning: 在庫検索エラー: {e}")
+            return
+
     # ── チャンネルルーティング ────────────────────────────
     satsuei_channel_id = os.environ.get("SATSUEI_CHANNEL_ID", "")
     if satsuei_channel_id and channel_id == satsuei_channel_id:
@@ -916,17 +927,10 @@ def process_slack_message(event: dict) -> None:
     if not user_message and image_urls:
         user_message = "添付画像の商品を分荷判定してください。"
 
-    # ── コマンド判定（在庫検索はスレッド外でも動作） ─────────
+    # ── コマンド判定（確定・再判定・保留・キャンセルはスレッド内のみ） ──
     if user_message:
         cmd_type, cmd_option = parse_command(user_message)
-        if cmd_type == 'zaiko_search':
-            try:
-                _handle_zaiko_search(cmd_option, channel_id, thread_ts, event)
-            except Exception as e:
-                print(f"[在庫検索エラー] {e}")
-                post_to_slack(channel_id, thread_ts, f":warning: 在庫検索エラー: {e}")
-            return
-        # 確定・再判定・保留・キャンセルはスレッド内のみ
+        # 確定・再判定・保留・キャンネルはスレッド内のみ
         if event.get("thread_ts") and cmd_type:
             try:
                 _handle_command(cmd_type, cmd_option, channel_id, thread_ts, event)
