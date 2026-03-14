@@ -161,12 +161,28 @@ def extract_judgment(response_text: str) -> dict:
 
 def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str) -> None:
     """monday.comにアイテムを登録する"""
-    column_values = json.dumps({
+    import re as _re
+    # 予想販売価格から数値を抽出（例: "¥5,000〜¥8,000" → "5000"）
+    price_str = judgment.get("predicted_price", "")
+    price_num = ""
+    if price_str:
+        m = _re.search(r'[\d,]+', price_str.replace("¥", "").replace(",", ""))
+        if m:
+            price_num = _re.sub(r'[^\d]', '', m.group(0))
+
+    col = {
         "kanri_bango": management_number,
         "hantei_channel": judgment.get("first_channel", ""),
         "kakushin_do": judgment.get("first_confidence", ""),
         "toshosha": user_id,
-    }, ensure_ascii=False)
+        "zaiko_kikan": judgment.get("inventory_period", ""),
+        "status": {"label": "査定待ち"},
+    }
+    if price_num:
+        col["yosou_kakaku"] = price_num
+    if judgment.get("first_score"):
+        col["score"] = judgment.get("first_score")
+    column_values = json.dumps(col, ensure_ascii=False)
 
     query = """
     mutation ($board_id: ID!, $item_name: String!, $column_values: JSON!) {
@@ -787,6 +803,11 @@ def monday_setup():
         ("判定チャンネル", "text", "hantei_channel"),
         ("確信度", "text", "kakushin_do"),
         ("投稿者", "text", "toshosha"),
+        ("予想販売価格", "numbers", "yosou_kakaku"),
+        ("在庫予測期間", "text", "zaiko_kikan"),
+        ("スコア", "numbers", "score"),
+        ("作業時間", "numbers", "sakugyou_jikan"),
+        ("ステータス", "status", "status"),
     ]
     results = []
     for title, col_type, col_id in columns:
