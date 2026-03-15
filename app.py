@@ -847,6 +847,7 @@ BOT_NAMES = {
     "konpo":     "黒田官兵衛",   # 梱包・出荷
     "status":    "ステータス松本", # ステータス確認
     "genba":     "渋沢栄一",      # 現場査定（買取・廃棄・知識インプット）
+    "kintaro":   "二宮金次郎",   # 出退勤
 }
 
 # キャラクターごとの定型文
@@ -3009,8 +3010,8 @@ def handle_attendance_channel(event: dict) -> None:
     m = _re.match(r'(\d{1,2}):(\d{2})[~\-～](\d{1,2}):(\d{2})', text)
     if not m:
         post_to_slack(channel_id, current_ts,
-            "入力形式：`9:00~16:00`\n（開始時刻〜終了時刻）",
-            bot_role="bunika")
+            "入力形式：`9:00~16:00`\n（開始時刻〜終了時刻）\n小さな記録の積み重ねが、大きな実りとなります。",
+            bot_role="kintaro")
         return
 
     sh, sm, eh, em = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
@@ -3018,8 +3019,8 @@ def handle_attendance_channel(event: dict) -> None:
 
     if total_minutes <= 0:
         post_to_slack(channel_id, current_ts,
-            "⚠️ 終了時刻が開始時刻より前になっています。\n再度入力してください。",
-            bot_role="bunika")
+            "⚠️ 終了時刻が開始時刻より前になっています。\n焦らず、もう一度ご確認ください。",
+            bot_role="kintaro")
         return
 
     # スタッフマスターから標準休憩時間を取得
@@ -3059,6 +3060,7 @@ def handle_attendance_channel(event: dict) -> None:
         del daily_stats[staff_id]
 
     post_to_slack(channel_id, current_ts,
+        "今日もよく働かれました。\n\n"
         "━━━━━━━━━━━━━━━━\n"
         "🌙 *勤務記録完了*\n"
         "━━━━━━━━━━━━━━━━\n\n"
@@ -3071,8 +3073,9 @@ def handle_attendance_channel(event: dict) -> None:
         f"　{net_hours:.1f}時間\n\n"
         "─────────────────\n"
         f"📊 *本日の作業実績*\n\n"
-        f"{summary_text}",
-        bot_role="bunika")
+        f"{summary_text}\n\n"
+        "積小為大。今日の積み重ねが明日の実りとなります。",
+        bot_role="kintaro")
     return
 
 
