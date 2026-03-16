@@ -386,13 +386,14 @@ MM   = 月2桁
 
 ```python
 STAFF_MAP = {
-    "U0AL10Q1HQC": "浅野儀頼",
-    "U0ALQ4BJNSV": "林和人",
-    "U0AL4R1EMMZ": "平野光雄",
-    "U0ALKDQEC2F": "桃井侑菜",
-    "U0ALV7C2EHJ": "伊藤佐和子",
-    "U0AM4HG1PRP": "奥村亜優李",
-    # 横山優 / 三島圭織 / 松本豊彦 / 北瀬孝 / 白木雄介 → UserID未確定・コメントアウト中
+    "U0AL10Q1HQC": "Y_ASANO",    # 浅野儀頼
+    "U0ALQ4BJNSV": "K_HAYASHI",  # 林和人
+    "U0AL4R1EMMZ": "M_HIRANO",   # 平野光雄
+    "U0ALKDQEC2F": "Y_MOMOI",    # 桃井侑菜
+    "U0ALV7C2EHJ": "S_ITO",      # 伊藤佐和子
+    "U0AM4HG1PRP": "A_OKUMURA",  # 奥村亜優李
+    # Y_YOKOYAMA(横山優) / K_MISHIMA(三島圭織) / T_MATSUMOTO(松本豊彦)
+    # T_KITASE(北瀬孝) / Y_SHIRAKI(白木雄介) → UserID未確定・コメントアウト中
 }
 ```
 未登録UserIDはそのままUserIDをスタッフ名として使用する（get_staff_code）。

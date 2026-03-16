@@ -63,17 +63,17 @@ ASANO_USER_ID = "U0AL10Q1HQC"  # 浅野儀頼
 # 担当者Slack UserID → 氏名対応表
 # UserIDはSlackプロフィール→「その他」→「メンバーIDをコピー」で取得
 STAFF_MAP = {
-    "U0AL10Q1HQC": "浅野儀頼",
-    "U0ALQ4BJNSV": "林和人",
-    "U0AL4R1EMMZ": "平野光雄",
-    # "UXXXXXXXX": "横山優",
-    # "UXXXXXXXX": "三島圭織",
-    # "UXXXXXXXX": "松本豊彦",
-    # "UXXXXXXXX": "北瀬孝",
-    "U0ALKDQEC2F": "桃井侑菜",
-    "U0ALV7C2EHJ": "伊藤佐和子",
-    # "UXXXXXXXX": "白木雄介",
-    "U0AM4HG1PRP": "奥村亜優李",
+    "U0AL10Q1HQC": "Y_ASANO",    # 浅野儀頼
+    "U0ALQ4BJNSV": "K_HAYASHI",  # 林和人
+    "U0AL4R1EMMZ": "M_HIRANO",   # 平野光雄
+    # "UXXXXXXXX": "Y_YOKOYAMA",  # 横山優
+    # "UXXXXXXXX": "K_MISHIMA",   # 三島圭織
+    # "UXXXXXXXX": "T_MATSUMOTO", # 松本豊彦
+    # "UXXXXXXXX": "T_KITASE",    # 北瀬孝
+    "U0ALKDQEC2F": "Y_MOMOI",    # 桃井侑菜
+    "U0ALV7C2EHJ": "S_ITO",      # 伊藤佐和子
+    # "UXXXXXXXX": "Y_SHIRAKI",   # 白木雄介
+    "U0AM4HG1PRP": "A_OKUMURA",  # 奥村亜優李
 }
 
 
