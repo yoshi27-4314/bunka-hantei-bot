@@ -82,15 +82,6 @@ def get_staff_code(user_id: str) -> str:
     return STAFF_MAP.get(user_id, user_id)
 
 
-# 確定チャンネル → アカウント区分 (V=ビンテージ / G=現行品 / M=まとめ売り / E=eBay)
-CHANNEL_TO_ACCOUNT_TYPE = {
-    "ヤフオクヴィンテージ": "V",
-    "ヤフオク現行":         "G",
-    "ヤフオクまとめ":       "M",
-    "eBayシングル":         "E",
-    "eBayまとめ":           "E",
-}
-
 
 def get_monthly_sequence() -> int:
     """今月の管理番号通し番号をmonday.comのアイテム数から取得する（全チャンネル共通）"""
@@ -128,6 +119,12 @@ def get_monthly_sequence() -> int:
 # Monday.comへの登録遅延・失敗で同じ番号が発行されるのを防ぐ
 _management_number_lock = threading.Lock()
 _issued_numbers: set[str] = set()  # このプロセスセッションで発行済みの管理番号
+
+# ── 管理者設定 ──────────────────────────────────────────────
+# 浅野のSlack UserID（このユーザーのメッセージはボットが無視する）
+ADMIN_USER_ID = "U0AL10Q1HQC"
+# 相談モードのスレッド管理（@浅野+「相談」でトリガー → そのスレッドでボットが無反応になる）
+_consultation_threads: set[str] = set()
 
 
 def generate_management_number() -> str:
@@ -1299,11 +1296,45 @@ def process_slack_message(event: dict) -> None:
     current_ts = event.get("ts", "")
     thread_ts = event.get("thread_ts") or current_ts
     user_message = event.get("text", "")
+    user_id = event.get("user", "")
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     slack_token = os.environ.get("SLACK_BOT_TOKEN", "")
-    print(f"[処理開始] channel={channel_id} ts={thread_ts} message={user_message[:30]}")
+    print(f"[処理開始] channel={channel_id} ts={thread_ts} user={user_id} message={user_message[:30]}")
     print(f"[ENV確認] ANTHROPIC_API_KEY={'設定済み' if anthropic_key else '未設定'} SLACK_BOT_TOKEN={'設定済み' if slack_token else '未設定'}")
+
+    # ── 管理者（浅野）専用処理 ───────────────────────────────
+    if user_id == ADMIN_USER_ID:
+        # 「浅野です」で始まるメッセージ → スタッフへのお知らせとしてボットが整形して再送
+        if user_message and user_message.strip().startswith("浅野です"):
+            announcement = user_message.strip()[len("浅野です"):].strip()
+            if announcement:
+                post_to_slack(channel_id, thread_ts,
+                    "━━━━━━━━━━━━━━━━\n"
+                    "📢 *浅野からのお知らせ*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    f"{announcement}\n\n"
+                    "━━━━━━━━━━━━━━━━")
+        # それ以外の浅野のメッセージにはボットは一切反応しない
+        return
+
+    # ── 相談モード：@浅野 + 「相談」でトリガー ────────────────
+    admin_mention = f"<@{ADMIN_USER_ID}>"
+    if user_message and admin_mention in user_message and "相談" in user_message:
+        _consultation_threads.add(thread_ts)
+        post_to_slack(channel_id, thread_ts,
+            "━━━━━━━━━━━━━━━━\n"
+            "💬 *浅野さんへの相談スレッド*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"<@{ADMIN_USER_ID}> に通知しました。\n"
+            "このスレッドではボットは反応しません。\n"
+            "自由にご相談ください。\n\n"
+            "━━━━━━━━━━━━━━━━")
+        return
+
+    # 相談モード中のスレッドはボットが無反応
+    if thread_ts in _consultation_threads:
+        return
 
     # ── 在庫検索はチャンネルに関わらず最優先で処理 ──────────
     if user_message:
