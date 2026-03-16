@@ -741,7 +741,7 @@ def cancel_monday_item(kanri_bango: str) -> None:
         change_multiple_column_values(board_id: $board_id, item_id: $item_id, column_values: $col_vals) { id }
     }
     """
-    col_vals = json.dumps({"kakushin_do": "キャンセル"}, ensure_ascii=False)
+    col_vals = json.dumps({"status": {"label": "キャンセル"}, "kakushin_do": "キャンセル"}, ensure_ascii=False)
     monday_graphql(update_query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
     print(f"[Monday.com] {kanri_bango} をキャンセルに更新")
 
@@ -2103,7 +2103,7 @@ def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_n
         "削除する管理番号を入力してください。\n\n"
         "　例：`2603-0001`\n\n"
         "⚠️ 削除するとMonday.comのステータスが\n"
-        "　「要確認」に戻ります。",
+        "　「確認/打合せ」に戻ります。",
         mention_user=user_id, bot_role=bot_role)
 
 
@@ -2122,7 +2122,7 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
     staff_id = pending["staff_id"]
     del delete_confirm_sessions[thread_ts]
     try:
-        update_monday_item_status(management_number, "要確認")
+        update_monday_item_status(management_number, "確認/打合せ")
     except Exception as e:
         print(f"[Monday.com削除更新エラー] {e}")
     log_work_activity(channel_name, management_number, staff_id, "削除")
@@ -2133,7 +2133,7 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
         f"🔖 管理番号\n"
         f"　*{management_number}*\n\n"
         "Monday.comのステータスを\n"
-        "「要確認」に戻しました。",
+        "「確認/打合せ」に戻しました。",
         mention_user=user_id, bot_role=bot_role)
     return True
 
@@ -2283,7 +2283,7 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
         if session.get("start_time"):
             shuppinon_jikan = max(0, int((datetime.now() - session["start_time"]).total_seconds() / 60))
         monday_cols = {
-            "status": {"label": "出品中"},
+            "status": {"label": "出品待ち"},
             "shuppinon_tantosha": get_staff_code(user_id),
             "shuppinon_date": {"date": datetime.now().strftime("%Y-%m-%d")},
             "location": location,
@@ -2517,7 +2517,7 @@ def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier,
         mention_user=user_id, bot_role="konpo")
     try:
         monday_cols = {
-            "status": {"label": "出荷済み"},
+            "status": {"label": "出荷待ち"},
             "carrier": carrier,
             "shukka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
         }
@@ -2665,7 +2665,7 @@ def handle_konpo_channel(event: dict) -> None:
             mention_user=user_id, bot_role="konpo")
         try:
             update_monday_columns(management_number, {
-                "status": {"label": "梱包済み"},
+                "status": {"label": "梱包作業"},
                 "konpo_tantosha": get_staff_code(user_id),
                 "konpo_date": {"date": datetime.now().strftime("%Y-%m-%d")},
             })
