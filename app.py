@@ -603,7 +603,7 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         text = msg.get("text", "")
         if "分荷判定結果" not in text:
             continue
-        mn = re.search(r'管理番号\n　\*?([\d\-]+)\*?', text)
+        mn = re.search(r'管理番号\n　\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', text)
         if mn:
             result["kanri_bango"] = mn.group(1)
         kw = re.search(r'推定内部KW：(/\S+)', text)
@@ -684,7 +684,7 @@ def get_confirmation_from_thread(channel_id: str, thread_ts: str) -> dict:
             continue
         kanri_bango = ""
         kakutei_channel = ""
-        m_kanri = re.search(r'管理番号\n　\*?([\d\-]+)\*?', text)
+        m_kanri = re.search(r'管理番号\n　\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', text)
         if m_kanri:
             kanri_bango = m_kanri.group(1)
         m_channel = re.search(r'確定チャンネル\n　\*?(.+?)\*?(?:\n|$)', text)
@@ -1783,14 +1783,14 @@ def extract_management_number_from_image(image_url: str) -> str:
                     {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
                     {"type": "text", "text": (
                         "この画像のテプラ（ラベル）に書かれた管理番号を読み取ってください。"
-                        "管理番号は「2603-0001」のような形式です（年月2桁+月2桁+ハイフン+数字4桁）。"
+                        "管理番号は「2603-0001」または「2603G0001」のような形式です（年月4桁＋ハイフン＋4桁 または 年月4桁＋英字1文字＋4桁）。"
                         "管理番号だけを返してください。見つからない場合は「不明」と返してください。"
                     )}
                 ]
             }]
         )
         text = response.content[0].text.strip()
-        m = re.search(r'\d{4}-\d{4}', text)
+        m = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         return m.group(0) if m else ""
     except Exception as e:
         print(f"[管理番号読取エラー] {e}")
@@ -1809,7 +1809,7 @@ def get_management_number_from_satsuei_thread(channel_id: str, thread_ts: str) -
     for msg in response.json().get("messages", []):
         if not (msg.get("bot_id") or msg.get("bot_profile")):
             continue
-        m = re.search(r'管理番号\s*\*?(\d{4}-\d{4})\*?', msg.get("text", ""))
+        m = re.search(r'管理番号\s*\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', msg.get("text", ""))
         if m:
             return m.group(1)
     return ""
@@ -1830,7 +1830,7 @@ def handle_satsuei_channel(event: dict) -> None:
     if is_new_post:
         import re as _re
         # テキストで管理番号が直接入力された場合
-        text_mn = _re.search(r'\d{4}-\d{4}', text)
+        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
             return
         if text_mn and not image_urls:
@@ -1992,7 +1992,7 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
     pending = delete_confirm_sessions.get(thread_ts)
     if not pending:
         return False
-    mn_m = _re.search(r'\d{4}-\d{4}', text)
+    mn_m = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
     if not mn_m:
         return False
     management_number = mn_m.group(0)
@@ -2195,7 +2195,7 @@ def handle_shuppinon_channel(event: dict) -> None:
     # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
     if is_new_post:
         import re as _re
-        text_mn = _re.search(r'\d{4}-\d{4}', text)
+        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
             return
         if text_mn and not image_urls:
@@ -2410,7 +2410,7 @@ def handle_konpo_channel(event: dict) -> None:
     # ── 新規投稿 ──────────────────────────────────────────
     if is_new_post:
         # 後日発送の送り状後入力: 「管理番号 運送会社 追跡番号」
-        delayed_m = _re.match(r'(\d{4}-\d{4})\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
+        delayed_m = _re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
         if delayed_m:
             mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
             carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
@@ -2418,7 +2418,7 @@ def handle_konpo_channel(event: dict) -> None:
             return
 
         # 通常の梱包開始
-        text_mn = _re.search(r'\d{4}-\d{4}', text)
+        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not text_mn and not image_urls:
             return
         if text_mn:
@@ -2992,7 +2992,7 @@ def handle_status_channel(event: dict) -> None:
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
     text = normalize_keyword(event.get("text", ""))
 
-    text_mn = _re.search(r'\d{4}-\d{4}', text)
+    text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
     if not text_mn and not image_urls:
         return
 
