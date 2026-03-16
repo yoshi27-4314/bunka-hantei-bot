@@ -53,7 +53,7 @@ def monday_graphql(query: str, variables: dict = None) -> dict:
     payload = {"query": query}
     if variables:
         payload["variables"] = variables
-    response = httpx.post(MONDAY_API_URL, headers=headers, json=payload, timeout=15)
+    response = httpx.post(MONDAY_API_URL, headers=headers, json=payload, timeout=25)
     return response.json()
 
 
@@ -420,7 +420,7 @@ def fetch_thread_messages(channel_id: str, thread_ts: str, current_ts: str) -> l
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
     params = {"channel": channel_id, "ts": thread_ts}
-    response = httpx.get(url, headers=headers, params=params, timeout=10)
+    response = httpx.get(url, headers=headers, params=params, timeout=20)
     data = response.json()
     if not data.get("ok"):
         print(f"[スレッド履歴取得エラー] {data.get('error')}")
@@ -500,6 +500,14 @@ def normalize_keyword(text: str) -> str:
     return text.strip()
 
 
+# チャンネル名直接入力での確定に対応する有効チャンネル一覧
+VALID_CHANNELS = {
+    "eBayシングル", "eBayまとめ",
+    "ヤフオクヴィンテージ", "ヤフオク現行", "ヤフオクまとめ",
+    "ロット販売", "社内利用", "自社使用", "自社利用", "スクラップ", "廃棄",
+}
+
+
 def parse_command(text: str):
     """テキストがコマンドかどうか判定し (command_type, option) を返す。
     コマンドでなければ (None, None)"""
@@ -512,6 +520,9 @@ def parse_command(text: str):
         return 'kakutei', '2'
     elif n.startswith('確定/') and len(n) > 3:
         return 'kakutei', n[3:].strip()
+    # チャンネル名をそのまま入力した場合も確定として認識
+    elif normalize_channel(n) in VALID_CHANNELS:
+        return 'kakutei', normalize_channel(n)
     elif n == '再判定':
         return 'saihantei', None
     elif n == '保留':
@@ -542,7 +553,7 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
     params = {"channel": channel_id, "ts": thread_ts}
-    response = httpx.get(url, headers=headers, params=params, timeout=10)
+    response = httpx.get(url, headers=headers, params=params, timeout=20)
     data = response.json()
 
     result = {}
@@ -787,7 +798,7 @@ def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
         text = msg.get("text", "")
         is_bot = bool(msg.get("bot_id") or msg.get("bot_profile"))
         if is_bot:
-            m = re.search(r'\*(\w+)\* の動作確認・現状確認をお願いします', text)
+            m = re.search(r'\*(\w+)\* の現状確認を頼む', text)
             if m:
                 management_number = m.group(1)
             if "動作確認完了" in text:
@@ -832,7 +843,7 @@ def update_monday_item_status(management_number: str, status_label: str) -> None
 
 def send_to_spreadsheet(payload: dict) -> None:
     """GAS経由でGoogleスプレッドシートにデータを転記する"""
-    response = httpx.post(GAS_URL, json=payload, timeout=15, follow_redirects=True)
+    response = httpx.post(GAS_URL, json=payload, timeout=30, follow_redirects=True)
     result = response.json()
     if not result.get("ok"):
         raise RuntimeError(f"GAS error: {result.get('error')}")
@@ -1306,6 +1317,9 @@ def process_slack_message(event: dict) -> None:
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
 
+    # 画像のみ投稿かどうかを記録（後のチェックリストガードで使用）
+    image_only_post = bool(image_urls) and not user_message.strip()
+
     # テキストなしで画像のみの場合はデフォルトメッセージを使用
     if not user_message and image_urls:
         user_message = "添付画像の商品を分荷判定してください。"
@@ -1313,7 +1327,7 @@ def process_slack_message(event: dict) -> None:
     # ── コマンド判定（確定・再判定・保留・キャンセルはスレッド内のみ） ──
     if user_message:
         cmd_type, cmd_option = parse_command(user_message)
-        # 確定・再判定・保留・キャンネルはスレッド内のみ
+        # 確定・再判定・保留・キャンセルはスレッド内のみ
         if event.get("thread_ts") and cmd_type:
             try:
                 _handle_command(cmd_type, cmd_option, channel_id, thread_ts, event)
@@ -1328,21 +1342,35 @@ def process_slack_message(event: dict) -> None:
 
         # ── チェックリスト応答判定 ─────────────────────────
         checklist = get_checklist_state(channel_id, thread_ts)
-        if checklist and not checklist["is_completed"]:
-            n = normalize_keyword(user_message)
-            # 先頭が1〜5の数字 → 状態番号＋コメントの回答とみなす
-            is_checklist_input = n and n[0] in CONDITION_MAP
-            if is_checklist_input:
-                try:
-                    _handle_checklist(checklist, user_message, channel_id, thread_ts, event)
-                except Exception as e:
-                    print(f"[チェックリスト処理エラー] {e}")
+        if checklist:
+            if checklist["is_completed"]:
+                # チェックリスト完了済みスレッド：画像のみ投稿は無視（再判定しない）
+                if image_only_post:
+                    return
+            else:
+                # チェックリスト未完了
+                n = normalize_keyword(user_message)
+                # 先頭が1〜5の数字 → 状態番号＋コメントの回答とみなす
+                is_checklist_input = n and n[0] in CONDITION_MAP
+                if is_checklist_input:
+                    try:
+                        _handle_checklist(checklist, user_message, channel_id, thread_ts, event)
+                    except Exception as e:
+                        print(f"[チェックリスト処理エラー] {e}")
+                        post_to_slack(channel_id, thread_ts,
+                            "━━━━━━━━━━━━━━━━\n"
+                            "⚠️ *チェックリスト処理エラー*\n"
+                            "━━━━━━━━━━━━━━━━\n\n"
+                            f"{e}")
+                    return
+                elif image_only_post:
+                    # 番号なしで写真だけ送ってきた場合 → 番号入力を促す
                     post_to_slack(channel_id, thread_ts,
-                        "━━━━━━━━━━━━━━━━\n"
-                        "⚠️ *チェックリスト処理エラー*\n"
-                        "━━━━━━━━━━━━━━━━\n\n"
-                        f"{e}")
-                return
+                        "ふむ、写真は確かに受け取った。\n\n"
+                        "状態番号（1〜5）も一言添えてくれ。\n"
+                        "例：`3 電源OK、外観に小傷あり`",
+                        mention_user=event.get("user", ""))
+                    return
 
     # ── 通常のAI判定フロー ────────────────────────────────
     # スレッド内の返信であれば会話履歴を取得
