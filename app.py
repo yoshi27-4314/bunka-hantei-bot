@@ -60,20 +60,20 @@ def monday_graphql(query: str, variables: dict = None) -> dict:
 # 高額品メンション先（¥30,000以上で自動メンション）
 ASANO_USER_ID = "U0AL10Q1HQC"  # 浅野儀頼
 
-# 担当者Slack UserID → スタッフコード対応表
+# 担当者Slack UserID → 氏名対応表
 # UserIDはSlackプロフィール→「その他」→「メンバーIDをコピー」で取得
 STAFF_MAP = {
-    "U0AL10Q1HQC": "YA",  # 浅野儀頼
-    "U0ALQ4BJNSV": "KH",  # 林和人
-    "U0AL4R1EMMZ": "MH",  # 平野光雄
-    # "UXXXXXXXX": "YY",  # 横山優
-    # "UXXXXXXXX": "KM",  # 三島圭織
-    # "UXXXXXXXX": "TM",  # 松本豊彦
-    # "UXXXXXXXX": "TK",  # 北瀬孝
-    "U0ALKDQEC2F": "YM",  # 桃井侑菜
-    "U0ALV7C2EHJ": "SI",  # 伊藤佐和子
-    # "UXXXXXXXX": "YS",  # 白木雄介
-    "U0AM4HG1PRP": "AO",  # 奥村亜優李
+    "U0AL10Q1HQC": "浅野儀頼",
+    "U0ALQ4BJNSV": "林和人",
+    "U0AL4R1EMMZ": "平野光雄",
+    # "UXXXXXXXX": "横山優",
+    # "UXXXXXXXX": "三島圭織",
+    # "UXXXXXXXX": "松本豊彦",
+    # "UXXXXXXXX": "北瀬孝",
+    "U0ALKDQEC2F": "桃井侑菜",
+    "U0ALV7C2EHJ": "伊藤佐和子",
+    # "UXXXXXXXX": "白木雄介",
+    "U0AM4HG1PRP": "奥村亜優李",
 }
 
 
