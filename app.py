@@ -37,6 +37,7 @@ def get_monday_token():
 
 MONDAY_BOARD_ID = "18404143384"
 MONDAY_API_URL = "https://api.monday.com/v2"
+_monday_setup_log: list = []
 GAS_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec")
 
 
@@ -3389,27 +3390,43 @@ def monday_setup():
         # メモ
         ("メモ",               "text",    "memo"),
     ]
-    results = []
-    for title, col_type, col_id in columns:
+    _monday_setup_log.clear()
+    _monday_setup_log.append("started")
+
+    def _run():
         query = """
         mutation ($board_id: ID!, $title: String!, $col_type: ColumnType!, $col_id: String!) {
             create_column(board_id: $board_id, title: $title, column_type: $col_type, id: $col_id) {
-                id
-                title
+                id title
             }
         }
         """
-        try:
-            result = monday_graphql(query, {
-                "board_id": MONDAY_BOARD_ID,
-                "title": title,
-                "col_type": col_type,
-                "col_id": col_id,
-            })
-            results.append({"title": title, "result": result})
-        except Exception as e:
-            results.append({"title": title, "error": str(e)})
-    return jsonify({"ok": True, "results": results})
+        for title, col_type, col_id in columns:
+            try:
+                monday_graphql(query, {
+                    "board_id": MONDAY_BOARD_ID,
+                    "title": title,
+                    "col_type": col_type,
+                    "col_id": col_id,
+                })
+                _monday_setup_log.append(f"OK: {title}")
+            except Exception as e:
+                _monday_setup_log.append(f"SKIP: {title} ({e})")
+        _monday_setup_log.append("done")
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "カラム作成をバックグラウンドで開始しました。/monday-setup-status で進捗確認できます。"})
+
+
+@app.route("/monday-setup-status", methods=["GET"])
+def monday_setup_status():
+    """monday-setup バックグラウンド処理の進捗確認"""
+    done = "done" in _monday_setup_log
+    return jsonify({
+        "done": done,
+        "total": len(_monday_setup_log),
+        "log": _monday_setup_log,
+    })
 
 
 @app.route("/slack/events", methods=["POST"])
