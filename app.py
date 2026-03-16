@@ -70,9 +70,10 @@ STAFF_MAP = {
     # "UXXXXXXXX": "KM",  # 三島圭織
     # "UXXXXXXXX": "TM",  # 松本豊彦
     # "UXXXXXXXX": "TK",  # 北瀬孝
-    # "UXXXXXXXX": "YM",  # 桃井侑菜
-    # "UXXXXXXXX": "SI",  # 伊藤佐和子
+    "U0ALKDQEC2F": "YM",  # 桃井侑菜
+    "U0ALV7C2EHJ": "SI",  # 伊藤佐和子
     # "UXXXXXXXX": "YS",  # 白木雄介
+    "U0AM4HG1PRP": "AO",  # 奥村亜優李
 }
 
 
