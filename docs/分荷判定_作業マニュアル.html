@@ -231,7 +231,7 @@
     <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>この仕組みの目的</b>　─ 何のためにあるか、あなたの仕事との関係</td></tr>
     <tr><td style="color:#888; font-weight:bold;">2</td><td><b>販売チャンネルとは何か</b>　─ 9種類の販路とその違い</td></tr>
     <tr><td style="color:#888; font-weight:bold;">3</td><td><b>分荷作業の流れ（8ステップ）</b>　─ 商品を受け取ってから確定するまで</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>コマンド一覧</b>　─ 確定・キャンセル・再判定・保留・在庫検索</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>コマンド一覧</b>　─ 確定・キャンセル・再判定・保留・在庫検索・相談モード</td></tr>
     <tr><td style="color:#888; font-weight:bold;">5</td><td><b>管理番号について</b>　─ 番号の読み方・発行ルール</td></tr>
     <tr><td style="color:#888; font-weight:bold;">6</td><td><b>状態ランクの判断基準</b>　─ S / A / B / C / D の見分け方</td></tr>
     <tr><td style="color:#888; font-weight:bold;">7</td><td><b>スコアの見方</b>　─ 数値が示す意味</td></tr>
@@ -292,13 +292,21 @@
 　　↓
 📱 分荷判定チャンネルに写真（またはテキスト）を投稿
 　　↓
-🤖 AIが自動で分析・判定候補を提示
+🤖 AIが自動で分析・商品確認
 　　↓
-👤 スタッフが内容を確認して「確定」を入力
+👤 スタッフが確認（合っていれば「はい」）
+　　↓
+🤖 AIが状態確認を依頼（通販チャンネル候補の場合のみ）
+　　↓
+👤 スタッフが状態ランク（S/A/B/C/D）を入力
+　　↓
+🤖 AIが判定結果・予想価格・スコアを出力
+　　↓
+👤 スタッフが「第一」「第二」またはチャンネル名で確定
 　　↓
 ✅ 管理番号が発行される（通販チャンネルのみ）
 ✅ データが自動で記録される
-✅ 在庫管理に登録される（通販チャンネルのみ）</div>
+✅ Monday.comに在庫登録される（通販チャンネルのみ）</div>
 
 
 <!-- ======== 2. 販売チャンネル ======== -->
@@ -332,7 +340,7 @@
       <tr><td>スクラップ</td><td>素材・金属としての価値のみある品</td></tr>
       <tr><td>廃棄</td><td>販売・利用が難しく処分が必要な品</td></tr>
     </table>
-    <div class="note" style="margin-top:4px;">※ データベースには記録されますが、管理番号は発行されません。</div>
+    <div class="note" style="margin-top:4px;">※ データベースには記録されますが、管理番号は発行されません。また状態確認のステップもスキップされます。</div>
   </div>
 </div>
 
@@ -417,7 +425,7 @@
   新しいメッセージとして投稿すると、AIはコマンドと認識できません。
 </div>
 
-<h2 class="subsection">ステップ4〜5　AIが状態確認を依頼する</h2>
+<h2 class="subsection">ステップ4〜5　AIが状態確認を依頼する（通販チャンネル候補のみ）</h2>
 <div class="box box-yellow">
   <b>通販チャンネルが候補の場合、AIからこのような確認依頼が届きます：</b>
   <div class="code-block" style="margin-top:8px;">よかろう。では動作・外観の確認をお願いしたい。
@@ -428,14 +436,17 @@
 　• パーツ・付属品の確認
 
 確認できたら状態ランクを教えてくれ：
-　S：新品・未使用（タグ／箱あり）
-　A：未使用に近い（使用感ほぼなし）
-　B：中古美品（使用感あり・目立つ傷なし）
-　C：中古（使用感・傷・汚れあり）
-　D：ジャンク（動作不良・部品取り）
+　🅢 S：新品・未使用（タグ／箱あり）
+　🅐 A：未使用に近い（使用感ほぼなし）
+　🅑 B：中古美品（使用感あり・目立つ傷なし）
+　🅒 C：中古（使用感・傷・汚れあり）
+　🅓 D：ジャンク（動作不良・部品取り）
 
 ランクのアルファベット＋一言コメントで知らせてくれ
 例：`B 電源OK・外観に小傷`</div>
+</div>
+<div class="note" style="margin-top:4px;">
+  ※ <b>ロット販売・社内利用・スクラップ・廃棄</b>が候補の場合はこのステップをスキップして、直接ステップ7（判定結果）に進みます。
 </div>
 
 <h2 class="subsection">ステップ6　状態ランクを入力する</h2>
@@ -468,21 +479,43 @@
 
 📋 アイテム名：パナソニック 洗濯機 NA-F60B14
 🏭 メーカー/ブランド：Panasonic
+🔢 品番/型式：NA-F60B14
 📊 状態ランク：B（中古美品）
 
+─────────────────────────
+
 【第一候補】ヤフオク現行
-　理由：現行品・動作OK・需要安定
-　予想販売価格：¥8,000〜¥12,000
-　推奨スタート価格：¥7,000
-　予測在庫期間：〜1ヶ月
-　総合スコア：68点
+理由：現行品・動作OK・需要安定
+
+💰 予想販売価格：¥8,000〜¥12,000
+🎯 推奨スタート価格：¥7,000
+🏆 推奨目標価格：¥10,000
+📅 予測在庫期間：〜1ヶ月
+⏰ 推奨在庫期限：2026年6月末
+📊 市場需要：2（市場拮抗）
+🏭 保管コスト概算：¥300
+📦 梱包・発送コスト概算：¥2,000
+💡 期待ROI：約42%
+
+⭐ 総合スコア：68点
+　└ 収益期待：20/30
+　└ 在庫回転：18/25
+　└ 保管物流効率：16/25
+　└ 作業コスト効率：14/20
+
+🏷️ 推定内部KW：/SU140/4S/2
+
+─────────────────────────
 
 【第二候補】ヤフオクまとめ
-　...
+  ...
 
 ━━━━━━━━━━━━━━━━
-`第一` `第二` またはチャンネル名を返信して確定してください
+販売チャンネルを確定するには `第一` `第二` またはチャンネル名を返信してくれ
 ━━━━━━━━━━━━━━━━</div>
+  <div class="note" style="margin-top:4px;">
+    ※ 管理番号はこの時点では表示されません。<b>確定コマンドを入力したときに自動で発行されます。</b>
+  </div>
 </div>
 
 <h2 class="subsection">ステップ8　販売チャンネルを確定する</h2>
@@ -499,10 +532,28 @@
     <b>確定すると自動で行われること：</b>
     <ul class="check-list">
       <li>管理番号の自動発行（通販チャンネルのみ）</li>
-      <li>データベースへの自動記録（全チャンネル共通）</li>
-      <li>在庫管理システムへの登録（通販チャンネルのみ）</li>
-      <li>予想販売価格¥30,000以上の場合 → 責任者に自動通知</li>
+      <li>スプレッドシートへの自動記録（全チャンネル共通）</li>
+      <li>Monday.comへの在庫登録（通販チャンネルのみ）</li>
+      <li>推奨目標価格¥30,000以上の場合 → 責任者に自動通知</li>
     </ul>
+  </div>
+  <div class="box box-yellow" style="margin-top:6px;">
+    <b>確定後のAI返信イメージ（通販チャンネルの場合）：</b>
+    <div class="code-block" style="margin-top:6px;">よかろう。
+
+━━━━━━━━━━━━━━━━
+✅ 確定完了
+━━━━━━━━━━━━━━━━
+
+📌 確定チャンネル
+　ヤフオク現行
+
+🔖 管理番号
+　2603-0001
+
+📋 スプレッドシート・Monday.com
+　転記完了じゃ。
+━━━━━━━━━━━━━━━━</div>
   </div>
 </div>
 
@@ -555,7 +606,7 @@
     <td>スレッド内</td>
   </tr>
   <tr>
-    <td><code>キャンセル</code> / <code>取消</code></td>
+    <td><code>キャンセル</code> / <code>取消</code> / <code>取り消し</code> / <code>削除</code></td>
     <td>確定を取り消す。データベースにキャンセルとして記録される</td>
     <td>スレッド内</td>
   </tr>
@@ -584,6 +635,36 @@
   <span class="channel-badge">廃棄</span>
 </div>
 <div class="note">「自社使用」「自社利用」と入力した場合も、「社内利用」として自動的に認識されます。</div>
+
+<h2 class="subsection">全チャンネル共通機能　─ 相談モードとお知らせ</h2>
+<div class="box box-yellow" style="margin-bottom:4mm;">
+  この機能はボットが稼働している<b>すべてのチャンネルで使えます。</b>このチャンネルでは<b>北大路魯山人</b>が返答します。
+</div>
+<div class="two-col">
+  <div class="box box-blue">
+    <b>💬 浅野さんへの相談モード</b><br>
+    <div class="note" style="margin-top:6px;">使い方（以下はどれでもOK）：</div>
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">@浅野儀頼 相談
+@浅野儀頼 相談があります
+@浅野儀頼 相談です</div>
+    @浅野儀頼 のメンション＋「相談」という文字が入っていれば動作します。<br><br>
+    浅野さんに通知が届き、<b>そのスレッドはボットが一切反応しなくなります。</b><br>
+    判定の妥当性や方針を直接相談したいときに使ってください。
+  </div>
+  <div class="box box-gray">
+    <b>📢 浅野からのお知らせ</b><br>
+    <div class="note" style="margin-top:6px;">浅野が「浅野です」で始めると：</div>
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">浅野です 今週の作業について...</div>
+    北大路魯山人が以下のように整形して再送します：
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">━━━━━━━━━━━━━━━━
+📢 浅野からのお知らせ
+━━━━━━━━━━━━━━━━
+
+今週の作業について...
+
+━━━━━━━━━━━━━━━━</div>
+  </div>
+</div>
 
 
 <!-- ======== 5. 管理番号 ======== -->
@@ -614,6 +695,9 @@
     </div>
   </div>
 </div>
+<div class="note" style="margin-top:4mm;">
+  ※ チャンネルを問わず、すべての通販チャンネルで共通の月次連番です。チャンネル別のコード（V/G/M/Eなど）は付きません。
+</div>
 
 <div class="box" style="margin-top:4mm;">
   <b>管理番号の読み方　練習例</b>
@@ -630,12 +714,13 @@
   <div class="box box-blue">
     <b>管理番号が発行されるチャンネル</b>
     <ul class="check-list" style="margin-top:6px;">
-      <li>eBayシングル　→ コード <b>E</b></li>
-      <li>eBayまとめ　→ コード <b>E</b></li>
-      <li>ヤフオクヴィンテージ　→ コード <b>V</b></li>
-      <li>ヤフオク現行　→ コード <b>G</b></li>
-      <li>ヤフオクまとめ　→ コード <b>M</b></li>
+      <li>eBayシングル</li>
+      <li>eBayまとめ</li>
+      <li>ヤフオクヴィンテージ</li>
+      <li>ヤフオク現行</li>
+      <li>ヤフオクまとめ</li>
     </ul>
+    <div class="note" style="margin-top:4px;">形式：<code>YYMM-連番4桁</code>（例：<code>2603-0001</code>）</div>
   </div>
   <div class="box box-gray">
     <b>管理番号が発行されないチャンネル</b>
@@ -739,22 +824,22 @@
     <th>評価項目</th><th style="width:60px; text-align:center;">配点</th><th>何を見ているか</th>
   </tr>
   <tr>
-    <td>収益の期待値</td>
+    <td>収益期待</td>
     <td style="text-align:center;">30点</td>
-    <td>予想販売価格の高さ、価格の安定性</td>
+    <td>予想販売価格の高さ、価格の安定性、まとめ売りによる付加価値</td>
   </tr>
   <tr>
-    <td>売れる速さ（在庫回転）</td>
+    <td>在庫回転</td>
     <td style="text-align:center;">25点</td>
     <td>1週間以内:25点 / 1ヶ月以内:18点 / 3ヶ月以内:10点 / それ以上:3点</td>
   </tr>
   <tr>
-    <td>保管・発送のしやすさ</td>
+    <td>保管・物流コスト効率</td>
     <td style="text-align:center;">25点</td>
-    <td>商品のサイズ、発送費、梱包材のコスト</td>
+    <td>商品のサイズ、発送費、梱包材のコスト、保管期間との組み合わせ</td>
   </tr>
   <tr>
-    <td>作業のしやすさ</td>
+    <td>作業コスト効率</td>
     <td style="text-align:center;">20点</td>
     <td>梱包の難しさ、撮影の手間、問い合わせの多さ</td>
   </tr>
@@ -767,6 +852,21 @@
     <tr><td>75点以上</td><td><b style="color:#27ae60;">高</b></td><td>AIが自信を持って判定できている。そのまま確定して問題ない可能性が高い</td></tr>
     <tr><td>50〜74点</td><td><b style="color:#e67e22;">中</b></td><td>複数のチャンネルが候補になっている。第一・第二候補を比較して判断する</td></tr>
     <tr><td>50点未満</td><td><b style="color:#c0392b;">低</b></td><td>判定が難しい商品。先輩や責任者に確認することを推奨</td></tr>
+  </table>
+</div>
+
+<h2 class="subsection">判定結果に含まれるその他の情報</h2>
+<div class="box">
+  <table>
+    <tr><th>表示項目</th><th>内容</th></tr>
+    <tr><td>推奨スタート価格</td><td>ヤフオクに出品するときの開始価格の目安</td></tr>
+    <tr><td>推奨目標価格</td><td>落札を狙う目標価格。<b>¥30,000以上の場合は浅野に自動通知</b></td></tr>
+    <tr><td>推奨在庫期限</td><td>この期限までに出品・処分を目標とする目安日</td></tr>
+    <tr><td>保管コスト概算</td><td>予測在庫期間中の倉庫保管コストの概算</td></tr>
+    <tr><td>梱包・発送コスト概算</td><td>梱包材費＋送料の概算（第一候補チャンネルベース）</td></tr>
+    <tr><td>期待ROI</td><td>投資対効果の概算（販売価格 ÷ 仕入れ＋経費 − 1）</td></tr>
+    <tr><td>市場需要（1/2/3）</td><td>1=買い手市場（売りにくい）/ 2=需給拮抗 / 3=売り手市場（売りやすい）</td></tr>
+    <tr><td>推定内部KW</td><td>社内管理用コード（発送会社・サイズ・価格帯・期待値）</td></tr>
   </table>
 </div>
 
@@ -788,6 +888,11 @@
   <tr><td>状態ランク</td><td>出品時の価格設定の根拠になる</td></tr>
   <tr><td>確定チャンネル / AI候補</td><td>AIの精度検証・販路選択の傾向分析に使われる</td></tr>
   <tr><td>予想販売価格・スコア</td><td>在庫の資産評価・売上予測に使われる</td></tr>
+  <tr><td>推奨スタート価格・目標価格</td><td>出品担当チャンネルへの価格情報引き継ぎに使われる</td></tr>
+  <tr><td>推奨在庫期限</td><td>長期在庫の警告・優先出品判断に使われる</td></tr>
+  <tr><td>保管コスト・発送コスト概算</td><td>案件ごとの原価計算・収益分析に使われる</td></tr>
+  <tr><td>期待ROI</td><td>仕入れ判断の振り返りデータとして蓄積される</td></tr>
+  <tr><td>推定内部KW</td><td>発送会社・サイズの事前把握に使われる</td></tr>
   <tr><td><b>分荷作業時間（分）</b></td><td><b>投稿〜確定コマンドまでの時間を自動計測。1件あたりの作業コスト把握に使われる</b></td></tr>
 </table>
 
@@ -832,7 +937,7 @@
     </tr>
     <tr>
       <td style="background:#f0f5f2; text-align:center;">AI</td>
-      <td>「動作・外観の確認をお願いしたい…」（状態確認の依頼）</td>
+      <td>「動作・外観の確認をお願いしたい…」（🅢🅐🅑🅒🅓 状態確認の依頼）</td>
     </tr>
     <tr>
       <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
@@ -840,7 +945,7 @@
     </tr>
     <tr>
       <td style="background:#f0f5f2; text-align:center;">AI</td>
-      <td>📦 分荷判定結果（第一候補：ヤフオク現行 / スコア：68点 / 予想価格：¥8,000〜¥12,000）</td>
+      <td>📦 分荷判定結果（第一候補：ヤフオク現行 / スコア：68点 / 予想価格：¥8,000〜¥12,000 / 推奨目標：¥10,000 / 期待ROI：約42%）</td>
     </tr>
     <tr>
       <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
@@ -848,7 +953,7 @@
     </tr>
     <tr>
       <td style="background:#f0f5f2; text-align:center;">AI</td>
-      <td>✅ 確定完了 / 管理番号：2603-0001 / 記録完了</td>
+      <td>✅ 確定完了 / 管理番号：2603-0001 / スプレッドシート・Monday.com 転記完了</td>
     </tr>
   </table>
 </div>
@@ -888,12 +993,25 @@
   <div class="hint" style="margin-top:4px;">💡 間違いに気づいたら必ずキャンセルして再確定してください。記録の正確さが大切です。</div>
 </div>
 
-<h2 class="subsection">例5：在庫を検索する</h2>
+<h2 class="subsection">例5：非通販チャンネルへの確定（状態確認なし）</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td>写真を投稿</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>「〇〇の商品と見たが、合っておるか？」</td></tr>
+    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>はい</code></td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 分荷判定結果（第一候補：ロット販売）← 状態確認は省略される</td></tr>
+    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>第一</code></td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>✅ 確定完了 ／ スプレッドシートへ転記完了（管理番号は発行されない）</td></tr>
+  </table>
+</div>
+
+<h2 class="subsection">例6：在庫を検索する</h2>
 <div class="box">
   <table>
     <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
     <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>在庫検索 洗濯機</code>（どのチャンネルでも可）</td></tr>
-    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>ヒット件数・管理番号・ステータス・在庫期間の一覧を表示</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>ヒット件数・管理番号・ステータス・在庫期間・Monday.comリンクの一覧を表示</td></tr>
   </table>
 </div>
 
@@ -950,8 +1068,16 @@
 <div class="box">
   <ul class="check-list">
     <li><code>再判定</code> コマンドを使って追加情報を入力すると、精度が上がることがあります</li>
-    <li>それでも迷う場合は先輩・担当者に相談してください</li>
+    <li>それでも迷う場合は <code>@浅野儀頼 相談</code>（または「相談があります」「相談です」）と送って相談モードを使ってください</li>
     <li>AIの提案はあくまで「参考意見」です。最終判断はスタッフが行います</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 浅野さんに個別に相談したい</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>スレッドに <code>@浅野儀頼 相談があります</code> と送ると、浅野さんに通知が届きます</li>
+    <li>その後そのスレッドはボットが反応しなくなるので、自由に相談してください</li>
   </ul>
 </div>
 
@@ -964,7 +1090,7 @@
     </tr>
     <tr>
       <td>システムの不具合・エラー</td>
-      <td>浅野儀頼（YA）に連絡</td>
+      <td>浅野儀頼に連絡</td>
     </tr>
     <tr>
       <td>操作方法がわからない</td>
@@ -972,7 +1098,7 @@
     </tr>
     <tr>
       <td>判定の妥当性に疑問がある</td>
-      <td><code>再判定</code> コマンドを使うか、先輩に相談</td>
+      <td><code>再判定</code> コマンドを使うか、<code>@浅野儀頼 相談</code> で直接相談</td>
     </tr>
     <tr>
       <td>¥30,000以上の高額案件</td>

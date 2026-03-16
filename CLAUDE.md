@@ -84,6 +84,10 @@
 
 メッセージ受信時、以下の順で処理を振り分ける：
 
+0. **全チャンネル共通処理**（チャンネルルーティングより前に判定）
+   - `ADMIN_USER_ID`（浅野儀頼）の投稿かつ `浅野です` で始まる → 全員向けお知らせとしてそのチャンネルに転送（浅野からのお知らせ）
+   - `@浅野儀頼` メンション + `相談` を含む → 相談モード起動（AIが相談内容を整形してお知らせ形式で投稿）
+   - 上記どちらも、**チャンネルのBotキャラクターで返答**する（`get_bot_role_for_channel()` で解決）
 1. `在庫検索 キーワード` / `検索 キーワード` → どのチャンネルでも最優先で在庫検索
 2. SATSUEI_CHANNEL_ID → `handle_satsuei_channel`（撮影確認・白洲次郎）
 3. SHUPPINON_CHANNEL_ID → `handle_shuppinon_channel`（出品保管・岩崎弥太郎）
@@ -93,6 +97,27 @@
 7. GENBA_CHANNEL_ID → `handle_genba_channel`（現場査定・渋沢栄一）
 8. KINTAI_CHANNEL_ID → `handle_kintai_channel`（勤怠連絡・サイレント記録）
 9. その他すべて → 分荷判定フロー（北大路魯山人）
+
+### `get_bot_role_for_channel(channel_id)` （2026/03/17 追加）
+チャンネルIDからbot_role文字列を返すヘルパー関数。
+相談モード・浅野からのお知らせで使用。未登録チャンネルはデフォルト `"bunika"` を返す。
+
+```python
+mapping = {
+    SATSUEI_CHANNEL_ID:   "satsuei",
+    SHUPPINON_CHANNEL_ID: "shuppinon",
+    KONPO_CHANNEL_ID:     "konpo",
+    STATUS_CHANNEL_ID:    "status",
+    GENBA_CHANNEL_ID:     "genba",
+}
+return mapping.get(channel_id, "bunika")
+```
+
+### 相談コマンドの入力パターン（複数形式すべて有効）
+- `@浅野儀頼 相談`
+- `@浅野儀頼 相談があります`
+- `@浅野儀頼 相談です`
+- その他 `@浅野儀頼` メンション + `相談` を含む任意のテキスト
 
 ---
 
@@ -497,7 +522,17 @@ GOOGLE_DRIVE_FOLDER_ID（ルート）/
 
 ---
 
+## ドキュメント一覧（docs/）
+
+| ファイル | 対象チャンネル | 最終更新 |
+|---|---|---|
+| `docs/分荷判定_作業マニュアル.html` | 分荷判定チャンネル（北大路魯山人） | 2026/03/17 |
+| `docs/商品撮影_作業マニュアル.html` | 撮影確認チャンネル（白洲次郎） | 2026/03/17 新規作成 |
+
+---
+
 ## 次の実装タスク（コードのTODOコメントから）
 
 - `execute_listing` 内のTODO: ヤフオクAPI自動出品（オークタウンAPI確認後・4/1以降実装予定）
 - `extract_tracking_number_from_image`: `anthropic.Anthropic()` を直接呼んでいる（`get_anthropic_client()` に統一すべき）
+- 残りチャンネルのマニュアル作成: 出品保管（岩崎弥太郎）/ 梱包出荷（黒田官兵衛）/ ステータス確認（ステータス松本）/ 出退勤 / 現場査定（渋沢栄一）

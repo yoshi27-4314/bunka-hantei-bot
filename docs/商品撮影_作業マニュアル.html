@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商品撮影 作業マニュアル｜TakeBack事業部</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Meiryo", "MS Gothic", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  .page {
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 15mm 18mm;
+  }
+
+  /* 表紙 */
+  .cover {
+    text-align: center;
+    padding: 28mm 0 18mm;
+    border-bottom: 3px solid #1c2e4a;
+    margin-bottom: 12mm;
+    page-break-after: always;
+  }
+  .cover .logo { font-size: 38pt; margin-bottom: 6mm; }
+  .cover h1 { font-size: 24pt; color: #1c2e4a; margin-bottom: 3mm; line-height: 1.4; }
+  .cover .subtitle { font-size: 13pt; color: #555; margin-bottom: 8mm; }
+  .cover .badge {
+    display: inline-block;
+    background: #1c2e4a;
+    color: #fff;
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-size: 10pt;
+    margin: 3px;
+  }
+  .cover .welcome {
+    margin-top: 10mm;
+    padding: 8px 20px;
+    background: #eaf0f8;
+    border-radius: 8px;
+    font-size: 11pt;
+    color: #1c2e4a;
+    display: inline-block;
+    line-height: 1.8;
+  }
+
+  /* 見出し */
+  h1.section {
+    font-size: 15pt; color: #fff; background: #1c2e4a;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h2.subsection {
+    font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
+    padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
+    border-radius: 0 4px 4px 0;
+  }
+  h3.item {
+    font-size: 11pt; color: #333; margin: 4mm 0 2mm;
+    padding: 4px 10px; border-left: 3px solid #95a5a6;
+    background: #fafafa;
+  }
+
+  /* ボックス */
+  .box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3mm 0;
+    background: #fafafa;
+  }
+  .box-navy   { background: #eaf0f8; border-color: #1c2e4a; }
+  .box-blue   { background: #eaf2fb; border-color: #2980b9; }
+  .box-yellow { background: #fefde7; border-color: #f39c12; }
+  .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
+  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
+  .box-green  { background: #eafaf1; border-color: #27ae60; }
+  .box-pink   { background: #fef0f6; border-color: #e91e8c; }
+
+  /* フロー図 */
+  .flow { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: stretch; }
+  .flow-step {
+    flex: 1; min-width: 70px; background: #1c2e4a; color: #fff;
+    text-align: center; padding: 8px 5px; font-size: 9pt; font-weight: bold; position: relative;
+  }
+  .flow-step:not(:last-child)::after {
+    content: "▶"; position: absolute; right: -11px; top: 50%;
+    transform: translateY(-50%); color: #1c2e4a; font-size: 14pt; z-index: 1;
+  }
+  .flow-step.done  { background: #27ae60; }
+  .flow-step.end   { background: #e74c3c; }
+  .flow-step .step-num { font-size: 7pt; opacity: 0.8; display: block; }
+
+  /* テーブル */
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 10pt; }
+  th { background: #1c2e4a; color: #fff; padding: 7px 10px; text-align: left; font-weight: bold; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+
+  /* コード */
+  code {
+    background: #1c2e4a; color: #ecf0f1; padding: 2px 7px;
+    border-radius: 4px; font-family: "Courier New", monospace; font-size: 10pt;
+  }
+  .code-block {
+    background: #1c2e4a; color: #ecf0f1; padding: 12px 16px;
+    border-radius: 6px; font-family: "Courier New", monospace;
+    font-size: 10pt; line-height: 1.9; margin: 3mm 0; white-space: pre-wrap;
+  }
+
+  /* ステップリスト */
+  .step-list { list-style: none; margin: 2mm 0; }
+  .step-list li {
+    padding: 7px 8px 7px 40px; position: relative;
+    border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
+  }
+  .step-list li::before {
+    content: attr(data-step); position: absolute; left: 6px; top: 7px;
+    background: #1c2e4a; color: #fff; width: 24px; height: 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 9pt; font-weight: bold; line-height: 24px; text-align: center;
+  }
+
+  /* チェックリスト */
+  .check-list { list-style: none; margin: 2mm 0; }
+  .check-list li { padding: 4px 8px 4px 26px; position: relative; font-size: 10.5pt; }
+  .check-list li::before { content: "✓"; position: absolute; left: 5px; color: #27ae60; font-weight: bold; }
+
+  /* ポイントリスト */
+  .point-list { list-style: none; margin: 2mm 0; }
+  .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
+  .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
+
+  /* 注意書き */
+  .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
+
+  /* 改ページ */
+  .page-break { page-break-before: always; }
+
+  /* 印刷設定 */
+  @media print {
+    body { font-size: 10pt; }
+    .page { padding: 10mm 14mm; }
+    .cover { page-break-after: always; }
+    .page-break { page-break-before: always; }
+    h1.section { page-break-after: avoid; }
+    h2.subsection { page-break-after: avoid; }
+  }
+
+  .two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* Driveフォルダ図 */
+  .folder-tree {
+    background: #1c2e4a; color: #ecf0f1; padding: 12px 16px;
+    border-radius: 6px; font-family: "Courier New", monospace;
+    font-size: 10pt; line-height: 2.0; margin: 3mm 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ======== 表紙 ======== -->
+<div class="cover">
+  <div class="logo">📷</div>
+  <h1>商品撮影 作業マニュアル</h1>
+  <div class="subtitle">撮影確認チャンネル（白洲次郎）　操作ガイド</div>
+  <div style="margin: 6mm 0;">
+    <span class="badge">アスカラ</span>
+    <span class="badge">株式会社テイクバック</span>
+    <span class="badge">2026年3月版</span>
+  </div>
+  <div class="welcome">
+    このチャンネルで商品写真を撮影・保存します。<br>
+    管理番号と写真をセットで管理することで、<br>
+    出品・梱包の各工程がスムーズに進みます。
+  </div>
+</div>
+
+
+<!-- ======== 目次 ======== -->
+<h1 class="section">目次</h1>
+<div class="box">
+  <table>
+    <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>このチャンネルの役割</b>　─ 撮影作業が事業全体に与える影響</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">2</td><td><b>撮影作業の流れ（4ステップ）</b>　─ セッション開始から完了まで</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">3</td><td><b>セッション開始の方法</b>　─ テプラ写真 / テキスト入力の2通り</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>写真の撮り方ガイド</b>　─ 何を撮るか・何枚撮るか</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>コマンド一覧</b>　─ 完了・キャンセル・削除・在庫検索・相談モード</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>Google Driveへの自動保存について</b>　─ フォルダ構成と確認方法</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">8</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
+  </table>
+</div>
+
+
+<!-- ======== 1. 役割 ======== -->
+<div class="page-break"></div>
+<h1 class="section">1　このチャンネルの役割</h1>
+
+<h2 class="subsection">商品撮影チャンネルとは</h2>
+<div class="box box-navy">
+  分荷判定で確定した商品を、<b>管理番号と紐づけてGoogle Driveに写真保存する</b>チャンネルです。<br><br>
+  保存された写真は、出品チャンネルでのタイトル・説明文生成や、梱包・発送時の確認に使われます。<br>
+  <b>写真の品質と管理番号の正確な紐づけが、後工程のスタッフ全員の作業精度に直結します。</b>
+</div>
+
+<h2 class="subsection">撮影作業が事業全体に与える影響</h2>
+<div class="two-col">
+  <div class="box box-green">
+    <b>✅ 良い写真・正確な紐づけ</b>
+    <ul class="point-list" style="margin-top:6px;">
+      <li>出品タイトル・説明文をAIが自動生成できる</li>
+      <li>購入者が安心して入札・購入できる</li>
+      <li>クレーム・返品リスクが下がる</li>
+      <li>梱包担当が商品を迷わず識別できる</li>
+    </ul>
+  </div>
+  <div class="box box-red">
+    <b>⚠️ 写真が不足・番号が違う</b>
+    <ul class="point-list" style="margin-top:6px;">
+      <li>出品担当が再撮影を依頼しなければならない</li>
+      <li>別の商品の写真で出品されるリスク</li>
+      <li>クレームや返品につながる</li>
+      <li>全工程が止まる</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="subsection">全体の中での位置づけ</h2>
+<div class="flow" style="margin-top:4mm;">
+  <div class="flow-step done"><span class="step-num">済み</span>分荷判定</div>
+  <div class="flow-step" style="background:#e67e22;"><span class="step-num">ここ</span>商品撮影</div>
+  <div class="flow-step"><span class="step-num">次</span>出品保管</div>
+  <div class="flow-step"><span class="step-num"></span>出品中</div>
+  <div class="flow-step"><span class="step-num"></span>梱包出荷</div>
+  <div class="flow-step end"><span class="step-num"></span>出荷済み</div>
+</div>
+<div class="note" style="margin-top:3mm;">
+  分荷判定でチャンネルが確定した商品を受け取ったら、まずテプラを貼って撮影作業を始めます。
+</div>
+
+<h2 class="subsection">担当AI：白洲次郎</h2>
+<div class="box box-gray">
+  このチャンネルのAIは <b>「白洲次郎」</b> として返答します。<br>
+  GHQとも一歩も引かなかった反骨の紳士。口調は短く的確です。<br>
+  「〜だ」「悪くない」「それでいい」など、簡潔な返答が特徴です。
+</div>
+
+
+<!-- ======== 2. 作業の流れ ======== -->
+<div class="page-break"></div>
+<h1 class="section">2　撮影作業の流れ（4ステップ）</h1>
+
+<div class="box box-navy" style="margin-bottom:5mm;">
+  <b>作業場所：撮影確認チャンネル（白洲次郎）</b><br>
+  テプラや管理番号を投稿してセッションを開始し、写真を送って「完了」で締めます。
+</div>
+
+<ul class="step-list">
+  <li data-step="1">
+    <b>セッション開始</b>　─ テプラ写真 または 管理番号テキストを<b>新規メッセージとして</b>投稿する<br>
+    <span style="font-size:9.5pt; color:#555;">→ AIが管理番号を認識してセッションを開始します</span>
+  </li>
+  <li data-step="2">
+    <b>商品写真を投稿</b>　─ セッションのスレッドに商品写真を送る（複数枚OK）<br>
+    <span style="font-size:9.5pt; color:#555;">→ Google Driveの管理番号フォルダに自動保存されます</span>
+  </li>
+  <li data-step="3">
+    <b>追加・確認</b>　─ 撮り忘れがあれば追加でスレッドに写真を送る<br>
+    <span style="font-size:9.5pt; color:#555;">→ 送るたびに自動保存されます。何枚でも追加できます</span>
+  </li>
+  <li data-step="4">
+    <b>完了</b>　─ スレッドに <code>完了</code> と入力する<br>
+    <span style="font-size:9.5pt; color:#555;">→ Monday.comのステータスが「撮影済み」に更新されます</span>
+  </li>
+</ul>
+
+<div class="box box-yellow" style="margin-top:4mm;">
+  <b>⚠️ 重要：写真は必ず「スレッド内」に送ってください</b><br>
+  セッション開始のメッセージに対して「返信」する形で写真を送る必要があります。<br>
+  新しいメッセージとして送ると、別のセッションとして認識されません。
+</div>
+
+
+<!-- ======== 3. セッション開始 ======== -->
+<h1 class="section">3　セッション開始の方法</h1>
+
+<h2 class="subsection">方法A：テプラ写真を投稿する（推奨）</h2>
+<div class="box">
+  <b>管理番号が印刷されたテプラのラベルを撮影し、チャンネルに投稿します。</b>
+  <ul class="step-list" style="margin-top:8px;">
+    <li data-step="1">商品に貼られたテプララベルを撮影する</li>
+    <li data-step="2">撮影確認チャンネルに<b>新規メッセージ</b>として投稿する</li>
+    <li data-step="3">AIが自動でラベルの管理番号を読み取り、セッションが始まる</li>
+  </ul>
+  <div class="box box-navy" style="margin-top:8px;">
+    <b>AIの返答イメージ：</b>
+    <div class="code-block" style="margin-top:6px;">━━━━━━━━━━━━━━━━
+📸 撮影セッション開始
+━━━━━━━━━━━━━━━━
+
+🔖 管理番号
+　2603-0001
+
+商品写真をこのスレッドに投稿してください。
+
+　• 複数枚まとめてOKです
+　• 撮影完了後は `完了` と入力してください</div>
+  </div>
+  <div class="note" style="margin-top:6px;">テプラ画像はGoogle DriveのフォルダにもOCR前に自動保存されます（01_テプラ.jpg）。</div>
+</div>
+
+<h2 class="subsection">方法B：管理番号をテキストで入力する</h2>
+<div class="box">
+  <b>テプラがない場合や読み取りに失敗した場合は、管理番号を直接テキストで投稿します。</b>
+  <div class="two-col" style="margin-top:8px;">
+    <div class="box box-green">
+      <b>✅ 正しい形式</b>
+      <div class="code-block" style="margin-top:4px;">2603-0001</div>
+      <div class="code-block" style="margin-top:4px;">2603G0001</div>
+      <div class="note" style="margin-top:4px;">管理番号のみを1行で入力してください</div>
+    </div>
+    <div class="box box-red">
+      <b>❌ 認識されない例</b>
+      <div class="code-block" style="margin-top:4px;">管理番号：2603-0001</div>
+      <div class="code-block" style="margin-top:4px;">洗濯機の撮影です</div>
+      <div class="note" style="margin-top:4px;">余分なテキストがあると認識できない場合があります</div>
+    </div>
+  </div>
+</div>
+
+<h2 class="subsection">テプラ読み取りに失敗した場合</h2>
+<div class="box box-yellow">
+  <b>以下のメッセージが出た場合は、方法Bでテキスト入力してください：</b>
+  <div class="code-block" style="margin-top:8px;">━━━━━━━━━━━━━━━━
+⚠️ 読み取りエラー
+━━━━━━━━━━━━━━━━
+
+テプラの管理番号を読み取れませんでした。
+
+もう一度管理番号を送信してください。</div>
+  <ul class="check-list" style="margin-top:8px;">
+    <li>照明が暗い・ピントがずれている → 撮り直して再投稿</li>
+    <li>ラベルが折れている・汚れている → 管理番号をテキストで直接入力</li>
+  </ul>
+</div>
+
+
+<!-- ======== 4. 写真の撮り方 ======== -->
+<div class="page-break"></div>
+<h1 class="section">4　写真の撮り方ガイド</h1>
+
+<h2 class="subsection">基本の撮影ポイント</h2>
+<div class="box box-navy">
+  <b>購入者が「実物を見た」と感じられる写真を撮ることを目標にします。</b><br>
+  きれいに見せようとするより、<b>現状を正直に写す</b>ことが大切です。
+</div>
+
+<table style="margin-top:4mm;">
+  <tr><th>カット</th><th>撮影内容</th><th>ポイント</th></tr>
+  <tr>
+    <td><b>① 全体正面</b></td>
+    <td>商品の正面全体</td>
+    <td>明るい場所で真っ直ぐ。商品全体が入るように</td>
+  </tr>
+  <tr>
+    <td><b>② 全体背面</b></td>
+    <td>商品の背面・裏側</td>
+    <td>型番シール・スペックシールも写すと◎</td>
+  </tr>
+  <tr>
+    <td><b>③ 側面・上面</b></td>
+    <td>左右どちらか・上面</td>
+    <td>立体感が伝わるように角度をつけて</td>
+  </tr>
+  <tr>
+    <td><b>④ 傷・汚れ</b></td>
+    <td>目立つ傷・汚れのクローズアップ</td>
+    <td>わかりやすく近づいて撮る。隠さないこと</td>
+  </tr>
+  <tr>
+    <td><b>⑤ 付属品</b></td>
+    <td>リモコン・ケーブル・取扱説明書など</td>
+    <td>揃えて並べて一緒に撮る</td>
+  </tr>
+  <tr>
+    <td><b>⑥ 型番・シリアル</b></td>
+    <td>型番・製造年・シリアルナンバーのシール</td>
+    <td>文字が読めるくらいクローズアップ</td>
+  </tr>
+</table>
+
+<div class="hint" style="margin-top:4mm;">
+  💡 スマートフォンで十分です。最低4〜6枚を目安に撮影してください。枚数が多いほど出品の精度が上がります。
+</div>
+
+<h2 class="subsection">撮影時の注意点</h2>
+<div class="two-col">
+  <div class="box box-green">
+    <b>✅ 良い写真の条件</b>
+    <ul class="check-list" style="margin-top:6px;">
+      <li>明るい場所で撮影している</li>
+      <li>商品が画面の中央にある</li>
+      <li>ピントが合っている</li>
+      <li>指や影が写っていない</li>
+      <li>傷・汚れを正直に写している</li>
+    </ul>
+  </div>
+  <div class="box box-red">
+    <b>❌ 避けるべき写真</b>
+    <ul class="point-list" style="margin-top:6px;">
+      <li>暗くてよく見えない</li>
+      <li>ぼやけている</li>
+      <li>商品の一部が切れている</li>
+      <li>傷を隠すような角度で撮っている</li>
+      <li>背景が散らかっている</li>
+    </ul>
+  </div>
+</div>
+<div class="box box-yellow" style="margin-top:4mm;">
+  <b>⚠️ 傷・汚れは必ず写してください</b><br>
+  状態ランクで「C（傷汚れあり）」と記録された商品は、必ず傷のアップ写真が必要です。<br>
+  写真と実物の状態が違うと、購入者からのクレーム・返品の原因になります。
+</div>
+
+
+<!-- ======== 5. コマンド一覧 ======== -->
+<div class="page-break"></div>
+<h1 class="section">5　コマンド一覧</h1>
+
+<div class="box box-yellow" style="margin-bottom:4mm;">
+  <b>⚠️ 完了・キャンセル・削除はすべて「スレッド内」で入力してください。</b><br>
+  セッション開始のメッセージに返信する形で入力します。新しいメッセージとして送っても動作しません。
+</div>
+
+<h2 class="subsection">通常コマンド</h2>
+<table>
+  <tr><th style="width:30%;">入力する内容</th><th>説明</th><th style="width:22%;">使うタイミング</th></tr>
+  <tr>
+    <td>商品写真を投稿</td>
+    <td>Google Driveの管理番号フォルダに自動保存される。複数枚まとめてOK</td>
+    <td>スレッド内</td>
+  </tr>
+  <tr>
+    <td><code>完了</code></td>
+    <td>撮影完了。Monday.comのステータスが「撮影済み」に更新され、スプレッドシートに記録される</td>
+    <td>スレッド内</td>
+  </tr>
+  <tr>
+    <td><code>キャンセル</code> / <code>中断</code></td>
+    <td>撮影作業を中断する（作業ログに記録。写真は削除されない）</td>
+    <td>スレッド内</td>
+  </tr>
+  <tr>
+    <td><code>削除</code></td>
+    <td>Monday.comのステータスを「要確認」に戻す（2ステップ確認あり）</td>
+    <td>スレッド内</td>
+  </tr>
+</table>
+
+<h2 class="subsection">在庫検索（どのチャンネルでも使えます）</h2>
+<table>
+  <tr><th style="width:30%;">入力する内容</th><th>説明</th></tr>
+  <tr>
+    <td><code>在庫検索 洗濯機</code></td>
+    <td>キーワードで在庫を検索する。管理番号・ステータス・在庫期間が表示される</td>
+  </tr>
+  <tr>
+    <td><code>検索 洗濯機</code></td>
+    <td>在庫検索の短縮形</td>
+  </tr>
+</table>
+
+<h2 class="subsection">全チャンネル共通機能　─ 相談モードとお知らせ</h2>
+<div class="box box-yellow" style="margin-bottom:4mm;">
+  この機能はボットが稼働している<b>すべてのチャンネルで使えます。</b>このチャンネルでは<b>白洲次郎</b>が返答します。
+</div>
+<div class="two-col">
+  <div class="box box-blue">
+    <b>💬 浅野さんへの相談モード</b><br>
+    <div class="note" style="margin-top:6px;">使い方（以下はどれでもOK）：</div>
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">@浅野儀頼 相談
+@浅野儀頼 相談があります
+@浅野儀頼 相談です</div>
+    @浅野儀頼 のメンション＋「相談」という文字が入っていれば動作します。<br><br>
+    浅野さんに通知が届き、<b>そのスレッドはボットが一切反応しなくなります。</b><br>
+    撮影方法や品質の判断を直接相談したいときに使ってください。
+  </div>
+  <div class="box box-gray">
+    <b>📢 浅野からのお知らせ</b><br>
+    <div class="note" style="margin-top:6px;">浅野が「浅野です」で始めると：</div>
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">浅野です 今週の作業について...</div>
+    白洲次郎が以下のように整形して再送します：
+    <div class="code-block" style="margin-top:4px; font-size:9.5pt;">━━━━━━━━━━━━━━━━
+📢 浅野からのお知らせ
+━━━━━━━━━━━━━━━━
+
+今週の作業について...
+
+━━━━━━━━━━━━━━━━</div>
+  </div>
+</div>
+
+<h2 class="subsection">削除コマンドの2ステップ確認</h2>
+<div class="box box-gray">
+  <b>削除は間違えると取り返しがつかないため、2段階で確認します。</b>
+  <ul class="step-list" style="margin-top:8px;">
+    <li data-step="1">スレッドに <code>削除</code> と入力する → AIが管理番号の確認を求めてくる</li>
+    <li data-step="2">管理番号（例：<code>2603-0001</code>）を入力する → 削除完了</li>
+  </ul>
+  <div class="box box-navy" style="margin-top:8px;">
+    <b>削除後のAI返答イメージ：</b>
+    <div class="code-block" style="margin-top:6px;">━━━━━━━━━━━━━━━━
+🗑️ 削除完了
+━━━━━━━━━━━━━━━━
+
+🔖 管理番号
+　2603-0001
+
+Monday.comのステータスを
+「要確認」に戻しました。</div>
+  </div>
+  <div class="note" style="margin-top:6px;">削除してもGoogle Drive上の写真は削除されません。担当者への確認が必要です。</div>
+</div>
+
+<h2 class="subsection">完了後に自動で行われること</h2>
+<div class="box box-green">
+  <code>完了</code> を入力すると、以下がすべて自動で実行されます：
+  <ul class="check-list" style="margin-top:6px;">
+    <li>Monday.comのステータスが <b>「撮影済み」</b> に更新される</li>
+    <li>スプレッドシートに撮影完了・Google DriveフォルダURLが記録される</li>
+    <li>担当者・日時が自動で記録される</li>
+  </ul>
+</div>
+
+
+<!-- ======== 6. Google Drive ======== -->
+<div class="page-break"></div>
+<h1 class="section">6　Google Driveへの自動保存について</h1>
+
+<h2 class="subsection">フォルダ構成</h2>
+<div class="box">
+  投稿された写真は、以下の構成でGoogle Driveに自動的に整理されます。
+  <div class="folder-tree" style="margin-top:8px;">TakeBack商品画像/（ルートフォルダ）
+　└── 2603/（年月フォルダ：例 2026年3月）
+　　　└── 2603-0001/（管理番号フォルダ）
+　　　　　├── 01_テプラ.jpg　← テプラ写真
+　　　　　├── 02_商品.jpg　　← 1枚目の商品写真
+　　　　　├── 03_商品.jpg　　← 2枚目の商品写真
+　　　　　└── 04_商品.jpg　　← 3枚目の商品写真 ...</div>
+</div>
+
+<h2 class="subsection">ファイル命名ルール</h2>
+<table style="margin-top:4mm;">
+  <tr><th>ファイル名</th><th>内容</th><th>保存タイミング</th></tr>
+  <tr>
+    <td><code>01_テプラ.jpg</code></td>
+    <td>テプララベルの写真</td>
+    <td>セッション開始時（テプラ投稿の場合）</td>
+  </tr>
+  <tr>
+    <td><code>02_商品.jpg</code><br><code>03_商品.jpg</code>...</td>
+    <td>商品の写真</td>
+    <td>スレッドに写真を投稿するたびに順番に採番・保存</td>
+  </tr>
+</table>
+<div class="note" style="margin-top:3mm;">
+  テキストで管理番号を入力してセッションを開始した場合、01_テプラ.jpg は作成されません。02_商品.jpg から始まります。
+</div>
+
+<h2 class="subsection">写真の追加と上書きについて</h2>
+<div class="box box-yellow">
+  <ul class="point-list">
+    <li>スレッドに写真を追加投稿するたびに、<b>連番で新しいファイルとして保存</b>されます</li>
+    <li>既存の写真は上書きされません。何度でも追加できます</li>
+    <li><code>完了</code> を入力した後でも、スレッドに写真を追加すれば保存されます</li>
+    <li>削除・修正が必要な場合は担当者（浅野）に連絡してください</li>
+  </ul>
+</div>
+
+
+<!-- ======== 7. 操作例 ======== -->
+<div class="page-break"></div>
+<h1 class="section">7　よくある操作例</h1>
+
+<h2 class="subsection">例1：テプラ写真でセッションを開始して撮影完了する（基本パターン）</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>テプラ写真を投稿（<b>新規メッセージ</b>）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「📸 撮影セッション開始 / 🔖 管理番号 2603-0001 / 商品写真をこのスレッドに投稿してください」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>商品写真3枚を投稿（← スレッドに返信）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「📷 3枚 を保存しました。追加写真を投稿するか、撮影完了後は `完了` と入力してください」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>写真をさらに2枚追加（← スレッドに返信）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「📷 2枚 を保存しました。…」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td><code>完了</code>（← スレッドに返信）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「✅ 撮影完了 / 🔖 管理番号 2603-0001 / お疲れ様です。写真の保存が完了しました」</td>
+    </tr>
+  </table>
+  <div class="hint" style="margin-top:6px;">
+    💡 この時点でGoogle Driveに合計6枚（01_テプラ.jpg + 02〜06_商品.jpg）が保存され、Monday.comが「撮影済み」に更新されます。
+  </div>
+</div>
+
+<h2 class="subsection">例2：テキストで管理番号を入力してセッション開始する</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td><code>2603-0001</code> とテキストで投稿（<b>新規メッセージ</b>）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「📸 撮影セッション開始 / 🔖 管理番号 2603-0001 / 商品写真をこのスレッドに投稿してください」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>商品写真を投稿 → <code>完了</code></td>
+    </tr>
+  </table>
+  <div class="note" style="margin-top:4px;">テキスト入力の場合、01_テプラ.jpg はなく、02_商品.jpg から始まります。</div>
+</div>
+
+<h2 class="subsection">例3：テプラの読み取りに失敗した場合</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>テプラ写真を投稿</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「⚠️ 読み取りエラー / テプラの管理番号を読み取れませんでした。もう一度管理番号を送信してください」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td><code>2603-0001</code> とテキストで入力（<b>新規メッセージ</b>）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「📸 撮影セッション開始 / 🔖 管理番号 2603-0001…」</td>
+    </tr>
+  </table>
+</div>
+
+<h2 class="subsection">例4：途中でやめる必要が生じた場合（キャンセル）</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td><code>キャンセル</code>（← スレッドに返信）</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「⏹️ 撮影作業キャンセル / 🔖 管理番号 2603-0001 / 撮影作業をキャンセルしました」</td>
+    </tr>
+  </table>
+  <div class="note" style="margin-top:4px;">キャンセルしても既に保存された写真はDriveに残ります。後日再撮影する場合は新しくセッションを開始してください。</div>
+</div>
+
+<h2 class="subsection">例5：浅野さんに相談する</h2>
+<div class="box">
+  <table>
+    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td><code>@浅野儀頼 相談があります この商品の傷の撮り方を確認してほしいです</code></td>
+    </tr>
+    <tr>
+      <td style="background:#eaf0f8; text-align:center;">AI</td>
+      <td>「💬 浅野さんへの相談スレッド / @浅野儀頼 に通知しました。このスレッドではボットは反応しません。」</td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
+      <td>浅野さんと自由にやりとり（ボットは反応しない）</td>
+    </tr>
+  </table>
+</div>
+
+
+<!-- ======== 8. 困ったとき ======== -->
+<div class="page-break"></div>
+<h1 class="section">8　困ったときは</h1>
+
+<h2 class="subsection">よくある質問</h2>
+
+<h3 class="item">Q. テプラを貼り忘れた商品はどうすればよいか</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>管理番号をテキストで入力してセッションを開始してください</li>
+    <li>テプラ写真がなくても商品写真の撮影・保存は行えます</li>
+    <li>後でテプラを貼って追加投稿することもできます</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 写真を撮り直したい（まだ完了していない）</h3>
+<div class="box">
+  <ul class="check-list">
+    <li><code>完了</code> を押す前であれば、追加で写真を投稿するだけでOKです</li>
+    <li>古い写真はDriveに残りますが、新しい写真も追加されます</li>
+    <li>不要な写真の削除は担当者（浅野）に依頼してください</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 完了後に写真を追加したい</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>完了後でも、同じスレッドに写真を投稿すれば自動的にDriveに追加されます</li>
+    <li>Monday.comのステータスに影響はありません</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 管理番号がわからない</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>分荷判定チャンネルの確定メッセージに管理番号が記載されています</li>
+    <li><code>在庫検索 商品名</code> で商品名から管理番号を調べることができます</li>
+    <li>それでも不明な場合は先輩スタッフまたは浅野に確認してください</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 「スレッドに返信」の方法がわからない</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>AIのメッセージにマウスを近づけると右側にメニューアイコンが出ます</li>
+    <li>「返信」または吹き出しアイコンをクリックして、そのメッセージに返信します</li>
+    <li>スマートフォンの場合はメッセージを長押しすると「返信」が出ます</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. AIからの返答が来ない</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>1〜2分待ってから再度投稿してみてください</li>
+    <li>管理番号の形式が正しいか確認してください（例：<code>2603-0001</code>）</li>
+    <li>エラーメッセージが出た場合は担当者（浅野）に連絡してください</li>
+  </ul>
+</div>
+
+<h2 class="subsection">問い合わせ先</h2>
+<div class="box box-blue">
+  <table>
+    <tr>
+      <th style="width:40%;">困りごとの種類</th>
+      <th>連絡先</th>
+    </tr>
+    <tr>
+      <td>システムの不具合・エラー</td>
+      <td>浅野儀頼に連絡</td>
+    </tr>
+    <tr>
+      <td>管理番号がわからない</td>
+      <td><code>在庫検索 商品名</code> または 先輩スタッフに確認</td>
+    </tr>
+    <tr>
+      <td>Driveの写真を削除・修正したい</td>
+      <td>浅野儀頼に依頼</td>
+    </tr>
+    <tr>
+      <td>撮影方法・品質の判断に迷う</td>
+      <td><code>@浅野儀頼 相談</code> で直接相談、または先輩スタッフに確認</td>
+    </tr>
+  </table>
+</div>
+
+<div class="box box-pink" style="margin-top:6mm; text-align:center; padding:14px;">
+  <b>わからないことは、何でも聞いてください。</b><br>
+  正確な写真の管理が、チーム全体の作業効率と販売品質を支えています。<br>
+  一緒に良い職場をつくりましょう。
+</div>
+
+
+<!-- ======== フッター ======== -->
+<div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
+  アスカラ　株式会社テイクバック　TakeBack事業部　商品撮影 作業マニュアル　2026年3月版
+</div>
+
+</div><!-- /page -->
+</body>
+</html>
