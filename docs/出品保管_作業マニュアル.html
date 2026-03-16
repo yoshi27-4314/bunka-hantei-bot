@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出品保管 作業マニュアル｜TakeBack事業部</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Meiryo", "MS Gothic", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  .page { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+
+  .cover {
+    text-align: center;
+    padding: 28mm 0 18mm;
+    border-bottom: 3px solid #1c2e4a;
+    margin-bottom: 12mm;
+    page-break-after: always;
+  }
+  .cover .logo { font-size: 38pt; margin-bottom: 6mm; }
+  .cover h1 { font-size: 24pt; color: #1c2e4a; margin-bottom: 3mm; line-height: 1.4; }
+  .cover .subtitle { font-size: 13pt; color: #555; margin-bottom: 8mm; }
+  .cover .badge {
+    display: inline-block; background: #1c2e4a; color: #fff;
+    padding: 5px 16px; border-radius: 20px; font-size: 10pt; margin: 3px;
+  }
+  .cover .welcome {
+    margin-top: 10mm; padding: 8px 20px; background: #eaf0f8;
+    border-radius: 8px; font-size: 11pt; color: #1c2e4a;
+    display: inline-block; line-height: 1.8;
+  }
+
+  h1.section {
+    font-size: 15pt; color: #fff; background: #1c2e4a;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h2.subsection {
+    font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
+    padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin: 3mm 0; background: #fafafa; }
+  .box-navy   { background: #eaf0f8; border-color: #1c2e4a; }
+  .box-yellow { background: #fefde7; border-color: #f39c12; }
+  .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
+  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
+  .box-green  { background: #eafaf1; border-color: #27ae60; }
+  .box-orange { background: #fef4e7; border-color: #e67e22; border-width: 2px; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: stretch; }
+  .flow-step {
+    flex: 1; min-width: 70px; background: #1c2e4a; color: #fff;
+    text-align: center; padding: 8px 5px; font-size: 9pt; font-weight: bold; position: relative;
+  }
+  .flow-step:not(:last-child)::after {
+    content: "▶"; position: absolute; right: -11px; top: 50%;
+    transform: translateY(-50%); color: #1c2e4a; font-size: 14pt; z-index: 1;
+  }
+  .flow-step.done  { background: #27ae60; }
+  .flow-step.here  { background: #e67e22; }
+  .flow-step.end   { background: #e74c3c; }
+  .flow-step .step-num { font-size: 7pt; opacity: 0.8; display: block; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 10pt; }
+  th { background: #1c2e4a; color: #fff; padding: 7px 10px; text-align: left; font-weight: bold; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+
+  code {
+    background: #1c2e4a; color: #ecf0f1; padding: 2px 7px;
+    border-radius: 4px; font-family: "Courier New", monospace; font-size: 10pt;
+  }
+  .code-block {
+    background: #1c2e4a; color: #ecf0f1; padding: 12px 16px;
+    border-radius: 6px; font-family: "Courier New", monospace;
+    font-size: 10pt; line-height: 1.9; margin: 3mm 0; white-space: pre-wrap;
+  }
+
+  .step-list { list-style: none; margin: 2mm 0; }
+  .step-list li {
+    padding: 7px 8px 7px 40px; position: relative;
+    border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
+  }
+  .step-list li::before {
+    content: attr(data-step); position: absolute; left: 6px; top: 7px;
+    background: #1c2e4a; color: #fff; width: 24px; height: 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 9pt; font-weight: bold; line-height: 24px; text-align: center;
+  }
+
+  .point-list { list-style: none; margin: 2mm 0; }
+  .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
+  .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
+
+  .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
+  .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 2mm 0; font-weight: bold; }
+
+  .page-break { page-break-before: always; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  @media print {
+    body { font-size: 10pt; }
+    .page { padding: 10mm 14mm; }
+    .cover { page-break-after: always; }
+    .page-break { page-break-before: always; }
+    h1.section { page-break-after: avoid; }
+    h2.subsection { page-break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- 表紙 -->
+<div class="cover">
+  <div class="logo">📦</div>
+  <h1>出品保管 作業マニュアル</h1>
+  <div class="subtitle">出品保管チャンネル（岩崎弥太郎）　操作ガイド</div>
+  <div style="margin: 6mm 0;">
+    <span class="badge">アスカラ</span>
+    <span class="badge">株式会社テイクバック</span>
+    <span class="badge">2026年3月版</span>
+  </div>
+  <div class="welcome">
+    このチャンネルで出品データを作成し、保管場所を登録します。<br>
+    AIが出品タイトル・説明文・価格を自動生成します。<br>
+    <b>ロケーション番号の入力が出品登録完了のトリガーです。</b>
+  </div>
+</div>
+
+
+<!-- 目次 -->
+<h1 class="section">目次</h1>
+<div class="box">
+  <table>
+    <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>このチャンネルの役割</b>　─ 出品保管が事業全体に与える影響</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">2</td><td><b>作業の流れ（5ステップ）</b>　─ 管理番号の投稿から出品登録完了まで</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">3</td><td><b>出品データの確認・修正方法</b>　─ タイトル・価格・説明文の修正コマンド</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>ロケーション番号について</b>　─ 保管場所の入力ルール</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>コマンド一覧</b>　─ 修正・キャンセル・削除・在庫検索</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
+  </table>
+</div>
+
+
+<!-- 1. 役割 -->
+<div class="page-break"></div>
+<h1 class="section">1　このチャンネルの役割</h1>
+
+<h2 class="subsection">出品保管チャンネルとは</h2>
+<div class="box box-navy">
+  撮影が完了した商品に対して、<b>ヤフオク・eBayの出品データ（タイトル・説明文・価格）をAIが自動生成</b>し、<b>保管ロケーション番号を登録</b>するチャンネルです。<br><br>
+  ロケーション番号を入力した瞬間に出品登録が完了し、Monday.comのステータスが「出品待ち」に自動更新されます。
+</div>
+
+<h2 class="subsection">全体の中での位置づけ</h2>
+<div class="flow" style="margin-top:4mm;">
+  <div class="flow-step done"><span class="step-num">済み</span>分荷判定</div>
+  <div class="flow-step done"><span class="step-num">済み</span>商品撮影</div>
+  <div class="flow-step here"><span class="step-num">ここ</span>出品保管</div>
+  <div class="flow-step"><span class="step-num">次</span>出品中</div>
+  <div class="flow-step"><span class="step-num"></span>落札・入金</div>
+  <div class="flow-step"><span class="step-num"></span>梱包出荷</div>
+</div>
+<div class="note" style="margin-top:3mm;">
+  撮影チャンネルで「完了」を入力した後、この出品保管チャンネルへ進みます。
+</div>
+
+<h2 class="subsection">担当AI：岩崎弥太郎</h2>
+<div class="box box-gray">
+  このチャンネルのAIは <b>「岩崎弥太郎」</b> として返答します。<br>
+  三菱グループの創業者。商才と情熱の塊で、豪快で前向きな語り口が特徴です。<br>
+  「〜じゃ！」「ようやった！」「どんどん稼いでいこう！」など、熱い返答が特徴です。
+</div>
+
+<div class="warn" style="margin-top:5mm;">
+  重要：ロケーション番号を入力すると出品登録が完了します。<br>
+  入力前に必ず出品データ（タイトル・価格・説明文）を確認・修正してください。
+</div>
+
+
+<!-- 2. 作業の流れ -->
+<div class="page-break"></div>
+<h1 class="section">2　作業の流れ（5ステップ）</h1>
+
+<div class="box box-navy" style="margin-bottom:5mm;">
+  <b>作業場所：出品保管チャンネル（岩崎弥太郎）</b><br>
+  管理番号を投稿してセッションを開始し、出品データを確認・修正してからロケーション番号を入力します。
+</div>
+
+<ul class="step-list">
+  <li data-step="1">
+    <b>管理番号を投稿する</b>　─ テプラ写真 または 管理番号テキストを<b>新規メッセージとして</b>投稿する<br>
+    <span style="font-size:9.5pt; color:#555;">例：<code>2603-0001</code> とそのまま入力、またはテプラの写真を送る</span><br>
+    <span style="font-size:9.5pt; color:#555;">→ AIがMonday.comから商品データを取得し、出品データを自動生成します</span>
+  </li>
+  <li data-step="2">
+    <b>出品データを確認する</b>　─ AIが生成したタイトル・説明文・価格・梱包サイズを読む<br>
+    <span style="font-size:9.5pt; color:#555;">→ 問題なければそのままでOK。修正が必要な場合は次のステップへ</span>
+  </li>
+  <li data-step="3">
+    <b>必要があれば修正する</b>　─ コマンドで修正内容を入力する（詳しくは3章）<br>
+    <div class="code-block" style="margin-top:4px; font-size:9pt;">タイトル：修正後のタイトル
+開始価格：5000
+説明文：修正後の説明文
+サイズ：120</div>
+    <span style="font-size:9.5pt; color:#555;">→ 修正するたびに確認画面が再表示されます。何度でも修正できます</span>
+  </li>
+  <li data-step="4">
+    <b>商品を保管棚に置く</b>　─ 実際に商品を棚に置いて保管場所を決める<br>
+    <span style="font-size:9.5pt; color:#555;">→ ロケーション番号（例：A-12）を控えておく</span>
+  </li>
+  <li data-step="5" style="border-bottom:none;">
+    <b>ロケーション番号を入力する</b>　─ 保管場所の番号をスレッドに入力する<br>
+    <span style="font-size:9.5pt; color:#555;">例：<code>A-12</code></span><br>
+    <span style="font-size:9.5pt; color:#c0392b; font-weight:bold;">→ この入力が出品登録完了のトリガーです。Monday.comが「出品待ち」に自動更新されます</span>
+  </li>
+</ul>
+
+<div class="warn" style="margin-top:5mm;">
+  ステップ5のロケーション番号入力 = 出品登録完了です。<br>
+  データの確認・修正は必ずステップ3までに済ませてください。
+</div>
+
+
+<!-- 3. 修正方法 -->
+<div class="page-break"></div>
+<h1 class="section">3　出品データの確認・修正方法</h1>
+
+<h2 class="subsection">AIが自動生成する出品データ</h2>
+<div class="box box-navy">
+  AIは分荷判定時の情報をもとに以下を自動生成します：<br>
+  <ul class="point-list" style="margin-top:6px;">
+    <li>出品タイトル（40文字以内）</li>
+    <li>商品説明文（200〜400文字）</li>
+    <li>開始価格（分荷判定時の推奨スタート価格）</li>
+    <li>梱包サイズ（内部キーワードから推定）</li>
+  </ul>
+</div>
+
+<h2 class="subsection">修正コマンド一覧</h2>
+<table>
+  <tr>
+    <th>修正したい項目</th>
+    <th>入力形式</th>
+    <th>例</th>
+  </tr>
+  <tr>
+    <td>タイトル</td>
+    <td><code>タイトル：新しいタイトル</code></td>
+    <td>タイトル：パナソニック 冷蔵庫 NR-B17AW</td>
+  </tr>
+  <tr>
+    <td>開始価格</td>
+    <td><code>開始価格：数字</code></td>
+    <td>開始価格：3000</td>
+  </tr>
+  <tr>
+    <td>説明文</td>
+    <td><code>説明文：新しい説明文</code></td>
+    <td>説明文：動作確認済みです。外観に小傷あり...</td>
+  </tr>
+  <tr>
+    <td>梱包サイズ</td>
+    <td><code>サイズ：サイズ数字</code></td>
+    <td>サイズ：120</td>
+  </tr>
+</table>
+
+<div class="hint">修正コマンドを入力するたびに確認画面が再表示されます。何度でも修正できます。</div>
+
+<h2 class="subsection">修正後の確認画面イメージ</h2>
+<div class="code-block">━━━━━━━━━━━━━━━━
+  出品データ確認
+━━━━━━━━━━━━━━━━
+
+  管理番号
+    2603-0001
+
+  タイトル
+    パナソニック 冷蔵庫 NR-B17AW 動作確認済み
+
+  状態
+    B（中古美品）
+
+  開始価格
+    ¥3,000
+
+  梱包サイズ
+    120サイズ
+
+  説明文
+  動作確認済みです。外観に小傷ありますが...
+
+─────────────────────
+修正する場合はコマンドで入力：
+
+  「タイトル：新しいタイトル」
+  「開始価格：5000」
+  「説明文：新しい説明文」
+  「サイズ：120」
+
+─────────────────────
+準備ができたら
+  保管ロケーション番号 を入力してください
+  例：A-12</div>
+
+
+<!-- 4. ロケーション番号 -->
+<div class="page-break"></div>
+<h1 class="section">4　ロケーション番号について</h1>
+
+<h2 class="subsection">ロケーション番号とは</h2>
+<div class="box box-navy">
+  商品を保管している棚・場所を示す番号です。<br>
+  梱包出荷のスタッフが商品を探すときに使います。<br><br>
+  <b>例：A-12（Aエリアの12番棚）、B-03（Bエリアの3番棚）</b>
+</div>
+
+<h2 class="subsection">入力タイミングの注意</h2>
+<div class="box box-orange">
+  <b>ロケーション番号の入力 = 出品登録完了</b><br><br>
+  ロケーション番号を入力した瞬間に以下が実行されます：<br>
+  <ul class="point-list" style="margin-top:6px;">
+    <li>スプレッドシートに出品データが記録される</li>
+    <li>Monday.comのステータスが「出品待ち」に更新される</li>
+    <li>担当者・出品日・保管場所が自動記録される</li>
+  </ul>
+  <br>
+  <b>タイトル・価格・説明文の修正はロケーション番号を入力する前に必ず済ませてください。</b>
+</div>
+
+<h2 class="subsection">ロケーション番号の入力例</h2>
+<div class="two-col">
+  <div class="box box-green">
+    <b>OK の例</b><br>
+    <code>A-12</code><br>
+    <code>B-03</code><br>
+    <code>C-7</code><br>
+    <code>棚1-左</code>
+  </div>
+  <div class="box box-red">
+    <b>注意</b><br>
+    修正コマンド（タイトル：など）以外の<br>
+    テキストを入力するとロケーション番号として<br>
+    認識され出品登録が完了します。<br>
+    入力前にデータ確認を忘れずに。
+  </div>
+</div>
+
+
+<!-- 5. コマンド一覧 -->
+<div class="page-break"></div>
+<h1 class="section">5　コマンド一覧</h1>
+
+<table>
+  <tr>
+    <th>コマンド</th>
+    <th>使いどころ</th>
+    <th>動作</th>
+  </tr>
+  <tr>
+    <td><code>タイトル：〜</code></td>
+    <td>タイトルを修正したいとき</td>
+    <td>タイトルを更新して確認画面を再表示</td>
+  </tr>
+  <tr>
+    <td><code>開始価格：数字</code></td>
+    <td>価格を変更したいとき</td>
+    <td>開始価格を更新して確認画面を再表示</td>
+  </tr>
+  <tr>
+    <td><code>説明文：〜</code></td>
+    <td>説明文を修正したいとき</td>
+    <td>説明文を更新して確認画面を再表示</td>
+  </tr>
+  <tr>
+    <td><code>サイズ：数字</code></td>
+    <td>梱包サイズを変更したいとき</td>
+    <td>サイズを更新して確認画面を再表示</td>
+  </tr>
+  <tr>
+    <td><code>キャンセル</code></td>
+    <td>作業を中断したいとき</td>
+    <td>セッションを終了（記録なし）</td>
+  </tr>
+  <tr>
+    <td><code>削除</code></td>
+    <td>Monday.comのステータスを戻したいとき</td>
+    <td>管理番号入力後にステータスを「確認／相談」に変更</td>
+  </tr>
+  <tr>
+    <td><code>在庫検索 キーワード</code></td>
+    <td>在庫を探したいとき</td>
+    <td>Monday.comをキーワードで検索</td>
+  </tr>
+</table>
+
+<div class="hint" style="margin-top:4mm;">
+  「キャンセル」はセッションを終了するだけで記録は残りません。<br>
+  「削除」はMonday.comのステータスを「確認／相談」に戻します。浅野さんへの相談が必要な場合に使います。
+</div>
+
+
+<!-- 6. よくある操作例 -->
+<div class="page-break"></div>
+<h1 class="section">6　よくある操作例</h1>
+
+<h2 class="subsection">通常の流れ（タイトルを修正するケース）</h2>
+<div class="code-block">【スタッフ】（新規メッセージ）
+2603-0001
+
+【岩崎弥太郎】
+⏳ 出品データを生成中...
+
+【岩崎弥太郎】
+━━━━━━━━━━━━━━━━
+  出品データ確認
+━━━━━━━━━━━━━━━━
+  管理番号：2603-0001
+  タイトル：電子レンジ 中古 動作品
+  開始価格：¥2,000
+  梱包サイズ：80サイズ
+  ...
+  準備ができたら保管ロケーション番号を入力
+
+【スタッフ】（スレッド返信）
+タイトル：パナソニック 電子レンジ NE-FL100 動作確認済み
+
+【岩崎弥太郎】
+（確認画面が再表示される）
+
+【スタッフ】（スレッド返信）
+A-05
+
+【岩崎弥太郎】
+✅ 出品登録完了
+  管理番号：2603-0001
+  保管場所：A-05
+  タイトル：パナソニック 電子レンジ NE-FL100 動作確認済み
+  開始価格：¥2,000
+  ようやった！どんどん稼いでいこう！</div>
+
+<h2 class="subsection">管理番号が見つからないケース</h2>
+<div class="box box-yellow">
+  <b>「该当なし」と表示されたとき</b><br>
+  分荷判定が完了していない可能性があります。<br>
+  分荷判定チャンネルで管理番号が発行されているか確認してください。<br>
+  旧形式の管理番号（例：2603V0001）も入力可能です。
+</div>
+
+
+<!-- 7. 困ったときは -->
+<h1 class="section">7　困ったときは</h1>
+
+<table>
+  <tr>
+    <th>困りごと</th>
+    <th>対処法</th>
+  </tr>
+  <tr>
+    <td>管理番号を入力したが「該当なし」と出る</td>
+    <td>分荷判定が完了しているか確認。旧形式番号（2603V0001など）も試す</td>
+  </tr>
+  <tr>
+    <td>出品データの生成に時間がかかる</td>
+    <td>しばらく待つ。30秒以上かかる場合は管理番号を再投稿する</td>
+  </tr>
+  <tr>
+    <td>ロケーション番号を間違えて入力した</td>
+    <td><code>削除</code>コマンドでステータスを戻し、管理番号から再スタート</td>
+  </tr>
+  <tr>
+    <td>出品データを修正後に間違えて別のものを入力した</td>
+    <td>ロケーション番号として登録されている場合は浅野さんに相談</td>
+  </tr>
+  <tr>
+    <td>セッションが途中で止まった</td>
+    <td>管理番号を新規メッセージとして再投稿してセッションを再開する</td>
+  </tr>
+  <tr>
+    <td>わからないことがある</td>
+    <td>ステータス確認チャンネル（ステータス松本）で管理番号を入力して状態確認、または浅野さんに相談</td>
+  </tr>
+</table>
+
+<div class="box box-navy" style="margin-top:8mm; text-align:center;">
+  <b>このチャンネルは「出品準備完了」の登録が目的です。</b><br>
+  実際のヤフオク・eBayへの出品はMonday.comのステータスが「出品待ち」になった後、<br>
+  別途手動で行います。
+</div>
+
+</div>
+</body>
+</html>
