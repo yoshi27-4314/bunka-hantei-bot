@@ -3131,8 +3131,66 @@ def handle_attendance_channel(event: dict) -> None:
     current_ts = event.get("ts", "")
     user_id = event.get("user", "")
     text = normalize_keyword(event.get("text", ""))
-    staff_id = get_staff_code(user_id)
     today = datetime.now().strftime("%Y/%m/%d")
+
+    # ── 代筆モード：「北瀬孝 9:00~17:00」形式を検出 ──────────
+    # Slackを使えないスタッフの勤怠を別のスタッフが代理入力する
+    DAIHITSU_STAFF = ["北瀬孝"]  # 代筆対象スタッフ名リスト
+    proxy_name = None
+    proxy_match = None
+    for name in DAIHITSU_STAFF:
+        pm = _re.match(
+            rf'{_re.escape(name)}\s+(\d{{1,2}}):(\d{{2}})[~\-～](\d{{1,2}}):(\d{{2}})',
+            text
+        )
+        if pm:
+            proxy_name = name
+            proxy_match = pm
+            break
+
+    if proxy_name and proxy_match:
+        # 代筆として処理
+        daihitsu_by = get_staff_code(user_id)  # 代筆した人
+        sh2, sm2 = int(proxy_match.group(1)), int(proxy_match.group(2))
+        eh2, em2 = int(proxy_match.group(3)), int(proxy_match.group(4))
+        total2 = (eh2 * 60 + em2) - (sh2 * 60 + sm2)
+        if total2 <= 0:
+            post_to_slack(channel_id, current_ts,
+                "⚠️ 終了時刻が開始時刻より前になっています。確認してください。",
+                bot_role="kintaro")
+            return
+        break2 = get_staff_break_minutes(proxy_name)
+        net2 = max(0, total2 - break2) / 60
+        try:
+            send_to_spreadsheet({
+                "action":        "attendance",
+                "staff_id":      proxy_name,
+                "type":          "勤務申告（代筆）",
+                "date":          today,
+                "start_time":    f"{sh2:02d}:{sm2:02d}",
+                "end_time":      f"{eh2:02d}:{em2:02d}",
+                "total_minutes": str(total2),
+                "break_minutes": str(break2),
+                "net_hours":     f"{net2:.2f}",
+                "completed_count": "0",
+                "daihitsu_by":   daihitsu_by,
+            })
+        except Exception as e:
+            print(f"[代筆勤務記録エラー] {e}")
+        post_to_slack(channel_id, current_ts,
+            "━━━━━━━━━━━━━━━━\n"
+            "📝 *代筆勤務記録完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"👤 {proxy_name}（代筆：{daihitsu_by}）\n\n"
+            f"🕐 勤務時間\n"
+            f"　{sh2:02d}:{sm2:02d} 〜 {eh2:02d}:{em2:02d}\n\n"
+            f"☕ 休憩　{break2}分\n\n"
+            f"⏱️ 実働時間　{net2:.1f}時間\n\n"
+            f"記録しました。お疲れさまです。",
+            bot_role="kintaro")
+        return
+
+    staff_id = get_staff_code(user_id)
 
     # "9:00~16:00" / "9:00-16:00" / "9:00～16:00" のパース
     m = _re.match(r'(\d{1,2}):(\d{2})[~\-～](\d{1,2}):(\d{2})', text)
