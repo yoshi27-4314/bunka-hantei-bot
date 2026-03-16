@@ -243,7 +243,7 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
         "kakushin_do": judgment.get("first_confidence", ""),
         "toshosha": get_staff_code(user_id),
         "zaiko_kikan": judgment.get("inventory_period", ""),
-        "status": {"label": "査定待ち"},
+        "status": {"label": "分荷確定"},
         "bunka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
     }
     if price_num:
