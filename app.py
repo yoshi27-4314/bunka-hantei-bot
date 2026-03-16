@@ -37,7 +37,7 @@ def get_monday_token():
 
 MONDAY_BOARD_ID = "18404143384"
 MONDAY_API_URL = "https://api.monday.com/v2"
-GAS_URL = "https://script.google.com/macros/s/AKfycbxj4KKu1r7yvfgRg1Uk46vQsqfmqtyYow5U8k3gCJi1L9pOqk_8hLxWcMq1jkgL73vU/exec"
+GAS_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec")
 
 
 def monday_graphql(query: str, variables: dict = None) -> dict:
@@ -3324,15 +3324,70 @@ def env_keys():
 def monday_setup():
     """monday.comボードにカラムを作成する（初回のみ実行）"""
     columns = [
-        ("管理番号", "text", "kanri_bango"),
-        ("判定チャンネル", "text", "hantei_channel"),
-        ("確信度", "text", "kakushin_do"),
-        ("投稿者", "text", "toshosha"),
-        ("予想販売価格", "numbers", "yosou_kakaku"),
-        ("在庫予測期間", "text", "zaiko_kikan"),
-        ("スコア", "numbers", "score"),
-        ("作業時間", "numbers", "sakugyou_jikan"),
-        ("内部KW", "text", "internal_keyword"),
+        # 既存カラム（作成済みの場合はスキップされる）
+        ("管理番号",           "text",    "kanri_bango"),
+        ("判定チャンネル",     "text",    "hantei_channel"),
+        ("確信度",             "text",    "kakushin_do"),
+        ("分荷担当者",         "text",    "toshosha"),
+        ("予想販売価格",       "numbers", "yosou_kakaku"),
+        ("在庫予測期間",       "text",    "zaiko_kikan"),
+        ("スコア",             "numbers", "score"),
+        ("分荷作業時間(分)",   "numbers", "sakugyou_jikan"),
+        ("内部KW",             "text",    "internal_keyword"),
+        # 商品情報
+        ("アイテム名",         "text",    "item_name"),
+        ("ブランド/メーカー",  "text",    "maker"),
+        ("品番/型式",          "text",    "model_number"),
+        ("状態",               "text",    "condition"),
+        ("カテゴリ",           "text",    "category"),
+        # 査定・仕入れ
+        ("査定担当者",         "text",    "satei_tantosha"),
+        ("査定日",             "date",    "satei_date"),
+        ("仕入れ原価",         "numbers", "shiire_genka"),
+        # 分荷判定
+        ("分荷日",             "date",    "bunka_date"),
+        ("在庫期限日",         "date",    "deadline_date"),
+        # 撮影
+        ("撮影担当",           "text",    "satsuei_tantosha"),
+        ("撮影完了日",         "date",    "satsuei_date"),
+        ("撮影時間(分)",       "numbers", "satsuei_jikan"),
+        ("写真枚数",           "numbers", "photo_count"),
+        ("Drive写真URL",       "text",    "drive_url"),
+        # 出品
+        ("出品担当",           "text",    "shuppinon_tantosha"),
+        ("出品日",             "date",    "shuppinon_date"),
+        ("出品作業時間(分)",   "numbers", "shuppinon_jikan"),
+        ("出品プラットフォーム","text",   "platform"),
+        ("出品アカウント",     "text",    "shuppinon_account"),
+        ("開始価格",           "numbers", "kaishi_kakaku"),
+        ("目標価格",           "numbers", "mokuhyo_kakaku"),
+        ("保管ロケーション",   "text",    "location"),
+        # 梱包・出荷
+        ("梱包担当",           "text",    "konpo_tantosha"),
+        ("梱包完了日",         "date",    "konpo_date"),
+        ("梱包時間(分)",       "numbers", "konpo_jikan"),
+        ("梱包材コスト",       "numbers", "konpo_cost"),
+        ("運送会社",           "text",    "carrier"),
+        ("追跡番号",           "text",    "tracking_number"),
+        ("出荷日",             "date",    "shukka_date"),
+        ("発送コスト",         "numbers", "hasso_cost"),
+        # 販売結果
+        ("落札日",             "date",    "rakusatsu_date"),
+        ("落札価格",           "numbers", "rakusatsu_kakaku"),
+        ("入札数",             "numbers", "nyusatsu_count"),
+        ("アクセス数",         "numbers", "access_count"),
+        ("在庫日数",           "numbers", "zaiko_days"),
+        # 原価・利益（数式はMonday.com側で設定）
+        ("プラットフォーム手数料", "numbers", "platform_fee"),
+        ("合計原価",           "numbers", "total_genka"),
+        ("総労務時間(分)",     "numbers", "total_rodo_jikan"),
+        ("総労務費",           "numbers", "total_rodohi"),
+        ("粗利益",             "numbers", "arari"),
+        ("純利益",             "numbers", "junri"),
+        ("ROI(%)",             "numbers", "roi"),
+        ("利益率(%)",          "numbers", "rieki_ritsu"),
+        # メモ
+        ("メモ",               "text",    "memo"),
     ]
     results = []
     for title, col_type, col_id in columns:
