@@ -228,7 +228,7 @@ def extract_judgment(response_text: str) -> dict:
     return result
 
 
-def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str, sakugyou_jikan: int = 0) -> None:
+def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str, sakugyou_jikan: int = 0, kakutei_channel: str = "") -> None:
     """monday.comにアイテムを登録する"""
     import re as _re
     # 予想販売価格から数値を抽出（例: "¥5,000〜¥8,000" → "5000"）
@@ -241,7 +241,7 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
 
     col = {
         "kanri_bango": management_number,
-        "hantei_channel": judgment.get("first_channel", ""),
+        "hantei_channel": kakutei_channel or judgment.get("first_channel", ""),
         "kakushin_do": judgment.get("first_confidence", ""),
         "toshosha": get_staff_code(user_id),
         "zaiko_kikan": judgment.get("inventory_period", ""),
@@ -253,6 +253,8 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
         col["score"] = judgment.get("first_score")
     if sakugyou_jikan > 0:
         col["sakugyou_jikan"] = sakugyou_jikan
+    if judgment.get("internal_keyword"):
+        col["internal_keyword"] = judgment.get("internal_keyword")
     column_values = json.dumps(col, ensure_ascii=False)
 
     query = """
@@ -1558,7 +1560,7 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         if management_number:
             try:
                 item_name = judgment.get("item_name") or judgment.get("first_channel", "商品")
-                register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan)
+                register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan, kakutei_channel=kakutei_channel)
                 print("[Monday.com登録完了]")
             except Exception as me:
                 print(f"[Monday.com登録エラー] {me}")
@@ -1587,7 +1589,11 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
     elif cmd_type == 'saihantei':
         persona = BOT_PERSONA["bunika"]
         post_to_slack(channel_id, thread_ts, persona["saihantei"])
-        judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=[])
+        try:
+            history = fetch_thread_messages(channel_id, thread_ts, event.get("ts", ""))
+        except Exception:
+            history = []
+        judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=history)
         post_to_slack(channel_id, thread_ts, judgment_text)
 
     elif cmd_type == 'horyuu':
@@ -1919,6 +1925,17 @@ def handle_satsuei_channel(event: dict) -> None:
             update_monday_item_status(management_number, "撮影済み")
         except Exception as e:
             print(f"[Monday.com撮影済み更新エラー] {e}")
+        # 完了メッセージと写真投稿が別メッセージの場合、folder_urlが空になるため取得し直す
+        if not folder_url:
+            try:
+                _svc = get_drive_service()
+                _root = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+                if _svc and _root:
+                    _yymm_id = get_or_create_drive_folder(_svc, _root, management_number[:4])
+                    _item_id = get_or_create_drive_folder(_svc, _yymm_id, management_number)
+                    folder_url = f"https://drive.google.com/drive/folders/{_item_id}"
+            except Exception as e:
+                print(f"[DriveフォルダURL取得エラー] {e}")
         try:
             send_to_spreadsheet({
                 "action":           "satsuei_update",
@@ -2085,7 +2102,7 @@ def generate_listing_content(management_number: str, item_data: dict) -> dict:
         '"start_price":開始価格の数字}'
     )
     try:
-        response = get_anthropic_client().messages.create(
+        response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=600,
             messages=[{"role": "user", "content": prompt}]
@@ -2345,7 +2362,10 @@ def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
         print(f"[送り状画像取得エラー] {e}")
         return ""
     try:
-        result = anthropic.Anthropic().messages.create(
+        _client = get_anthropic_client()
+        if not _client:
+            return ""
+        result = _client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=100,
             messages=[{
@@ -3208,6 +3228,7 @@ def monday_setup():
         ("在庫予測期間", "text", "zaiko_kikan"),
         ("スコア", "numbers", "score"),
         ("作業時間", "numbers", "sakugyou_jikan"),
+        ("内部KW", "text", "internal_keyword"),
         ("ステータス", "status", "status"),
     ]
     results = []
