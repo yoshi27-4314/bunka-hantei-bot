@@ -244,6 +244,7 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
         "toshosha": get_staff_code(user_id),
         "zaiko_kikan": judgment.get("inventory_period", ""),
         "status": {"label": "査定待ち"},
+        "bunka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
     }
     if price_num:
         col["yosou_kakaku"] = price_num
@@ -253,6 +254,16 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
         col["sakugyou_jikan"] = sakugyou_jikan
     if judgment.get("internal_keyword"):
         col["internal_keyword"] = judgment.get("internal_keyword")
+    if judgment.get("maker"):
+        col["maker"] = judgment.get("maker")
+    if judgment.get("model_number"):
+        col["model_number"] = judgment.get("model_number")
+    if judgment.get("condition"):
+        col["condition"] = judgment.get("condition")
+    if judgment.get("start_price"):
+        col["kaishi_kakaku"] = judgment.get("start_price")
+    if judgment.get("target_price"):
+        col["mokuhyo_kakaku"] = judgment.get("target_price")
     column_values = json.dumps(col, ensure_ascii=False)
 
     query = """
@@ -733,6 +744,43 @@ def cancel_monday_item(kanri_bango: str) -> None:
     col_vals = json.dumps({"kakushin_do": "キャンセル"}, ensure_ascii=False)
     monday_graphql(update_query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
     print(f"[Monday.com] {kanri_bango} をキャンセルに更新")
+
+
+def _find_monday_item_id(management_number: str) -> str | None:
+    """管理番号でMonday.comアイテムIDを検索する"""
+    query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            items_page(limit: 500) {
+                items { id column_values(ids: ["kanri_bango"]) { text } }
+            }
+        }
+    }
+    """
+    result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
+    items = (result.get("data", {}).get("boards", [{}])[0]
+             .get("items_page", {}).get("items", []))
+    return next(
+        (i["id"] for i in items
+         if i.get("column_values", [{}])[0].get("text") == management_number),
+        None
+    )
+
+
+def update_monday_columns(management_number: str, col_updates: dict) -> None:
+    """Monday.comの指定アイテムの複数カラムを一括更新する"""
+    item_id = _find_monday_item_id(management_number)
+    if not item_id:
+        print(f"[Monday.com] 管理番号 {management_number} が見つかりません")
+        return
+    col_vals = json.dumps(col_updates, ensure_ascii=False)
+    query = """
+    mutation ($board_id: ID!, $item_id: ID!, $col_vals: JSON!) {
+        change_multiple_column_values(board_id: $board_id, item_id: $item_id, column_values: $col_vals) { id }
+    }
+    """
+    monday_graphql(query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
+    print(f"[Monday.com] {management_number} を更新: {list(col_updates.keys())}")
 
 
 def search_inventory(keyword: str) -> list[dict]:
@@ -1715,9 +1763,12 @@ def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts
 
     post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
 
-    # Monday.comのステータスと状態を更新
+    # Monday.comのステータス・状態を更新
     try:
-        update_monday_item_status(management_number, "動作確認済み")
+        update_monday_columns(management_number, {
+            "status": {"label": "動作確認済み"},
+            "condition": condition_label,
+        })
     except Exception as e:
         print(f"[Monday.com動作確認更新エラー] {e}")
 
@@ -1969,7 +2020,12 @@ def handle_satsuei_channel(event: dict) -> None:
             mention_user=user_id, bot_role="satsuei")
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         try:
-            update_monday_item_status(management_number, "撮影済み")
+            update_monday_columns(management_number, {
+                "status": {"label": "撮影済み"},
+                "satsuei_tantosha": get_staff_code(user_id),
+                "satsuei_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+                "drive_url": folder_url,
+            })
         except Exception as e:
             print(f"[Monday.com撮影済み更新エラー] {e}")
         # 完了メッセージと写真投稿が別メッセージの場合、folder_urlが空になるため取得し直す
@@ -2223,7 +2279,20 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
 
     # Monday.comステータスを「出品中」に更新
     try:
-        update_monday_item_status(management_number, "出品中")
+        shuppinon_jikan = 0
+        if session.get("start_time"):
+            shuppinon_jikan = max(0, int((datetime.now() - session["start_time"]).total_seconds() / 60))
+        monday_cols = {
+            "status": {"label": "出品中"},
+            "shuppinon_tantosha": get_staff_code(user_id),
+            "shuppinon_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+            "location": location,
+        }
+        if session.get("start_price"):
+            monday_cols["kaishi_kakaku"] = session["start_price"]
+        if shuppinon_jikan > 0:
+            monday_cols["shuppinon_jikan"] = shuppinon_jikan
+        update_monday_columns(management_number, monday_cols)
     except Exception as e:
         print(f"[Monday.com出品中更新エラー] {e}")
 
@@ -2447,7 +2516,14 @@ def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier,
         f"{tracking_line}",
         mention_user=user_id, bot_role="konpo")
     try:
-        update_monday_item_status(management_number, "出荷済み")
+        monday_cols = {
+            "status": {"label": "出荷済み"},
+            "carrier": carrier,
+            "shukka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+        }
+        if tracking_number:
+            monday_cols["tracking_number"] = tracking_number
+        update_monday_columns(management_number, monday_cols)
     except Exception as e:
         print(f"[Monday.com出荷済み更新エラー] {e}")
     try:
@@ -2588,7 +2664,11 @@ def handle_konpo_channel(event: dict) -> None:
             f"{CARRIER_MENU}",
             mention_user=user_id, bot_role="konpo")
         try:
-            update_monday_item_status(management_number, "梱包済み")
+            update_monday_columns(management_number, {
+                "status": {"label": "梱包済み"},
+                "konpo_tantosha": get_staff_code(user_id),
+                "konpo_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+            })
         except Exception as e:
             print(f"[Monday.com梱包済み更新エラー] {e}")
         return
