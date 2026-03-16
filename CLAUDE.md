@@ -3,6 +3,32 @@
 
 ---
 
+## 作業ルール（Claude Code 運用ルール）
+
+### 作業開始時に必ず行うこと
+1. このCLAUDE.mdを読み、現在の仕様・実装状況を把握する
+2. Google共有ドライブ「AI開発管理」のシステム仕様書を確認する
+   - システム仕様書: https://docs.google.com/spreadsheets/d/1Sty7dE9tOsYOLoCJmXtoFnj4S0cQmbgG_WogxxSthHg/edit
+3. 前回の作業ログを確認し、未完了タスクがないか確認する
+   - 作業ログ: https://docs.google.com/spreadsheets/d/1-jspSk-pi9Epm0Z5GoyppVfCw8mXSLhJ3B-yBPoRy8U/edit
+
+### 作業終了時に必ず行うこと
+1. **CLAUDE.mdを更新**する（変更した仕様・設定を正確に反映する）
+2. **システム仕様書を更新**する（変更した機能・カラム・ルールをシートに反映する）
+3. **作業ログに記録**する（日時・作業者・変更ファイル・変更内容・Gitコミットハッシュ）
+4. **Gitにコミット・プッシュ**してRailwayにデプロイする
+
+### 仕様変更時のルール
+- **推測で仕様を書かない**。必ずapp.pyの実コードを根拠にする
+- **管理番号フォーマットは `YYMM-連番4桁`（例：2603-0001）**。旧形式（V/G/M/E付き）は新規発行しない
+- **Botが浅野のメッセージを無視する**仕様は意図的なもの（ADMIN_USER_ID = "U0AL10Q1HQC"）
+
+### Google共有ドライブ
+- フォルダURL: https://drive.google.com/drive/u/1/folders/16G96z45K2coor4QuH5NW9DWxyPNX_56D
+- 作成するファイルは原則このフォルダに保存する
+
+---
+
 ## プロジェクト構成
 
 | ファイル | 役割 |
