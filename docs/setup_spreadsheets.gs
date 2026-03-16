@@ -13,51 +13,60 @@
 const SPEC_SHEET_ID = "1Sty7dE9tOsYOLoCJmXtoFnj4S0cQmbgG_WogxxSthHg";
 const LOG_SHEET_ID  = "1-jspSk-pi9Epm0Z5GoyppVfCw8mXSLhJ3B-yBPoRy8U";
 
-function setupAll() {
-  setupSpecSheet();
-  setupLogSheet();
-  SpreadsheetApp.getUi().alert("✅ セットアップ完了！\n\nシステム仕様書と作業ログの初期設定が完了しました。");
-}
+/**
+ * 【実行手順】タイムアウト対策のため4回に分けて実行してください
+ * 1回目: setup_step1 → 基本情報・環境変数・スタッフマップ・販売チャンネル
+ * 2回目: setup_step2 → 管理番号・コマンド仕様・スコアリング・分荷判定フロー
+ * 3回目: setup_step3 → DBカラム定義・Mondayカラム・Botキャラクター・実装済み/未実装
+ * 4回目: setup_step4 → 作業ログシート
+ */
 
-// ════════════════════════════════════════════════════════
-// システム仕様書セットアップ
-// ════════════════════════════════════════════════════════
-function setupSpecSheet() {
+function setup_step1() {
   const ss = SpreadsheetApp.openById(SPEC_SHEET_ID);
-
-  // 既存シートを全削除して作り直す（初期化）
-  const existing = ss.getSheets();
-  const sheetNames = [
-    "基本情報", "環境変数", "スタッフマップ", "販売チャンネル",
-    "管理番号", "コマンド仕様", "スコアリング", "分荷判定フロー",
-    "DBカラム定義", "Mondayカラム", "Botキャラクター", "実装済み/未実装"
-  ];
-
-  // 一時シートを作成してから既存を削除
-  const tempSheet = ss.insertSheet("_temp");
-  existing.forEach(s => {
-    try { ss.deleteSheet(s); } catch(e) {}
-  });
-
-  // 各シートを作成・入力
+  _deleteAndInit(ss);
   createBasicInfoSheet(ss);
   createEnvVarsSheet(ss);
   createStaffMapSheet(ss);
   createChannelsSheet(ss);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert("✅ STEP1完了（4シート作成）\n次は setup_step2 を実行してください。");
+}
+
+function setup_step2() {
+  const ss = SpreadsheetApp.openById(SPEC_SHEET_ID);
   createKanriNumberSheet(ss);
   createCommandSheet(ss);
   createScoringSheet(ss);
   createFlowSheet(ss);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert("✅ STEP2完了（4シート作成）\n次は setup_step3 を実行してください。");
+}
+
+function setup_step3() {
+  const ss = SpreadsheetApp.openById(SPEC_SHEET_ID);
   createDbColumnsSheet(ss);
   createMondayColumnsSheet(ss);
   createBotCharSheet(ss);
   createImplSheet(ss);
-
   // 一時シートを削除
   try { ss.deleteSheet(ss.getSheetByName("_temp")); } catch(e) {}
-
-  // 先頭シートをアクティブに
   ss.setActiveSheet(ss.getSheetByName("基本情報"));
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert("✅ STEP3完了（4シート作成）\n次は setup_step4 を実行してください。");
+}
+
+function setup_step4() {
+  setupLogSheet();
+  SpreadsheetApp.getUi().alert("✅ STEP4完了！\n\n全セットアップが完了しました。");
+}
+
+function _deleteAndInit(ss) {
+  // 一時シートを作成してから既存を削除
+  const existing = ss.getSheets();
+  const tempSheet = ss.insertSheet("_temp");
+  existing.forEach(s => {
+    try { ss.deleteSheet(s); } catch(e) {}
+  });
 }
 
 // ── ① 基本情報 ──────────────────────────────────────────
@@ -133,18 +142,18 @@ function createEnvVarsSheet(ss) {
 function createStaffMapSheet(ss) {
   const sh = ss.insertSheet("スタッフマップ");
   const data = [
-    ["Slack UserID", "スタッフコード", "氏名", "備考"],
-    ["U0AL10Q1HQC", "YA", "浅野儀頼", "管理者・高額案件通知先・Botが反応しない特別設定"],
-    ["U0ALQ4BJNSV", "KH", "林和人", "確定済み"],
-    ["U0AL4R1EMMZ", "MH", "平野光雄", "確定済み"],
-    ["U0ALKDQEC2F", "YM", "桃井侑菜", "確定済み"],
-    ["U0ALV7C2EHJ", "SI", "伊藤佐和子", "確定済み"],
-    ["U0AM4HG1PRP", "AO", "奥村亜優李", "確定済み"],
-    ["未取得", "YY", "横山優", "SlackアカウントのメンバーIDを取得してSTAFF_MAPに追加要"],
-    ["未取得", "KM", "三島圭織", "同上"],
-    ["未取得", "TM", "松本豊彦", "同上"],
-    ["未取得", "TK", "北瀬孝", "同上"],
-    ["未取得", "YS", "白木雄介", "同上"],
+    ["Slack UserID", "スタッフコード（app.py STAFF_MAP）", "氏名", "備考"],
+    ["U0AL10Q1HQC", "浅野儀頼", "浅野儀頼", "管理者・高額案件通知先・Botが反応しない特別設定"],
+    ["U0ALQ4BJNSV", "林和人", "林和人", "確定済み"],
+    ["U0AL4R1EMMZ", "平野光雄", "平野光雄", "確定済み"],
+    ["U0ALKDQEC2F", "桃井侑菜", "桃井侑菜", "確定済み"],
+    ["U0ALV7C2EHJ", "伊藤佐和子", "伊藤佐和子", "確定済み"],
+    ["U0AM4HG1PRP", "奥村亜優李", "奥村亜優李", "確定済み"],
+    ["未取得", "横山優", "横山優", "SlackアカウントのメンバーIDを取得してSTAFF_MAPに追加要"],
+    ["未取得", "三島圭織", "三島圭織", "同上"],
+    ["未取得", "松本豊彦", "松本豊彦", "同上"],
+    ["未取得（代筆対応）", "北瀬孝", "北瀬孝", "Slack不使用。他スタッフが「北瀬孝 9:00~17:00」形式で代筆申告"],
+    ["未取得", "白木雄介", "白木雄介", "同上"],
   ];
   sh.getRange(1, 1, data.length, 4).setValues(data);
   formatHeader(sh, 1, 4);
@@ -407,21 +416,23 @@ function createMondayColumnsSheet(ss) {
 function createBotCharSheet(ss) {
   const sh = ss.insertSheet("Botキャラクター");
   const data = [
-    ["キー", "表示名", "担当チャンネル", "キャラクター・口調"],
-    ["bunika", "北大路魯山人", "分荷判定（デフォルト）", "料理・陶芸・書を極めた美食家。「ふむ」「よかろう」「〜じゃな」。温かみのある職人語り"],
-    ["satsuei", "白洲次郎", "撮影確認", "短く的確。「〜だ」「悪くない」。歯切れよい"],
-    ["shuppinon", "岩崎弥太郎", "出品保管", "「〜じゃ！」「ようやった！」豪快で前向き"],
-    ["konpo", "黒田官兵衛", "梱包出荷", "「承知した」「案ずるな」冷静で頼もしい"],
-    ["status", "ステータス松本", "ステータス確認", "「〜やで」「ありがとさん」関西ロック。熱くて人情味"],
-    ["genba", "渋沢栄一", "現場査定・古物台帳", "「〜であります」「算盤に合う」丁寧で実業家らしい"],
-    ["（サイレント）", "なし（記録のみ）", "勤怠連絡", "返信なし。投稿を全てGASに転記するのみ"],
+    ["キー", "表示名", "Slackチャンネル名", "担当業務", "キャラクター・口調"],
+    ["bunika", "北大路魯山人", "分荷判定（デフォルト）", "分荷判定メイン", "料理・陶芸・書を極めた美食家。「ふむ」「よかろう」「〜じゃな」。温かみのある職人語り"],
+    ["satsuei", "白洲次郎", "白洲次郎（撮影確認）", "撮影・Drive保存", "短く的確。「〜だ」「悪くない」。歯切れよい"],
+    ["shuppinon", "岩崎弥太郎", "岩崎弥太郎（出品保管）", "出品データ生成・ロケーション管理", "「〜じゃ！」「ようやった！」豪快で前向き"],
+    ["konpo", "黒田官兵衛", "黒田官兵衛（梱包出荷）", "梱包・追跡番号OCR・出荷完了", "「承知した」「案ずるな」冷静で頼もしい"],
+    ["status", "ステータス松本", "ステータス松本（ステータス確認）", "在庫ステータス・進捗確認", "「〜やで」「ありがとさん」関西ロック。熱くて人情味"],
+    ["attendance", "（Bot名なし）", "二宮金次郎（出退勤）", "勤務時間申告・実働計算・代筆対応", "返信あり。勤務記録・実働時間計算をGASに転記"],
+    ["genba", "渋沢栄一", "渋沢栄一（現場査定）", "買取査定・廃棄判断・古物台帳・知識インプット", "「〜であります」「算盤に合う」丁寧で実業家らしい"],
+    ["kintai", "（サイレント）", "サイレント記録（勤怠連絡）", "欠勤・遅刻等の連絡を記録のみ", "返信なし。投稿を全てGASに転記するのみ"],
   ];
-  sh.getRange(1, 1, data.length, 4).setValues(data);
-  formatHeader(sh, 1, 4);
+  sh.getRange(1, 1, data.length, 5).setValues(data);
+  formatHeader(sh, 1, 5);
   sh.setColumnWidth(1, 100);
   sh.setColumnWidth(2, 160);
-  sh.setColumnWidth(3, 180);
-  sh.setColumnWidth(4, 380);
+  sh.setColumnWidth(3, 220);
+  sh.setColumnWidth(4, 200);
+  sh.setColumnWidth(5, 340);
 }
 
 // ── ⑫ 実装済み/未実装 ─────────────────────────────────
@@ -492,7 +503,7 @@ function setupLogSheet() {
 
   // 初回ログを記録
   const firstLog = [
-    [new Date(), "YA（浅野）", "app.py / CLAUDE.md / マニュアル",
+    [new Date(), "浅野儀頼", "app.py / CLAUDE.md / マニュアル",
      "初期セットアップ：管理番号フォーマット統一・管理者専用機能追加・相談モード実装・旧区分コード削除",
      "e5bcd0e", "Google Drive共有スプレッドシートに仕様書・ログ整備"]
   ];
