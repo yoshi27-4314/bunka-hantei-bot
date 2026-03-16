@@ -3333,7 +3333,6 @@ def monday_setup():
         ("スコア", "numbers", "score"),
         ("作業時間", "numbers", "sakugyou_jikan"),
         ("内部KW", "text", "internal_keyword"),
-        ("ステータス", "status", "status"),
     ]
     results = []
     for title, col_type, col_id in columns:
