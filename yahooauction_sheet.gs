@@ -13,6 +13,15 @@ const CONFIG = {
   SHIPPING_FROM: '岐阜県',
 };
 
+// ====== 商品の状態マッピング（内部値 → オークタウンCSV正式値）======
+// オークタウン Ver.1.17 の「商品の状態」8選択肢に合わせる
+const CONDITION_MAP = {
+  '新品・未使用品': '未使用に近い',
+  '中古美品':       '目立った傷や汚れなし',
+  '中古':           'やや傷や汚れあり',
+  'ジャンク・現状品': '全体的に状態が悪い',
+};
+
 // ====== 出品担当マーク（タイトル先頭に付与） ======
 // Slack UserID → ヤフオクタイトル識別マーク
 // 担当者が増えたら設定マスタシートで管理（下記はフォールバック用）
@@ -25,6 +34,8 @@ const LISTING_MARKS = {
 };
 
 // ====== シート名 ======
+// ログ系シート（分荷確定ログ・古物台帳・出退勤など）は分荷判定DBに置かれ、
+// webhook.gs（DBのGASプロジェクト）が管理する。このファイルでは定義しない。
 const SH = {
   MAIN:     '出品管理',
   SAGAWA:   '送料_佐川',
@@ -153,7 +164,7 @@ function setupSpreadsheet() {
   _setupTemplateSheet(ss, existing);
   _setupSettingsSheet(ss, existing);
 
-  SpreadsheetApp.getUi().alert('セットアップ完了しました。');
+  SpreadsheetApp.getUi().alert('セットアップ完了しました。\n出品管理・送料表・テンプレート・設定マスタを初期化しました。');
 }
 
 function _getOrCreateSheet(ss, name, existing) {
@@ -170,8 +181,8 @@ function _setupMainSheet(ss, existing) {
     // 管理情報
     '管理番号', 'アカウント区分', 'アイテム名', 'メーカー/ブランド', '品番/型式',
     '状態', '内部KW', '担当者', '分荷確定日時',
-    // 発送情報
-    '発送会社', '発送サイズ', '発送重量目安(kg)',
+    // 発送・保管情報
+    '発送会社', '発送サイズ', '発送重量目安(kg)', '保管ロケーション',
     // 出品情報
     '出品タイトル(65文字以内)', 'カテゴリID', '開始価格',
     // 説明文（長文なので別列）
@@ -193,10 +204,11 @@ function _setupMainSheet(ss, existing) {
     .setBackground('#1a73e8').setFontColor('white').setFontWeight('bold');
 
   // 列幅設定
-  sh.setColumnWidth(1, 110);   // 管理番号
-  sh.setColumnWidth(13, 300);  // タイトル
-  sh.setColumnWidth(16, 400);  // 説明文
-  sh.setColumnWidth(17, 200);  // フォルダURL
+  sh.setColumnWidth(1,  110);  // 管理番号
+  sh.setColumnWidth(13, 120);  // 保管ロケーション
+  sh.setColumnWidth(14, 300);  // タイトル
+  sh.setColumnWidth(17, 400);  // 説明文
+  sh.setColumnWidth(18, 200);  // フォルダURL
   sh.setFrozenRows(1);
 
   // デフォルト値（固定列）
@@ -204,30 +216,25 @@ function _setupMainSheet(ss, existing) {
 }
 
 // ====== Sheet2: 送料_佐川 ======
+// 出品管理スプレッドシートには「お客さんへの請求価格（定価）」のみ掲載する。
+// 契約価格（社内コスト用）は分荷判定DBで管理し、ここには含めない。
 function _setupSagawaSheet(ss, existing) {
   const sh = _getOrCreateSheet(ss, SH.SAGAWA, existing);
   sh.clearContents();
 
   const weights = [2, 5, 10, 20, 30, 50, 50, 50, 50, 50, 50];
 
-  // 契約価格テーブル
-  sh.getRange(1, 1).setValue('【契約価格】社内コスト計算用').setFontWeight('bold').setBackground('#e8a000').setFontColor('white');
-  const contractHeaders = ['サイズ', '重量上限(kg)', ...SAGAWA_REGIONS, '沖縄'];
-  sh.getRange(2, 1, 1, contractHeaders.length).setValues([contractHeaders]);
-  sh.getRange(2, 1, 1, contractHeaders.length).setBackground('#fce8b2').setFontWeight('bold');
-  const contractRows = SAGAWA_RATES.map((r, i) => [r[0], weights[i], ...r.slice(1), '要問合せ']);
-  sh.getRange(3, 1, contractRows.length, contractRows[0].length).setValues(contractRows);
-
-  // 定価テーブル（2行空けて）
-  const pubStartRow = 3 + contractRows.length + 2;
-  sh.getRange(pubStartRow, 1).setValue('【定価（公式料金）】商品ページ表示用').setFontWeight('bold').setBackground('#1a73e8').setFontColor('white');
+  // 定価テーブル（商品ページ・お客さんへの請求価格）
+  sh.getRange(1, 1).setValue('佐川急便 送料表（お客さん請求価格・岐阜県発）')
+    .setFontWeight('bold').setBackground('#1a73e8').setFontColor('white');
   const pubHeaders = ['サイズ', '重量上限(kg)', ...SAGAWA_PUBLIC_REGIONS];
-  sh.getRange(pubStartRow + 1, 1, 1, pubHeaders.length).setValues([pubHeaders]);
-  sh.getRange(pubStartRow + 1, 1, 1, pubHeaders.length).setBackground('#c9daf8').setFontWeight('bold');
+  sh.getRange(2, 1, 1, pubHeaders.length).setValues([pubHeaders]);
+  sh.getRange(2, 1, 1, pubHeaders.length).setBackground('#c9daf8').setFontWeight('bold');
   const pubRows = SAGAWA_PUBLIC_RATES.map((r, i) => [r[0], weights[i], ...r.slice(1)]);
-  sh.getRange(pubStartRow + 2, 1, pubRows.length, pubRows[0].length).setValues(pubRows);
+  sh.getRange(3, 1, pubRows.length, pubRows[0].length).setValues(pubRows);
 
   sh.setFrozenRows(2);
+  sh.getRange(1, 1, 1, pubHeaders.length).setHorizontalAlignment('left');
 }
 
 // ====== Sheet3: 送料_西濃ミニ便 ======
@@ -372,38 +379,38 @@ function _setupSettingsSheet(ss, existing) {
   sh.clearContents();
 
   const data = [
-    ['=== オークション設定 ==='],
+    ['▼ オークション設定'],
     ['出品期間(日)', CONFIG.AUCTION_DURATION_DAYS],
     ['終了時刻', CONFIG.AUCTION_END_HOUR + ':00'],
     ['自動再出品回数', CONFIG.AUTO_RELIST],
     ['出品形式', 'オークション'],
     ['即決価格', 'なし'],
     [''],
-    ['=== 発送設定 ==='],
+    ['▼ 発送設定'],
     ['発送元', CONFIG.SHIPPING_FROM],
     ['発送までの日数', '7日程度'],
     [''],
-    ['=== アカウント区分 ==='],
+    ['▼ アカウント区分'],
     ['V', 'ヤフオクビンテージ'],
     ['G', 'ヤフオク現行品'],
     ['M', 'ヤフオクまとめ売り'],
     ['E', 'eBay'],
     [''],
-    ['=== 発送会社コード ==='],
+    ['▼ 発送会社コード'],
     ['S', '佐川急便'],
     ['Y', 'ヤマト運輸'],
     ['SU', '西濃運輸'],
     ['AD', 'アートデリバリー'],
     ['DC', '購入者直接引取り'],
     [''],
-    ['=== 出品ステータス ==='],
+    ['▼ 出品ステータス'],
     ['未出品', ''],
     ['出品中', ''],
     ['終了（不落札）', ''],
     ['落札済み', ''],
     ['キャンセル', ''],
     [''],
-    ['=== 出品担当マーク（タイトル先頭） ==='],
+    ['▼ 出品担当マーク（タイトル先頭）'],
     ['担当者コード/SlackID', 'マーク', '担当者名'],
     ['KH', '〇', '林和人'],
     ['YY', '▽', '横山優'],
@@ -411,7 +418,11 @@ function _setupSettingsSheet(ss, existing) {
     ['（追加行）', '', ''],
   ];
 
-  sh.getRange(1, 1, data.length, 2).setValues(data.map(r => r.length === 1 ? [r[0], ''] : r));
+  sh.getRange(1, 1, data.length, 3).setValues(data.map(r => {
+    if (r.length === 1) return [r[0], '', ''];
+    if (r.length === 2) return [r[0], r[1], ''];
+    return r;
+  }));
   sh.getRange('A1').setFontWeight('bold').setBackground('#666666').setFontColor('white');
   sh.getRange('A8').setFontWeight('bold').setBackground('#666666').setFontColor('white');
   sh.getRange('A12').setFontWeight('bold').setBackground('#666666').setFontColor('white');
@@ -423,6 +434,108 @@ function _setupSettingsSheet(ss, existing) {
   sh.getRange('A33').setFontWeight('bold').setBackground('#d9d2e9');
   sh.getRange('B33').setFontWeight('bold').setBackground('#d9d2e9');
   sh.getRange('C33').setFontWeight('bold').setBackground('#d9d2e9');
+}
+
+// ====== Sheet7: 分荷確定ログ ======
+function _setupBunikaLogSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.BUNIKA_LOG, existing);
+  sh.clearContents();
+  const headers = [
+    '管理番号', '確定チャンネル', 'AI第一候補', 'AI第二候補',
+    'アイテム名', 'メーカー', '品番/型式', '状態',
+    '予想販売価格', 'スタート価格', '目標価格', '予測在庫期間', '推奨在庫期限',
+    '総合スコア', '保管コスト', '梱包コスト', '期待ROI(%)', '内部KW',
+    '担当者', '作業時間(分)', '確定日時',
+  ];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#1a3a2a').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1,  110);  // 管理番号
+  sh.setColumnWidth(2,  160);  // 確定チャンネル
+  sh.setColumnWidth(5,  200);  // アイテム名
+  sh.setColumnWidth(21, 150);  // 確定日時
+}
+
+// ====== Sheet8: 古物台帳 ======
+function _setupKobutsuSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.KOBUTSU, existing);
+  sh.clearContents();
+  const headers = ['日時', '品物名', '買取金額(円)', '氏名', '住所', '生年月日', '証明書番号', '確認書類'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#7f1d1d').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidths(1, headers.length, 130);
+  sh.setColumnWidth(5, 260);  // 住所は広め
+}
+
+// ====== Sheet9: 出退勤記録 ======
+function _setupAttendanceSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.ATTENDANCE, existing);
+  sh.clearContents();
+  const headers = ['日付', '担当者', '出勤時刻', '退勤時刻', '合計分', '休憩分', '実働時間(h)', '完了件数'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#1a3a2a').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidths(1, headers.length, 110);
+}
+
+// ====== Sheet10: 作業ログ ======
+function _setupWorkLogSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.WORK_LOG, existing);
+  sh.clearContents();
+  const headers = ['日時', 'チャンネル', '管理番号', '担当者', '操作', '経過秒数'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#334155').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 150);
+  sh.setColumnWidths(2, headers.length - 1, 110);
+}
+
+// ====== Sheet11: 勤怠連絡 ======
+function _setupKintaiSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.KINTAI, existing);
+  sh.clearContents();
+  const headers = ['日時', '担当者', 'メッセージ'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#334155').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 150);
+  sh.setColumnWidth(2, 100);
+  sh.setColumnWidth(3, 400);
+}
+
+// ====== Sheet12: 現場査定記録 ======
+function _setupGenbaSateiSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.GENBA_SATEI, existing);
+  sh.clearContents();
+  const headers = ['日時', '担当者', '入力内容', '査定結果'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#1e3a5f').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 150);
+  sh.setColumnWidth(2, 80);
+  sh.setColumnWidth(3, 300);
+  sh.setColumnWidth(4, 400);
+}
+
+// ====== Sheet13: 現場メモ（知識インプット）======
+function _setupGenbaMemoSheet(ss, existing) {
+  const sh = _getOrCreateSheet(ss, SH.GENBA_MEMO, existing);
+  sh.clearContents();
+  const headers = ['日時', '担当者', 'メッセージ'];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(1, 1, 1, headers.length)
+    .setBackground('#1e3a5f').setFontColor('white').setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.setColumnWidth(1, 150);
+  sh.setColumnWidth(2, 80);
+  sh.setColumnWidth(3, 500);
 }
 
 // ============================================================
@@ -780,35 +893,53 @@ function exportYahooCSV() {
 
   const get = (row, name) => row[allHeaders.indexOf(name)] || '';
 
-  // ヤフオクCSV列順（公式フォーマット準拠）
+  // オークタウン CSV Ver.1.17 フォーマット準拠
+  // 必須: カテゴリ/タイトル/説明/開始価格/個数/開催期間/終了時間/
+  //       商品発送元の都道府県/送料負担/代金支払い/yahoo!簡単決済/
+  //       商品の状態/返品の可否/自動延長/早期終了/発送までの日数
   const csvHeaders = [
-    'タイトル', '商品説明', 'カテゴリ番号', '開始価格',
-    '数量', '出品期間', '自動再出品', '送料負担',
-    '送料', '都道府県', '発送までの日数',
-    '返品', '商品の状態',
+    'カテゴリ', 'タイトル', '説明', '開始価格', '即決価格',
+    '個数', '開催期間', '終了時間',
+    'JANコード',
     '画像1', '画像2', '画像3', '画像4', '画像5',
+    '画像6', '画像7', '画像8', '画像9', '画像10',
+    '商品発送元の都道府県', '送料負担', '代金支払い', 'yahoo!簡単決済',
+    '商品の状態', '返品の可否', '自動延長', '早期終了', '値下げ交渉',
+    '自動再出品', '発送までの日数',
   ];
 
-  const csvRows = rows.map(row => [
-    get(row, '出品タイトル(65文字以内)'),
-    get(row, '説明文'),
-    get(row, 'カテゴリID'),
-    get(row, '開始価格') || 1,
-    1,
-    CONFIG.AUCTION_DURATION_DAYS,
-    CONFIG.AUTO_RELIST,
-    '落札者',  // 送料負担
-    '',        // 個別設定のため空
-    CONFIG.SHIPPING_FROM,
-    7,         // 発送までの日数
-    '不可',
-    '中古',
-    get(row, '画像1URL'),
-    get(row, '画像2URL'),
-    get(row, '画像3URL'),
-    get(row, '画像4URL'),
-    get(row, '画像5URL'),
-  ]);
+  const csvRows = rows.map(row => {
+    const internalCondition = get(row, '状態');
+    const auctownCondition = CONDITION_MAP[internalCondition] || 'やや傷や汚れあり';
+    return [
+      get(row, 'カテゴリID'),
+      get(row, '出品タイトル(65文字以内)'),
+      get(row, '説明文'),
+      get(row, '開始価格') || 1,
+      '',                               // 即決価格（なし）
+      1,                                // 個数
+      CONFIG.AUCTION_DURATION_DAYS,     // 開催期間（日数）
+      CONFIG.AUCTION_END_HOUR,          // 終了時間（0〜23の数値）
+      '',                               // JANコード
+      get(row, '画像1URL'),
+      get(row, '画像2URL'),
+      get(row, '画像3URL'),
+      get(row, '画像4URL'),
+      get(row, '画像5URL'),
+      '', '', '', '', '',               // 画像6〜10
+      CONFIG.SHIPPING_FROM,             // 商品発送元の都道府県
+      '落札者',                          // 送料負担
+      '先払い',                          // 代金支払い
+      'はい',                            // yahoo!簡単決済
+      auctownCondition,                 // 商品の状態（8択正式値）
+      '返品不可',                        // 返品の可否
+      'はい',                            // 自動延長
+      'いいえ',                          // 早期終了
+      'いいえ',                          // 値下げ交渉
+      CONFIG.AUTO_RELIST,               // 自動再出品（0〜3）
+      '3日～7日',                        // 発送までの日数（固定文字列）
+    ];
+  });
 
   const csvContent = [csvHeaders, ...csvRows]
     .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -830,13 +961,13 @@ function exportYahooCSV() {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('📦 出品管理')
-    .addItem('① DBから商品追加', 'addItemFromDB')
+    .addItem('① DBから商品追加（手動）', 'addItemFromDB')
     .addSeparator()
     .addItem('② タイトル生成（AI）', 'generateTitle')
     .addItem('③ 説明文生成（AI）', 'generateDescription')
     .addSeparator()
     .addItem('④ ヤフオクCSV出力（未出品のみ）', 'exportYahooCSV')
     .addSeparator()
-    .addItem('⚙️ スプレッドシート初期化', 'setupSpreadsheet')
+    .addItem('⚙️ スプレッドシート初期化（初回のみ・データ消去注意）', 'setupSpreadsheet')
     .addToUi();
 }
