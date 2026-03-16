@@ -121,15 +121,31 @@ def get_monthly_sequence(account_type: str) -> int:
         return int(datetime.now().strftime("%S%f")[:4]) + 1
 
 
+# 管理番号の重複発行防止
+# Monday.comへの登録遅延・失敗で同じ番号が発行されるのを防ぐ
+_management_number_lock = threading.Lock()
+_issued_numbers: set[str] = set()  # このプロセスセッションで発行済みの管理番号
+
+
 def generate_management_number(account_type: str) -> str:
     """管理番号を生成する（例：2603V0001）
     西暦下2桁 + 月2桁 + アカウント区分(V/G/M/E) + 月次通し番号4桁
     V=ヤフオクビンテージ / G=ヤフオク現行 / M=ヤフオクまとめ / E=eBay
     ※ロット販売・社内利用・スクラップ・廃棄は管理番号なし
+    重複防止: Lockで同時発行をブロック + セッション内発行済みセットで衝突回避
     """
-    yymm = datetime.now().strftime("%y%m")
-    seq = get_monthly_sequence(account_type)
-    return f"{yymm}{account_type}{seq:04d}"
+    with _management_number_lock:
+        yymm = datetime.now().strftime("%y%m")
+        seq = get_monthly_sequence(account_type)
+        # Monday.comにまだ反映されていない番号との衝突を検知してインクリメント
+        while True:
+            candidate = f"{yymm}{account_type}{seq:04d}"
+            if candidate not in _issued_numbers:
+                _issued_numbers.add(candidate)
+                print(f"[管理番号発行] {candidate} (発行済みセット: {len(_issued_numbers)}件)")
+                return candidate
+            print(f"[管理番号衝突] {candidate} は発行済み → seq+1 して再試行")
+            seq += 1
 
 
 def extract_judgment(response_text: str) -> dict:
