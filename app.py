@@ -2103,7 +2103,7 @@ def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_n
         "削除する管理番号を入力してください。\n\n"
         "　例：`2603-0001`\n\n"
         "⚠️ 削除するとMonday.comのステータスが\n"
-        "　「確認/打合せ」に戻ります。",
+        "　「確認／相談」に戻ります。",
         mention_user=user_id, bot_role=bot_role)
 
 
@@ -2122,7 +2122,7 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
     staff_id = pending["staff_id"]
     del delete_confirm_sessions[thread_ts]
     try:
-        update_monday_item_status(management_number, "確認/打合せ")
+        update_monday_item_status(management_number, "確認／相談")
     except Exception as e:
         print(f"[Monday.com削除更新エラー] {e}")
     log_work_activity(channel_name, management_number, staff_id, "削除")
@@ -2133,7 +2133,7 @@ def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str
         f"🔖 管理番号\n"
         f"　*{management_number}*\n\n"
         "Monday.comのステータスを\n"
-        "「確認/打合せ」に戻しました。",
+        "「確認／相談」に戻しました。",
         mention_user=user_id, bot_role=bot_role)
     return True
 
