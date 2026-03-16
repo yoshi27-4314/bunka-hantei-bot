@@ -35,7 +35,7 @@ def get_monday_token():
     )
 
 
-MONDAY_BOARD_ID = "18403611418"
+MONDAY_BOARD_ID = "8198816152"
 MONDAY_API_URL = "https://api.monday.com/v2"
 GAS_URL = "https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec"
 
