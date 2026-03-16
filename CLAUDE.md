@@ -76,7 +76,8 @@
 | /webhook | POST | Make等からの外部Webhookで分荷判定を呼び出す（レガシー） |
 | /debug | GET | 環境変数設定状況確認 |
 | /env-keys | GET | 全環境変数のキー名一覧 |
-| /monday-setup | GET | Monday.comボードにカラムを作成（初回のみ） |
+| /monday-setup | GET | Monday.comボードにカラムを作成（初回のみ・バックグラウンド実行） |
+| /monday-setup-status | GET | /monday-setup の進捗確認（done:trueで完了） |
 
 ---
 
@@ -303,18 +304,45 @@ MM   = 月2桁
 ## Monday.comカラム（通販チャンネル確定時のみ登録）
 
 ボードID: `18404143384`
+※54カラム作成済み（2026/03/17 /monday-setup 実行完了）
 
-| カラムID | 型 | 内容 |
-|---|---|---|
-| kanri_bango | text | 管理番号 |
-| hantei_channel | text | 判定チャンネル（確定チャンネル） |
-| kakushin_do | text | 確信度（高/中/低）。キャンセル時は "キャンセル" |
-| toshosha | text | 投稿者スタッフコード |
-| zaiko_kikan | text | 在庫予測期間 |
-| status | status | ステータスラベル（下記参照） |
-| yosou_kakaku | numbers | 予想販売価格（数値のみ） |
-| score | numbers | 総合スコア |
-| sakugyou_jikan | numbers | 分荷作業時間（分） |
+### 自動書き込みカラム一覧
+
+| 工程 | カラムID | 型 | 書き込みタイミング |
+|---|---|---|---|
+| 共通 | kanri_bango | text | 分荷確定時 |
+| 共通 | status | status | 各工程完了時に自動更新 |
+| 分荷 | hantei_channel | text | 分荷確定時 |
+| 分荷 | kakushin_do | text | 分荷確定時（高/中/低。キャンセル時は"キャンセル"） |
+| 分荷 | toshosha | text | 分荷確定時（担当者名） |
+| 分荷 | zaiko_kikan | text | 分荷確定時 |
+| 分荷 | yosou_kakaku | numbers | 分荷確定時 |
+| 分荷 | score | numbers | 分荷確定時 |
+| 分荷 | sakugyou_jikan | numbers | 分荷確定時（分） |
+| 分荷 | internal_keyword | text | 分荷確定時 |
+| 分荷 | maker | text | 分荷確定時 |
+| 分荷 | model_number | text | 分荷確定時 |
+| 分荷 | condition | text | 分荷確定時・動作確認完了時に更新 |
+| 分荷 | kaishi_kakaku | numbers | 分荷確定時（推奨スタート価格） |
+| 分荷 | mokuhyo_kakaku | numbers | 分荷確定時（推奨目標価格） |
+| 分荷 | bunka_date | date | 分荷確定時（今日の日付） |
+| 撮影 | satsuei_tantosha | text | 撮影完了時 |
+| 撮影 | satsuei_date | date | 撮影完了時 |
+| 撮影 | drive_url | text | 撮影完了時（DriveフォルダURL） |
+| 出品 | shuppinon_tantosha | text | 出品登録時 |
+| 出品 | shuppinon_date | date | 出品登録時 |
+| 出品 | location | text | 出品登録時（保管ロケーション番号） |
+| 出品 | shuppinon_jikan | numbers | 出品登録時（作業時間・分） |
+| 梱包 | konpo_tantosha | text | 梱包完了時 |
+| 梱包 | konpo_date | date | 梱包完了時 |
+| 出荷 | carrier | text | 追跡番号入力時 |
+| 出荷 | tracking_number | text | 追跡番号入力時 |
+| 出荷 | shukka_date | date | 追跡番号入力時 |
+
+### 手動入力カラム（Monday.com上で直接入力）
+satei_tantosha / satei_date / shiire_genka / category / item_name /
+rakusatsu_date / rakusatsu_kakaku / nyusatsu_count / access_count / zaiko_days /
+platform_fee / total_genka / total_rodo_jikan / total_rodohi / arari / junri / roi / rieki_ritsu / memo
 
 ### ステータスラベルの遷移
 ```
@@ -337,6 +365,25 @@ MM   = 月2桁
   確認／相談 ← 要判断・トラブル（削除コマンド時に自動）
   キャンセル  ← 処理終了（キャンセルコマンド時に自動）
 ```
+
+---
+
+## 工程別 自動化状況（2026/03/17 現在）
+
+| 工程 | Slack操作 | Monday.com自動更新 | 備考 |
+|---|---|---|---|
+| 分荷確定 | 「第一」「第二」コマンド | 分荷確定 + 商品情報一括書込 | ✅ 完全自動 |
+| 動作確認 | S/A/B/C/Dランク入力 | 動作確認済み + 状態更新 | ✅ 完全自動 |
+| 撮影 | 白洲次郎チャンネルで「完了」 | 撮影済み + 担当者/日付/DriveURL | ✅ 完全自動 |
+| 出品準備 | 岩崎弥太郎チャンネルでロケーション入力 | 出品待ち + 担当者/日付/場所 | ✅ 完全自動 |
+| 出品中 | ー | ー | ⚠️ 手動（ヤフオク/eBay出品後にMonday.com更新） |
+| 落札 | ー | ー | ⚠️ 手動 |
+| 入金確認 | ー | ー | ⚠️ 手動（入金確認済みになったら梱包チャンネルへ） |
+| 梱包 | 黒田官兵衛チャンネルで「梱包完了」 | 梱包作業 + 担当者/日付 | ✅ 完全自動 |
+| 出荷 | 追跡番号入力（OCR対応） | 出荷待ち + 運送会社/追跡番号/出荷日 | ✅ 完全自動 |
+| 完了 | ー | ー | ⚠️ 手動 |
+
+**業務ルール**：入金確認が取れたものしか出荷しない（梱包チャンネルは入金確認済み後に使う）
 
 ---
 
