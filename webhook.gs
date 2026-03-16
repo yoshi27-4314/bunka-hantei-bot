@@ -24,6 +24,9 @@
 // 分荷判定DB スプレッドシートID
 const DB_SS_ID = '1CWG9MVrsw9gJwp31lCrUs9KB0a1zptZY1cPO47ZNmVU';
 
+// Claude Code 作業ログ スプレッドシートID
+const CLAUDE_LOG_SS_ID = '1-jspSk-pi9Epm0Z5GoyppVfCw8mXSLhJ3B-yBPoRy8U';
+
 // 分荷判定DB のシート名
 const DB_SH = {
   BUNIKA_LOG:  '分荷確定ログ',
@@ -81,6 +84,7 @@ function doPost(e) {
         case 'kobutsu_daichou':   result = _handleKobutsu(payload);         break;
         case 'genba_satei':       result = _handleGenbaSatei(payload);      break;
         case 'genba_memo':        result = _handleGenbaMemo(payload);       break;
+        case 'claude_session_log': result = _handleClaudeSessionLog(payload); break;
         default:                  result = { ok: true, skipped: action };   break;
       }
     }
@@ -418,6 +422,35 @@ function _handleGenbaSatei(payload) {
     payload.staff_id || '',
     payload.input    || '',
     payload.result   || '',
+  ]);
+  return { ok: true };
+}
+
+// ============================================================
+// ⑬ Claude Code 作業ログ（別SS）
+// ============================================================
+function _handleClaudeSessionLog(payload) {
+  const ss = SpreadsheetApp.openById(CLAUDE_LOG_SS_ID);
+  let sh = ss.getSheetByName('作業ログ');
+  if (!sh) sh = ss.insertSheet('作業ログ');
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(['日時', '作業者', '変更ファイル', '変更内容', 'Gitコミット', '備考']);
+    sh.getRange(1, 1, 1, 6)
+      .setBackground('#1a3a2a')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 150);
+    sh.setColumnWidth(3, 280);
+    sh.setColumnWidth(4, 400);
+  }
+  sh.appendRow([
+    payload.timestamp    || new Date().toLocaleString('ja-JP'),
+    payload.author       || '浅野儀頼',
+    payload.files        || '',
+    payload.description  || '',
+    payload.commit_hash  || '',
+    payload.note         || '',
   ]);
   return { ok: true };
 }
