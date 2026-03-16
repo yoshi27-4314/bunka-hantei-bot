@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-GAS_URL="https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec"
+GAS_URL="https://script.google.com/macros/s/AKfycbxj4KKu1r7yvfgRg1Uk46vQsqfmqtyYow5U8k3gCJi1L9pOqk_8hLxWcMq1jkgL73vU/exec"
 
 FILES="${1:-}"
 DESCRIPTION="${2:-}"
