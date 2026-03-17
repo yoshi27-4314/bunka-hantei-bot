@@ -3390,6 +3390,11 @@ def debug():
         "MONDAY_API_TOKEN": "設定済み" if (os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN")) else "未設定",
         "SATSUEI_CHANNEL_ID": os.environ.get("SATSUEI_CHANNEL_ID", "未設定"),
         "SHUPPINON_CHANNEL_ID": os.environ.get("SHUPPINON_CHANNEL_ID", "未設定"),
+        "KONPO_CHANNEL_ID": os.environ.get("KONPO_CHANNEL_ID", "未設定"),
+        "STATUS_CHANNEL_ID": os.environ.get("STATUS_CHANNEL_ID", "未設定"),
+        "ATTENDANCE_CHANNEL_ID": os.environ.get("ATTENDANCE_CHANNEL_ID", "未設定"),
+        "GENBA_CHANNEL_ID": os.environ.get("GENBA_CHANNEL_ID", "未設定"),
+        "KINTAI_CHANNEL_ID": os.environ.get("KINTAI_CHANNEL_ID", "未設定"),
         "env_keys_count": len(os.environ),
     })
 
