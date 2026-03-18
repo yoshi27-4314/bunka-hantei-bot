@@ -818,3 +818,4 @@ if user_id == ADMIN_USER_ID:  # 浅野のUserID
 | | シナリオ1：全体ヘルスチェック（15分ごと） | | | |
 | | シナリオ2：日次ヘルスチェック（毎日09:00） | | | |
 | | 通知先：浅野儀頼SlackDM（U0AL10Q1HQC） | | | |
+| 2026-03-19 | Google Drive API呼び出し6箇所に `supportsAllDrives=True` / `includeItemsFromAllDrives=True` を追加 | 保存先が共有ドライブのため「File not found」エラーが発生していた。浅野儀頼の指示による修正 | Claude Code | （push後に記録） |

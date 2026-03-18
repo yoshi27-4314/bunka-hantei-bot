@@ -1814,7 +1814,7 @@ def get_or_create_drive_folder(service, parent_id: str, folder_name: str) -> str
         f"name='{folder_name}' and '{parent_id}' in parents and "
         f"mimeType='application/vnd.google-apps.folder' and trashed=false"
     )
-    results = service.files().list(q=query, fields="files(id)").execute()
+    results = service.files().list(q=query, fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
     files = results.get("files", [])
     if files:
         return files[0]["id"]
@@ -1823,7 +1823,7 @@ def get_or_create_drive_folder(service, parent_id: str, folder_name: str) -> str
         "mimeType": "application/vnd.google-apps.folder",
         "parents": [parent_id],
     }
-    folder = service.files().create(body=metadata, fields="id").execute()
+    folder = service.files().create(body=metadata, fields="id", supportsAllDrives=True).execute()
     return folder["id"]
 
 
@@ -1845,7 +1845,9 @@ def upload_images_to_drive(management_number: str, image_urls: list, is_tepura: 
     # 既存ファイル数から採番開始番号を決定
     existing = service.files().list(
         q=f"'{item_id}' in parents and trashed=false",
-        fields="files(name)"
+        fields="files(name)",
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True
     ).execute().get("files", [])
     next_num = len(existing) + 1
 
@@ -1863,7 +1865,8 @@ def upload_images_to_drive(management_number: str, image_urls: list, is_tepura: 
             media = MediaIoBaseUpload(io.BytesIO(resp.content), mimetype=content_type)
             service.files().create(
                 body={"name": filename, "parents": [item_id]},
-                media_body=media, fields="id"
+                media_body=media, fields="id",
+                supportsAllDrives=True
             ).execute()
             print(f"[Drive] {filename} アップロード完了")
         except Exception as e:
@@ -3621,7 +3624,7 @@ def test_drive():
         creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
         service = build("drive", "v3", credentials=creds)
         result["drive_service"] = "OK"
-        folder = service.files().get(fileId=folder_id, fields="id,name,permissions").execute()
+        folder = service.files().get(fileId=folder_id, fields="id,name,permissions", supportsAllDrives=True).execute()
         result["folder_access"] = "OK"
         result["folder_name"] = folder.get("name", "不明")
     except Exception as e:
@@ -3727,7 +3730,7 @@ def health_check():
     try:
         svc = get_drive_service()
         if svc:
-            svc.files().list(pageSize=1).execute()
+            svc.files().list(pageSize=1, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
             results["google_drive"] = "OK"
         else:
             results["google_drive"] = "SKIP（未設定）"
