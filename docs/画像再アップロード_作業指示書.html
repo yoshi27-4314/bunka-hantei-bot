@@ -135,16 +135,28 @@
 
 
 <!-- 重要ルール（大きく表示） -->
-<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 8mm; background: #fdf2f2;">
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #fdf2f2;">
   <div style="font-size: 16pt; font-weight: bold; color: #c0392b; margin-bottom: 6px;">
     ⚠️ この作業で新たに写真を撮る必要はありません
   </div>
   <div style="font-size: 12pt; line-height: 2;">
     すでにSlackのトークルームに投稿されている写真を<br>
-    <b>そのままDriveに再アップロードするだけ</b>です。<br><br>
-    トークルーム内の写真を確認して<br>
-    問題がある場合は <code style="background:#c0392b; color:#fff; padding:2px 8px; border-radius:4px;">キャンセル</code> を入力して中断し、<br>
-    <b>浅野さんに報告してください。</b>
+    <b>そのままDriveに再アップロードするだけです。</b><br>
+    椅子に座ったまま全て完結できます。
+  </div>
+</div>
+
+<!-- 2段階の進め方 -->
+<div style="border: 3px solid #1c2e4a; border-radius: 10px; padding: 14px 18px; margin-bottom: 8mm; background: #eaf0f8;">
+  <div style="font-size: 14pt; font-weight: bold; color: #1c2e4a; margin-bottom: 8px;">
+    📋 作業は2段階で進めます
+  </div>
+  <div style="font-size: 11pt; line-height: 2.2;">
+    <b>【第1段階】椅子に座ってまず全件確認（この指示書の作業）</b><br>
+    　✅ 写真に問題なし → そのままDriveに再アップロードして完了<br>
+    　⏭️ 写真に問題あり → <b>次の商品へ進む（スキップ）</b><br><br>
+    <b>【第2段階】問題があった商品だけ再撮影（別作業・立仕事）</b><br>
+    　第1段階でスキップした商品だけをまとめて再撮影する
   </div>
 </div>
 
@@ -214,16 +226,21 @@
 
   <li data-step="2">
     <b>古いトークに投稿されている写真を確認する</b><br>
-    <div style="margin: 6px 0 4px; padding: 8px 12px; background:#fefde7; border:1px solid #f39c12; border-radius:6px; font-size:10pt;">
-      📌 <b>写真の状態を必ず確認してください</b><br><br>
+    <div style="margin: 6px 0 4px; padding: 10px 14px; background:#fefde7; border:2px solid #f39c12; border-radius:6px; font-size:10.5pt; line-height:2;">
+      📌 <b>古いトークの写真を確認してください</b><br><br>
       　□ ピントが合っているか<br>
       　□ 明るさは適切か<br>
       　□ 必要なアングルが揃っているか<br>
       　□ 枚数は足りているか<br><br>
-      <span style="color:#c0392b; font-weight:bold;">❌ 問題がある場合はこの商品をスキップして浅野さんに報告する</span><br>
-      <span style="color:#27ae60; font-weight:bold;">✅ 問題なければ写真をダウンロードして次のステップへ</span>
+      <div style="background:#eafaf1; border:1px solid #27ae60; border-radius:4px; padding:6px 10px; margin-top:4px;">
+        ✅ <b>問題なし</b> → 写真をダウンロードして次のステップへ
+      </div>
+      <div style="background:#fdf2f2; border:1px solid #e74c3c; border-radius:4px; padding:6px 10px; margin-top:4px;">
+        ⏭️ <b>問題あり</b> → <b>この商品はスキップして次の商品へ進む</b><br>
+        <span style="font-size:9.5pt; color:#888;">（第2段階で再撮影する。スキップした商品はトークを残しておく）</span>
+      </div>
     </div>
-    <b>古いトークから写真をダウンロードして新しいスレッドに投稿する</b><br>
+    <b>問題なければ古いトークから写真をダウンロードして新しいスレッドに投稿する</b><br>
     <span style="font-size:9.5pt; color:#555;">複数枚まとめてOK。投稿するとBotから確認メッセージが届く。</span>
     <div class="slack-msg" style="margin-top:6px;">
       <div class="sender">📸 白洲次郎（Bot）</div>
@@ -269,19 +286,22 @@
 <!-- 3. 写真に問題がある場合 -->
 <h1 class="section">3　写真に問題がある場合</h1>
 
-<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #fdf2f2;">
-  <div style="font-size: 14pt; font-weight: bold; color: #c0392b; margin-bottom: 6px;">
-    ⚠️ 古いトークの写真に問題があった場合
+<div style="border: 3px solid #1c2e4a; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #eaf0f8;">
+  <div style="font-size: 14pt; font-weight: bold; color: #1c2e4a; margin-bottom: 8px;">
+    ⏭️ その商品はスキップして次へ進んでください
   </div>
-  <div style="font-size: 11pt; line-height: 2;">
-    再撮影が必要なため<b>この商品の作業は中断</b>します。<br>
-    スレッドに <code style="background:#c0392b; color:#fff; padding:2px 8px; border-radius:4px;">キャンセル</code> と入力して作業を終了し、<br>
-    <b>浅野さんに商品名・管理番号を報告してください。</b>
+  <div style="font-size: 11pt; line-height: 2.2;">
+    古いトークの写真に問題があった場合は<br>
+    <b>何もせずに次の商品へ進んでください。</b><br><br>
+    　• 古いトークはそのまま残しておく<br>
+    　• キャンセルの入力は不要<br>
+    　• 第1段階が全て終わったら浅野さんに報告する<br>
+    　→ スキップした商品だけ第2段階（再撮影）で対応します
   </div>
 </div>
 
 <div class="box box-yellow" style="margin-bottom:4mm;">
-  <b>やり直しコマンドについて</b><br>
+  <b>やり直しコマンドについて（写真投稿後に気づいた場合）</b><br>
   写真を投稿した後に「ピントが合っていない」「枚数が足りない」と気づいたら <code>やり直し</code> を使う。
 </div>
 
@@ -313,8 +333,23 @@
 </div>
 
 
-<!-- 4. 困ったときは -->
-<h1 class="section-dark">4　困ったときは</h1>
+<!-- 4. 作業完了後の報告 -->
+<h1 class="section">4　第1段階が終わったら</h1>
+
+<div style="border: 2px solid #1c2e4a; border-radius: 8px; padding: 12px 16px; background:#eaf0f8; font-size:11pt; line-height:2.2;">
+  全件確認が終わったら浅野さんに以下を報告してください：<br><br>
+  　① 完了した件数（トークを削除した商品の数）<br>
+  　② スキップした件数（古いトークが残っている商品の数）<br>
+  　③ スキップした理由（写真のどこに問題があったか）
+</div>
+
+<div class="hint" style="margin-top:4mm;">
+  スキップした商品は浅野さんの判断で第2段階（再撮影）の日程を決めます。
+</div>
+
+
+<!-- 5. 困ったときは -->
+<h1 class="section-dark">5　困ったときは</h1>
 
 <table>
   <tr><th>困りごと</th><th>対処方法</th></tr>
