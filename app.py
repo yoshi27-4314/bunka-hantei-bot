@@ -2905,7 +2905,8 @@ def handle_konpo_channel(event: dict) -> None:
                     continue
                 if col_val == management_number:
                     continue
-                if len(col_val) <= 10:
+                import re as _re
+                if _re.match(r'^([A-Za-z\d][A-Za-z\d\s横奥]*|倉庫[外奥]?|\d+[階F])$', col_val.strip()):
                     shelf = col_val
                     break
             shelf_line = f"📍 棚番\n　{shelf}\n\n" if shelf else ""
