@@ -134,6 +134,21 @@
 </div>
 
 
+<!-- 重要ルール（大きく表示） -->
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 8mm; background: #fdf2f2;">
+  <div style="font-size: 16pt; font-weight: bold; color: #c0392b; margin-bottom: 6px;">
+    ⚠️ この作業で新たに写真を撮る必要はありません
+  </div>
+  <div style="font-size: 12pt; line-height: 2;">
+    すでにSlackのトークルームに投稿されている写真を<br>
+    <b>そのままDriveに再アップロードするだけ</b>です。<br><br>
+    トークルーム内の写真を確認して<br>
+    問題がある場合は <code style="background:#c0392b; color:#fff; padding:2px 8px; border-radius:4px;">キャンセル</code> を入力して中断し、<br>
+    <b>浅野さんに報告してください。</b>
+  </div>
+</div>
+
+
 <!-- 1. この作業について -->
 <h1 class="section">1　この作業について</h1>
 
@@ -198,7 +213,17 @@
   </li>
 
   <li data-step="2">
-    <b>Botの返信スレッドに商品写真を投稿する</b><br>
+    <b>古いトークに投稿されている写真を確認する</b><br>
+    <div style="margin: 6px 0 4px; padding: 8px 12px; background:#fefde7; border:1px solid #f39c12; border-radius:6px; font-size:10pt;">
+      📌 <b>写真の状態を必ず確認してください</b><br><br>
+      　□ ピントが合っているか<br>
+      　□ 明るさは適切か<br>
+      　□ 必要なアングルが揃っているか<br>
+      　□ 枚数は足りているか<br><br>
+      <span style="color:#c0392b; font-weight:bold;">❌ 問題がある場合はこの商品をスキップして浅野さんに報告する</span><br>
+      <span style="color:#27ae60; font-weight:bold;">✅ 問題なければ写真をダウンロードして次のステップへ</span>
+    </div>
+    <b>古いトークから写真をダウンロードして新しいスレッドに投稿する</b><br>
     <span style="font-size:9.5pt; color:#555;">複数枚まとめてOK。投稿するとBotから確認メッセージが届く。</span>
     <div class="slack-msg" style="margin-top:6px;">
       <div class="sender">📸 白洲次郎（Bot）</div>
@@ -241,11 +266,23 @@
 </ul>
 
 
-<!-- 3. 写真を撮り直したい場合 -->
-<h1 class="section">3　写真を撮り直したい場合</h1>
+<!-- 3. 写真に問題がある場合 -->
+<h1 class="section">3　写真に問題がある場合</h1>
+
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #fdf2f2;">
+  <div style="font-size: 14pt; font-weight: bold; color: #c0392b; margin-bottom: 6px;">
+    ⚠️ 古いトークの写真に問題があった場合
+  </div>
+  <div style="font-size: 11pt; line-height: 2;">
+    再撮影が必要なため<b>この商品の作業は中断</b>します。<br>
+    スレッドに <code style="background:#c0392b; color:#fff; padding:2px 8px; border-radius:4px;">キャンセル</code> と入力して作業を終了し、<br>
+    <b>浅野さんに商品名・管理番号を報告してください。</b>
+  </div>
+</div>
 
 <div class="box box-yellow" style="margin-bottom:4mm;">
-  「ピントが合っていない」「枚数が足りない」と気づいたら <code>やり直し</code> を使う。
+  <b>やり直しコマンドについて</b><br>
+  写真を投稿した後に「ピントが合っていない」「枚数が足りない」と気づいたら <code>やり直し</code> を使う。
 </div>
 
 <ul class="step-list">
@@ -287,7 +324,7 @@
   </tr>
   <tr>
     <td>管理番号がわからない</td>
-    <td>Monday.comで商品を検索して確認する</td>
+    <td>浅野さんに確認する</td>
   </tr>
   <tr>
     <td>それでも解決しない</td>
