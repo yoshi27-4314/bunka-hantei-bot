@@ -1601,7 +1601,8 @@ def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
 
 def _complete_kakutei(kakutei_channel: str, judgment: dict, user_id: str,
                       channel_id: str, thread_ts: str, event: dict,
-                      with_management_number: bool = True) -> None:
+                      with_management_number: bool = True,
+                      send_reply: bool = True) -> None:
     """分荷確定の共通処理（管理番号発行・スプレッドシート転記・Slack返信）"""
     TSUHAN_CHANNELS = {
         "eBayシングル", "eBayまとめ",
@@ -1659,13 +1660,14 @@ def _complete_kakutei(kakutei_channel: str, judgment: dict, user_id: str,
         except Exception as me:
             print(f"[Monday.com登録エラー] {me}")
 
-    # Slack確定返信
-    persona = BOT_PERSONA["bunika"]
-    if management_number:
-        reply = persona["confirm"].format(channel=kakutei_channel, kanri=management_number)
-    else:
-        reply = persona["confirm_only"].format(channel=kakutei_channel)
-    post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
+    # Slack確定返信（send_reply=Falseの場合は呼び出し元が返信を担当）
+    if send_reply:
+        persona = BOT_PERSONA["bunika"]
+        if management_number:
+            reply = persona["confirm"].format(channel=kakutei_channel, kanri=management_number)
+        else:
+            reply = persona["confirm_only"].format(channel=kakutei_channel)
+        post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
 
     # 高額案件メンション（目標価格30,000円以上）
     try:
@@ -1692,8 +1694,8 @@ def _handle_matome_choice(choice: str, kakutei_channel: str, channel_id: str,
         _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=True)
 
     elif choice == '2':
-        # 管理番号なし・まとめ保管として記録
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=False)
+        # 管理番号なし・まとめ保管として記録（確定メッセージは出さずまとめ用メッセージを表示）
+        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=False, send_reply=False)
         post_to_slack(channel_id, thread_ts,
             "━━━━━━━━━━━━━━━━\n"
             "📦 *まとめ保管として記録しました*\n"
