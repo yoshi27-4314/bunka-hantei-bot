@@ -1378,8 +1378,7 @@ def process_slack_message(event: dict) -> None:
                     f"{announcement}\n\n"
                     "━━━━━━━━━━━━━━━━",
                     bot_role=bot_role)
-        # それ以外の浅野のメッセージにはボットは一切反応しない
-        return
+            return
 
     # ── 相談モード：@浅野 + 「相談」でトリガー ────────────────
     admin_mention = f"<@{ADMIN_USER_ID}>"
