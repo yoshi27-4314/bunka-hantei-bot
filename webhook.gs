@@ -243,36 +243,30 @@ function _handleBunikaKakutei(payload) {
 function _appendBunikaLog(payload) {
   const sh = _getDbSheetOrCreate(DB_SH.BUNIKA_LOG);
   _ensureDbHeader(sh, [
-    '管理番号', '確定チャンネル', 'AI第一候補', 'AI第二候補',
-    'アイテム名', 'メーカー', '品番/型式', '状態',
-    '予想販売価格', 'スタート価格', '目標価格', '予測在庫期間', '推奨在庫期限',
-    '総合スコア', '保管コスト', '梱包コスト', '期待ROI(%)', '内部KW',
-    '担当者', '作業時間(分)', '確定日時',
+    '日時', '管理番号', 'アイテム名', 'メーカー/ブランド', '品番/型式', '状態',
+    '確定チャンネル', 'AI第一候補', 'AI第二候補',
+    '予想販売価格', '在庫予測期間', '総合スコア', '推定内部KW', '担当者SlackID',
   ], '#1a3a2a');
 
-  sh.appendRow([
-    payload.kanri_bango        || '',
-    payload.kakutei_channel    || '',
-    payload.first_channel      || '',
-    payload.second_channel     || '',
-    payload.item_name          || '',
-    payload.maker              || '',
-    payload.model_number       || '',
-    payload.condition          || '',
-    payload.predicted_price    || '',
-    payload.start_price        || '',
-    payload.target_price       || '',
-    payload.inventory_period   || '',
-    payload.inventory_deadline || '',
-    payload.score              || '',
-    payload.storage_cost       || '',
-    payload.packing_cost       || '',
-    payload.expected_roi       || '',
-    payload.internal_keyword   || '',
-    payload.staff_id           || '',
-    payload.sakugyou_jikan     || '',
-    payload.timestamp          || new Date().toLocaleString('ja-JP'),
-  ]);
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const cellMap = {
+    '日時':            payload.timestamp       || new Date().toLocaleString('ja-JP'),
+    '管理番号':         payload.kanri_bango     || '',
+    'アイテム名':       payload.item_name       || '',
+    'メーカー/ブランド': payload.maker           || '',
+    '品番/型式':        payload.model_number    || '',
+    '状態':            payload.condition        || '',
+    '確定チャンネル':   payload.kakutei_channel || '',
+    'AI第一候補':       payload.first_channel   || '',
+    'AI第二候補':       payload.second_channel  || '',
+    '予想販売価格':     payload.predicted_price || '',
+    '在庫予測期間':     payload.inventory_period || '',
+    '総合スコア':       payload.score           || '',
+    '推定内部KW':       payload.internal_keyword || '',
+    '担当者SlackID':    payload.staff_id        || '',
+  };
+
+  sh.appendRow(headers.map(h => (cellMap[h] !== undefined ? cellMap[h] : '')));
 }
 
 // ============================================================
