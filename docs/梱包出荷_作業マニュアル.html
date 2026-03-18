@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梱包出荷 作業マニュアル｜TakeBack事業部</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Meiryo", "MS Gothic", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  .page { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+
+  .cover {
+    text-align: center;
+    padding: 28mm 0 18mm;
+    border-bottom: 3px solid #1c2e4a;
+    margin-bottom: 12mm;
+    page-break-after: always;
+  }
+  .cover .logo { font-size: 38pt; margin-bottom: 6mm; }
+  .cover h1 { font-size: 24pt; color: #1c2e4a; margin-bottom: 3mm; line-height: 1.4; }
+  .cover .subtitle { font-size: 13pt; color: #555; margin-bottom: 8mm; }
+  .cover .badge {
+    display: inline-block; background: #1c2e4a; color: #fff;
+    padding: 5px 16px; border-radius: 20px; font-size: 10pt; margin: 3px;
+  }
+  .cover .welcome {
+    margin-top: 10mm; padding: 8px 20px; background: #eaf0f8;
+    border-radius: 8px; font-size: 11pt; color: #1c2e4a;
+    display: inline-block; line-height: 1.8;
+  }
+
+  h1.section {
+    font-size: 15pt; color: #fff; background: #1c2e4a;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h2.subsection {
+    font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
+    padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
+    border-radius: 0 4px 4px 0;
+  }
+  h3.item {
+    font-size: 11pt; color: #333; margin: 4mm 0 2mm;
+    padding: 4px 10px; border-left: 3px solid #95a5a6; background: #fafafa;
+  }
+
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin: 3mm 0; background: #fafafa; }
+  .box-navy   { background: #eaf0f8; border-color: #1c2e4a; }
+  .box-blue   { background: #eaf2fb; border-color: #2980b9; }
+  .box-yellow { background: #fefde7; border-color: #f39c12; }
+  .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
+  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
+  .box-green  { background: #eafaf1; border-color: #27ae60; }
+  .box-orange { background: #fef5e7; border-color: #e67e22; border-width: 2px; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: stretch; }
+  .flow-step {
+    flex: 1; min-width: 70px; background: #1c2e4a; color: #fff;
+    text-align: center; padding: 8px 5px; font-size: 9pt; font-weight: bold; position: relative;
+  }
+  .flow-step:not(:last-child)::after {
+    content: "▶"; position: absolute; right: -11px; top: 50%;
+    transform: translateY(-50%); color: #1c2e4a; font-size: 14pt; z-index: 1;
+  }
+  .flow-step.done  { background: #27ae60; }
+  .flow-step.here  { background: #e67e22; }
+  .flow-step.end   { background: #e74c3c; }
+  .flow-step .step-num { font-size: 7pt; opacity: 0.8; display: block; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 10pt; }
+  th { background: #1c2e4a; color: #fff; padding: 7px 10px; text-align: left; font-weight: bold; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+
+  code {
+    background: #1c2e4a; color: #ecf0f1; padding: 2px 7px;
+    border-radius: 4px; font-family: "Courier New", monospace; font-size: 10pt;
+  }
+  .code-block {
+    background: #1c2e4a; color: #ecf0f1; padding: 12px 16px;
+    border-radius: 6px; font-family: "Courier New", monospace;
+    font-size: 10pt; line-height: 1.9; margin: 3mm 0; white-space: pre-wrap;
+  }
+
+  /* Slackメッセージ再現 */
+  .slack-msg {
+    background: #f8f8f8; border: 1px solid #e0e0e0;
+    border-left: 4px solid #4a154b;
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 3mm 0;
+    font-size: 10pt; line-height: 1.9;
+  }
+  .slack-msg .sender { font-weight: bold; color: #4a154b; font-size: 9.5pt; margin-bottom: 4px; }
+  .slack-staff {
+    background: #f0f7ff; border: 1px solid #e0e0e0;
+    border-left: 4px solid #2980b9;
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 3mm 0;
+    font-size: 10pt; line-height: 1.9;
+  }
+  .slack-staff .sender { font-weight: bold; color: #2980b9; font-size: 9.5pt; margin-bottom: 4px; }
+
+  .step-list { list-style: none; margin: 2mm 0; }
+  .step-list li {
+    padding: 8px 8px 8px 44px; position: relative;
+    border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: attr(data-step); position: absolute; left: 6px; top: 8px;
+    background: #1c2e4a; color: #fff; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10pt; font-weight: bold; line-height: 28px; text-align: center;
+  }
+
+  .check-list { list-style: none; margin: 2mm 0; }
+  .check-list li { padding: 4px 8px 4px 26px; position: relative; font-size: 10.5pt; }
+  .check-list li::before { content: "✓"; position: absolute; left: 5px; color: #27ae60; font-weight: bold; }
+
+  .point-list { list-style: none; margin: 2mm 0; }
+  .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
+  .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
+
+  .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
+  .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 3mm 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .page-break { page-break-before: always; }
+
+  @media print {
+    body { font-size: 10pt; }
+    .page { padding: 10mm 14mm; }
+    .cover { page-break-after: always; }
+    .page-break { page-break-before: always; }
+    h1.section { page-break-after: avoid; }
+    h2.subsection { page-break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- 表紙 -->
+<div class="cover">
+  <div class="logo">📦</div>
+  <h1>梱包出荷 作業マニュアル</h1>
+  <div class="subtitle">梱包出荷チャンネル（黒田官兵衛）　操作ガイド</div>
+  <div style="margin: 6mm 0;">
+    <span class="badge">株式会社テイクバック</span>
+    <span class="badge">2026年3月版</span>
+  </div>
+  <div class="welcome">
+    このチャンネルで梱包完了・出荷手配を記録します。<br>
+    管理番号を入力するだけで梱包情報が表示され、<br>
+    追跡番号も写真1枚で自動登録されます。
+  </div>
+</div>
+
+
+<!-- 目次 -->
+<h1 class="section">目次</h1>
+<div class="box">
+  <table>
+    <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>このチャンネルの役割</b>　─ 対象商品・業務ルール</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">2</td><td><b>作業の流れ（5ステップ）</b>　─ セッション開始から出荷完了まで</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">3</td><td><b>STEP 1：管理番号を入力する</b>　─ 新ボード品・旧ボード品の違い</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>STEP 2：梱包完了を報告する</b></td></tr>
+    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>STEP 3：運送会社を選ぶ</b>　─ 5択メニュー</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>STEP 4：送り状ラベルを撮影する</b>　─ OCR自動読み取り</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>後日発送の場合</b>　─ セッションなしで伝票を登録する方法</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">8</td><td><b>旧ボード品の出荷後について</b>　─ 共有コミュニティへの自動通知</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">9</td><td><b>コマンド一覧</b>　─ キャンセル・削除</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">10</td><td><b>実際の操作例</b>　─ 画面イメージ</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">11</td><td><b>困ったときは</b></td></tr>
+  </table>
+</div>
+
+
+<!-- 1. 役割 -->
+<div class="page-break"></div>
+<h1 class="section">1　このチャンネルの役割</h1>
+
+<h2 class="subsection">梱包出荷チャンネルとは</h2>
+<div class="box box-navy">
+  落札・入金確認が完了した商品を<b>梱包→出荷手配→追跡番号登録</b>するチャンネルです。<br><br>
+  管理番号を入力するだけで梱包に必要な情報（サイズ・販売チャンネル・棚番など）が表示され、
+  追跡番号も送り状ラベルの写真1枚から自動登録されます。
+</div>
+
+<h2 class="subsection">絶対に守るルール</h2>
+<div class="box box-red">
+  <b>⚠️ 入金確認済みの商品のみ梱包すること</b><br><br>
+  入金確認前の商品を梱包してはいけません。<br>
+  Monday.com上のステータスが <b>「入金確認済み」</b> になってから、梱包作業を開始してください。
+</div>
+
+<h2 class="subsection">対象となる商品</h2>
+<div class="two-col">
+  <div class="box box-green">
+    <b>✅ 新ボード品（通常）</b><br>
+    管理番号形式：<code>2603-0001</code><br>
+    分荷判定システムで登録した商品。<br>
+    サイズ・チャンネル・予想価格が自動表示される。
+  </div>
+  <div class="box box-blue">
+    <b>✅ 旧ボード品（手作業登録）</b><br>
+    管理番号形式：<code>0612HK039</code><br>
+    以前に手作業で登録した商品。<br>
+    アイテム名・棚番が表示される。
+  </div>
+</div>
+<div class="note">どちらの形式の管理番号も同じ手順で作業できます。</div>
+
+
+<!-- 2. 流れ -->
+<h1 class="section">2　作業の流れ（5ステップ）</h1>
+
+<div class="flow">
+  <div class="flow-step done"><span class="step-num">事前</span>入金確認</div>
+  <div class="flow-step here"><span class="step-num">STEP 1</span>管理番号入力</div>
+  <div class="flow-step here"><span class="step-num">STEP 2</span>梱包完了</div>
+  <div class="flow-step here"><span class="step-num">STEP 3</span>運送会社選択</div>
+  <div class="flow-step here"><span class="step-num">STEP 4</span>ラベル撮影</div>
+  <div class="flow-step end"><span class="step-num">完了</span>出荷登録</div>
+</div>
+
+<ul class="step-list" style="margin-top: 5mm;">
+  <li data-step="1">梱包出荷チャンネルに管理番号を<b>新規メッセージ</b>として投稿する（またはテプラ写真を貼る）</li>
+  <li data-step="2">Botが梱包情報を返信したら、商品を梱包して <code>梱包完了</code> と入力する</li>
+  <li data-step="3">運送会社を1〜5の番号で選ぶ</li>
+  <li data-step="4">送り状ラベルの写真を撮って貼る（佐川・アート・西濃の場合）</li>
+  <li data-step="5">Botが追跡番号を読み取り、出荷登録が自動完了する</li>
+</ul>
+
+
+<!-- 3. STEP1 -->
+<div class="page-break"></div>
+<h1 class="section">3　STEP 1：管理番号を入力する</h1>
+
+<h2 class="subsection">入力方法（2通り）</h2>
+
+<div class="two-col">
+  <div class="box">
+    <b>① テキストで入力</b><br>
+    管理番号をそのままメッセージとして送信する。<br><br>
+    <div class="slack-staff" style="margin:0;">
+      <div class="sender">スタッフ</div>
+      2603-0001
+    </div>
+    <div class="slack-staff" style="margin:0;">
+      <div class="sender">スタッフ</div>
+      0612HK039
+    </div>
+  </div>
+  <div class="box">
+    <b>② テプラ写真を送る</b><br>
+    管理番号のテプララベルを撮影して送信する。<br>
+    BotがOCRで管理番号を読み取る。<br><br>
+    <div class="hint">写真はなるべく正面から撮影し、文字が鮮明に写るようにしてください。</div>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠️ 必ず<b>新規メッセージ</b>として投稿してください。他のスレッドへの返信ではセッションが開始されません。
+</div>
+
+<h2 class="subsection">Botが返す梱包情報（新ボード品）</h2>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  📦 <b>梱包情報確認</b><br>
+  ━━━━━━━━━━━━━━━━<br>
+  🔖 管理番号<br>
+  　<b>2603-0001</b><br><br>
+  📋 判定チャンネル<br>
+  　eBayシングル<br><br>
+  📐 推奨梱包サイズ<br>
+  　140cm（佐川急便）<br><br>
+  💴 予想販売価格<br>
+  　¥8,000〜¥12,000<br><br>
+  ━━━━━━━━━━━━━━━━<br>
+  梱包が完了したら <code>梱包完了</code> と入力してください。
+</div>
+
+<h2 class="subsection">Botが返す梱包情報（旧ボード品）</h2>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  📦 <b>梱包情報確認（旧ボード）</b><br>
+  ━━━━━━━━━━━━━━━━<br>
+  🔖 管理番号<br>
+  　<b>0612HK039</b><br><br>
+  📋 アイテム名<br>
+  　ヴィンテージ茶碗 北大路魯山人作<br><br>
+  📍 棚番<br>
+  　A22横<br><br>
+  ⚠️ サイズ・チャンネル等は手動で確認してください。<br><br>
+  ━━━━━━━━━━━━━━━━<br>
+  梱包が完了したら <code>梱包完了</code> と入力してください。
+</div>
+<div class="note">旧ボード品はシステムにサイズ情報が登録されていないため、梱包材のサイズは手動で判断してください。</div>
+
+
+<!-- 4. STEP2 -->
+<h1 class="section">4　STEP 2：梱包完了を報告する</h1>
+
+<div class="box box-navy">
+  商品の梱包が完了したら、Botが返信したスレッド内に <code>梱包完了</code> または <code>梱包</code> と入力してください。
+</div>
+
+<div class="two-col">
+  <div class="slack-staff">
+    <div class="sender">スタッフ</div>
+    梱包完了
+  </div>
+  <div class="slack-staff">
+    <div class="sender">スタッフ</div>
+    梱包
+  </div>
+</div>
+
+<div class="slack-msg" style="margin-top: 3mm;">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  ✅ <b>梱包完了</b><br>
+  ━━━━━━━━━━━━━━━━<br>
+  運送会社を選んでください：<br><br>
+  1️⃣　佐川急便<br>
+  2️⃣　アートデリバリー<br>
+  3️⃣　西濃運輸<br>
+  4️⃣　直接引き取り<br>
+  5️⃣　後日発送
+</div>
+
+
+<!-- 5. STEP3 -->
+<div class="page-break"></div>
+<h1 class="section">5　STEP 3：運送会社を選ぶ</h1>
+
+<h2 class="subsection">5択メニューの内容と次のアクション</h2>
+
+<table>
+  <tr>
+    <th>番号</th>
+    <th>運送会社</th>
+    <th>次のアクション</th>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-size:14pt;">1️⃣</td>
+    <td><b>佐川急便</b></td>
+    <td>送り状ラベルの写真を送る → OCRで追跡番号を自動取得</td>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-size:14pt;">2️⃣</td>
+    <td><b>アートデリバリー</b></td>
+    <td>同上</td>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-size:14pt;">3️⃣</td>
+    <td><b>西濃運輸</b></td>
+    <td>同上</td>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-size:14pt;">4️⃣</td>
+    <td><b>直接引き取り</b></td>
+    <td>番号を選ぶだけで即完了。ラベル写真は不要</td>
+  </tr>
+  <tr>
+    <td style="text-align:center; font-size:14pt;">5️⃣</td>
+    <td><b>後日発送</b></td>
+    <td>セッション終了。後日、別の方法で伝票番号を登録する（後述）</td>
+  </tr>
+</table>
+
+<div class="hint">番号のみ入力してください。例：<code>1</code></div>
+
+
+<!-- 6. STEP4 -->
+<h1 class="section">6　STEP 4：送り状ラベルを撮影する</h1>
+
+<h2 class="subsection">佐川・アート・西濃を選んだ場合</h2>
+
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  📸 <b>佐川急便</b> の<br>
+  送り状ラベルの写真を送ってください。
+</div>
+
+<ul class="step-list">
+  <li data-step="1">送り状ラベルが見えるように商品を置く</li>
+  <li data-step="2">ラベルの<b>追跡番号（伝票番号）が鮮明に写るよう</b>スマホで撮影する</li>
+  <li data-step="3">撮影した写真をそのままスレッドに投稿する</li>
+  <li data-step="4">Botが自動で追跡番号を読み取り、出荷登録が完了する</li>
+</ul>
+
+<div class="slack-msg" style="margin-top: 3mm;">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  🚚 <b>出荷登録完了</b><br>
+  ━━━━━━━━━━━━━━━━<br>
+  🔖 管理番号<br>
+  　<b>2603-0001</b><br><br>
+  🏢 運送会社<br>
+  　佐川急便<br>
+  📮 追跡番号<br>
+  　<b>123456789012</b>
+</div>
+
+<h2 class="subsection">追跡番号が読み取れなかった場合</h2>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  ⚠️ 追跡番号を読み取れませんでした<br>
+  ━━━━━━━━━━━━━━━━<br>
+  ラベルをもう一度撮影して送ってください。<br>
+  数字が鮮明に写るよう近づいて撮影してください。
+</div>
+<div class="hint">読み取りに失敗した場合は、ラベルに近づいて数字部分だけを撮影し直してください。</div>
+
+
+<!-- 7. 後日発送 -->
+<div class="page-break"></div>
+<h1 class="section">7　後日発送の場合</h1>
+
+<h2 class="subsection">「5：後日発送」を選んだとき</h2>
+
+<div class="box box-yellow">
+  今日は梱包だけ完了して、発送は後日行う場合に使用します。<br>
+  セッションはここで一度終了します。実際に発送したあと、以下の方法で伝票番号を登録してください。
+</div>
+
+<h2 class="subsection">後日の登録方法</h2>
+
+<div class="box box-navy">
+  梱包出荷チャンネルに以下の形式で<b>新規メッセージ</b>を投稿してください：
+</div>
+
+<div class="code-block">管理番号　運送会社　伝票番号
+
+例：
+2603-0001 佐川 123456789012
+0612HK039 アート 987654321
+2602-0015 西濃 AB1234567890</div>
+
+<table>
+  <tr>
+    <th>項目</th>
+    <th>入力するキーワード</th>
+  </tr>
+  <tr>
+    <td>佐川急便</td>
+    <td><code>佐川</code></td>
+  </tr>
+  <tr>
+    <td>アートデリバリー</td>
+    <td><code>アート</code></td>
+  </tr>
+  <tr>
+    <td>西濃運輸</td>
+    <td><code>西濃</code></td>
+  </tr>
+</table>
+
+<div class="warn">
+  ⚠️ 管理番号・運送会社・伝票番号の順番を必ず守ってください。順番が違うと登録できません。
+</div>
+
+
+<!-- 8. 旧ボード品の出荷後 -->
+<h1 class="section">8　旧ボード品の出荷後について</h1>
+
+<h2 class="subsection">旧ボード品はMonday.comが自動更新されません</h2>
+
+<div class="box box-yellow">
+  旧ボード品（<code>0612HK039</code> 形式）は、Monday.comの列構造が新ボードと異なるため、
+  出荷登録後にステータスが自動更新されません。<br><br>
+  代わりに、<b>通販業務_共有コミュニティ</b>チャンネルに自動で通知が届きます。
+</div>
+
+<h2 class="subsection">自動通知の内容（共有コミュニティ宛）</h2>
+
+<div class="slack-msg">
+  <div class="sender">Bot（通販業務_共有コミュニティ）</div>
+  @channel<br><br>
+  ━━━━━━━━━━━━━━━━<br>
+  📦 <b>旧ボード品が出荷されました</b><br>
+  ━━━━━━━━━━━━━━━━<br>
+  🔖 管理番号：<b>0612HK039</b><br>
+  📋 アイテム名：ヴィンテージ茶碗 北大路魯山人作<br>
+  🏢 運送会社：佐川急便<br>
+  📮 追跡番号：<b>123456789012</b><br><br>
+  ━━━━━━━━━━━━━━━━<br>
+  ✅ <b>対応をお願いします</b><br>
+  Monday.com（旧ボード）のステータスを<br>
+  <b>「出荷待ち」</b>に変更してください。<br>
+  🔗 https://monday.com/boards/8199048609
+</div>
+
+<div class="box box-navy" style="margin-top: 3mm;">
+  <b>受け取った側（担当者）の対応</b><br>
+  通知を受けたらMonday.com（旧ボード）を開き、該当アイテムのステータスを <b>「出荷待ち」</b> に変更してください。<br>
+  通知メッセージは自動でピン留めされます。
+</div>
+
+
+<!-- 9. コマンド一覧 -->
+<div class="page-break"></div>
+<h1 class="section">9　コマンド一覧</h1>
+
+<table>
+  <tr>
+    <th>コマンド</th>
+    <th>タイミング</th>
+    <th>動作</th>
+  </tr>
+  <tr>
+    <td><code>梱包完了</code> / <code>梱包</code></td>
+    <td>梱包が終わったとき</td>
+    <td>運送会社選択メニューを表示する</td>
+  </tr>
+  <tr>
+    <td><code>1</code> 〜 <code>5</code></td>
+    <td>運送会社選択時</td>
+    <td>選択した運送会社を登録し、次のステップへ進む</td>
+  </tr>
+  <tr>
+    <td><code>削除</code> / <code>キャンセル</code></td>
+    <td>作業を取り消したいとき</td>
+    <td>現在のセッションをキャンセルする。記録はされない</td>
+  </tr>
+</table>
+
+<div class="note">コマンドはすべて、Botが返信したスレッド内で入力してください。新規メッセージでは動作しません。</div>
+
+
+<!-- 10. 操作例 -->
+<h1 class="section">10　実際の操作例</h1>
+
+<h2 class="subsection">パターンA：佐川急便で通常出荷（新ボード品）</h2>
+
+<div class="slack-staff">
+  <div class="sender">スタッフ（新規メッセージ）</div>
+  2603-0001
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  ━━━━━━━━━━━━━━━━<br>
+  📦 梱包情報確認　管理番号 <b>2603-0001</b><br>
+  判定チャンネル：eBayシングル　推奨梱包サイズ：140cm<br>
+  ━━━━━━━━━━━━━━━━<br>
+  梱包が完了したら <code>梱包完了</code> と入力してください。
+</div>
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  梱包完了
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  運送会社を選んでください：1️⃣佐川　2️⃣アート　3️⃣西濃　4️⃣直引き　5️⃣後日
+</div>
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  1
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  📸 佐川急便の送り状ラベルの写真を送ってください。
+</div>
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  [送り状ラベルの写真]
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  🚚 出荷登録完了　管理番号：2603-0001　佐川急便　追跡：123456789012
+</div>
+
+<h2 class="subsection">パターンB：直接引き取り</h2>
+
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  梱包完了
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  運送会社を選んでください：1️⃣佐川　2️⃣アート　3️⃣西濃　<b>4️⃣直引き</b>　5️⃣後日
+</div>
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  4
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  🚚 出荷登録完了　管理番号：2603-0001　直接引き取り
+</div>
+
+<h2 class="subsection">パターンC：後日発送（伝票番号を後から登録）</h2>
+
+<div class="slack-staff">
+  <div class="sender">スタッフ（スレッド内）</div>
+  5
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  後日発送として記録しました。<br>
+  発送後は「<b>管理番号　運送会社　伝票番号</b>」の形式でこのチャンネルに新規投稿してください。
+</div>
+<div class="note">〈数日後〉実際に発送したあと →</div>
+<div class="slack-staff">
+  <div class="sender">スタッフ（新規メッセージ）</div>
+  2603-0001 佐川 123456789012
+</div>
+<div class="slack-msg">
+  <div class="sender">黒田官兵衛 Bot</div>
+  🚚 出荷登録完了　管理番号：2603-0001　佐川急便　追跡：123456789012
+</div>
+
+
+<!-- 11. 困ったときは -->
+<div class="page-break"></div>
+<h1 class="section">11　困ったときは</h1>
+
+<h2 class="subsection">よくある質問</h2>
+
+<table>
+  <tr>
+    <th>状況</th>
+    <th>対処方法</th>
+  </tr>
+  <tr>
+    <td>管理番号を入力してもBotが反応しない</td>
+    <td>新規メッセージとして投稿しているか確認してください。スレッド返信では開始されません。</td>
+  </tr>
+  <tr>
+    <td>追跡番号の読み取りに連続して失敗する</td>
+    <td>ラベルに近づき、数字部分のみを正面から撮影してください。それでも失敗する場合は浅野に連絡してください。</td>
+  </tr>
+  <tr>
+    <td>旧ボード品の管理番号が見つからないと言われる</td>
+    <td>管理番号の文字が正確か確認してください。テプラ写真で送ると認識精度が上がります。</td>
+  </tr>
+  <tr>
+    <td>誤った管理番号でセッションを始めてしまった</td>
+    <td>スレッド内で <code>キャンセル</code> または <code>削除</code> と入力してセッションを終了し、正しい管理番号で新規投稿し直してください。</td>
+  </tr>
+  <tr>
+    <td>後日発送で伝票番号を入力したがBotが反応しない</td>
+    <td>「管理番号 運送会社 伝票番号」の順番と半角スペース区切りを確認してください。</td>
+  </tr>
+</table>
+
+<h2 class="subsection">確・連・報（かくれんぼう）</h2>
+<div class="three-col">
+  <div class="box box-navy" style="text-align:center;">
+    <div style="font-size:20pt;">✅</div>
+    <b>確認</b><br>
+    <span style="font-size:9pt;">作業前に管理番号と<br>入金確認を確認する</span>
+  </div>
+  <div class="box box-blue" style="text-align:center;">
+    <div style="font-size:20pt;">📢</div>
+    <b>連絡</b><br>
+    <span style="font-size:9pt;">問題が起きたら<br>すぐ浅野に連絡する</span>
+  </div>
+  <div class="box box-green" style="text-align:center;">
+    <div style="font-size:20pt;">📝</div>
+    <b>報告</b><br>
+    <span style="font-size:9pt;">出荷完了後は<br>Botの登録完了を確認する</span>
+  </div>
+</div>
+
+<div style="margin-top: 15mm; text-align: center; color: #999; font-size: 9pt; border-top: 1px solid #ddd; padding-top: 6mm;">
+  梱包出荷 作業マニュアル　ver.1.0　2026年3月　TakeBack事業部
+</div>
+
+</div>
+</body>
+</html>
