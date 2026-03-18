@@ -3729,13 +3729,26 @@ def health_check():
     # ── 5. Google Drive API（設定済みの場合のみ）─────────────
     try:
         svc = get_drive_service()
+        folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
         if svc:
             svc.files().list(pageSize=1, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
             results["google_drive"] = "OK"
+            # フォルダアクセス確認（共有ドライブのメンバー権限が切れていないかチェック）
+            if folder_id:
+                try:
+                    folder = svc.files().get(fileId=folder_id, fields="id,name", supportsAllDrives=True).execute()
+                    results["google_drive_folder"] = f"OK: {folder.get('name', '名前不明')}"
+                except Exception as fe:
+                    results["google_drive_folder"] = f"NG: {fe}"
+                    alerts.append(f"🚨 Google Driveフォルダアクセス不可\n→ 共有ドライブのメンバーにサービスアカウントが追加されているか確認してください\n→ bunka-bot-drive@ordinal-gear-489903-a5.iam.gserviceaccount.com を編集者で追加\nエラー: {fe}")
+            else:
+                results["google_drive_folder"] = "SKIP（GOOGLE_DRIVE_FOLDER_ID未設定）"
         else:
             results["google_drive"] = "SKIP（未設定）"
+            results["google_drive_folder"] = "SKIP（未設定）"
     except Exception as e:
         results["google_drive"] = f"ERROR: {e}"
+        results["google_drive_folder"] = "SKIP"
         alerts.append(f"🚨 Google Drive API異常: {e}\n→ GOOGLE_SERVICE_ACCOUNT_JSON を確認してください")
 
     # ── 6. Bot直近24時間の処理件数確認 ────────────────────────
