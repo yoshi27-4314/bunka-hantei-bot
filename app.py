@@ -3765,8 +3765,6 @@ def health_check():
             except Exception as e:
                 print(f"[ヘルスチェック通知エラー] {e}")
 
-    all_ok = all("OK" in str(v) or "SKIP" in str(v) for v in results.values()
-                 if k != "bot_24h_ops" for k in [str(v)])
     print(f"[ヘルスチェック] {now} 結果: {results}")
     return jsonify({
         "ok": len(alerts) == 0,
