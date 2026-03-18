@@ -36,6 +36,7 @@ def get_monday_token():
 
 
 MONDAY_BOARD_ID = "18404143384"
+MONDAY_OLD_BOARD_IDS = ["8199048609", "8199056494"]  # 旧ボード（手作業登録・現在出品中の商品）
 MONDAY_API_URL = "https://api.monday.com/v2"
 _monday_setup_log: list = []
 GAS_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec")
@@ -2304,7 +2305,7 @@ def parse_listing_command(text: str):
 
 
 def get_item_from_monday(management_number: str) -> dict:
-    """monday.comから管理番号に対応するアイテムデータを取得する"""
+    """monday.comから管理番号に対応するアイテムデータを取得する（新ボード→旧ボードの順に検索）"""
     query = """
     query ($board_id: ID!) {
         boards(ids: [$board_id]) {
@@ -2323,7 +2324,47 @@ def get_item_from_monday(management_number: str) -> dict:
     for item in items:
         cols = {cv["id"]: cv["text"] for cv in item.get("column_values", [])}
         if cols.get("kanri_bango") == management_number:
-            return {"monday_name": item["name"], **cols}
+            return {"monday_name": item["name"], "is_old_board": False, **cols}
+    # 新ボードになければ旧ボードを検索
+    return get_item_from_old_boards(management_number)
+
+
+def get_item_from_old_boards(management_number: str) -> dict:
+    """旧Monday.comボード（2枚）から管理番号に対応するアイテムを検索する"""
+    query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            items_page(limit: 500) {
+                items {
+                    id
+                    name
+                    column_values { id text }
+                }
+            }
+        }
+    }
+    """
+    for board_id in MONDAY_OLD_BOARD_IDS:
+        try:
+            result = monday_graphql(query, {"board_id": board_id})
+            items = (result.get("data", {}).get("boards", [{}])[0]
+                     .get("items_page", {}).get("items", []))
+            for item in items:
+                cols = {cv["id"]: cv["text"] for cv in item.get("column_values", [])}
+                # アイテム名または全列の値から管理番号を検索
+                found = (management_number in item.get("name", "") or
+                         any(v == management_number for v in cols.values()))
+                if found:
+                    print(f"[旧ボード発見] board={board_id} item={item['name']}")
+                    return {
+                        "monday_name":     item["name"],
+                        "monday_item_id":  item["id"],
+                        "monday_board_id": board_id,
+                        "is_old_board":    True,
+                        **cols,
+                    }
+        except Exception as e:
+            print(f"[旧ボード検索エラー board={board_id}] {e}")
     return {}
 
 
@@ -2689,7 +2730,7 @@ def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
         return ""
 
 
-def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number):
+def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number, is_old_board: bool = False):
     """出荷手配完了の共通処理"""
     tracking_line = f"\n📮 追跡番号\n　*{tracking_number}*" if tracking_number else ""
     post_to_slack(channel_id, thread_ts,
@@ -2702,17 +2743,21 @@ def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier,
         f"　{carrier}"
         f"{tracking_line}",
         mention_user=user_id, bot_role="konpo")
-    try:
-        monday_cols = {
-            "status": {"label": "出荷待ち"},
-            "carrier": carrier,
-            "shukka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-        }
-        if tracking_number:
-            monday_cols["tracking_number"] = tracking_number
-        update_monday_columns(management_number, monday_cols)
-    except Exception as e:
-        print(f"[Monday.com出荷済み更新エラー] {e}")
+    if is_old_board:
+        # 旧ボード品はMonday.com列構造が異なるため更新をスキップ
+        print(f"[旧ボード品] Monday.com更新スキップ: {management_number}")
+    else:
+        try:
+            monday_cols = {
+                "status": {"label": "出荷待ち"},
+                "carrier": carrier,
+                "shukka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+            }
+            if tracking_number:
+                monday_cols["tracking_number"] = tracking_number
+            update_monday_columns(management_number, monday_cols)
+        except Exception as e:
+            print(f"[Monday.com出荷済み更新エラー] {e}")
     try:
         send_to_spreadsheet({
             "action":          "shipping_update",
@@ -2741,7 +2786,7 @@ def handle_konpo_channel(event: dict) -> None:
     # ── 新規投稿 ──────────────────────────────────────────
     if is_new_post:
         # 後日発送の送り状後入力: 「管理番号 運送会社 追跡番号」
-        delayed_m = _re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
+        delayed_m = _re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
         if delayed_m:
             mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
             carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
@@ -2749,7 +2794,7 @@ def handle_konpo_channel(event: dict) -> None:
             return
 
         # 通常の梱包開始
-        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
+        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3})', text)
         if not text_mn and not image_urls:
             print(f"[梱包CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
@@ -2782,6 +2827,7 @@ def handle_konpo_channel(event: dict) -> None:
         kw = item_data.get("internal_keyword", "")
         size_m = _re.search(r'/[A-Z]+(\d+)/', kw)
         size = size_m.group(1) if size_m else "不明"
+        is_old_board = item_data.get("is_old_board", False)
 
         konpo_sessions[current_ts] = {
             "management_number": management_number,
@@ -2790,22 +2836,50 @@ def handle_konpo_channel(event: dict) -> None:
             "carrier": None,
             "waiting_label": False,
             "start_time": datetime.now(),
+            "is_old_board": is_old_board,
         }
-        post_to_slack(channel_id, current_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "📦 *梱包情報確認*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            f"📐 梱包サイズ\n"
-            f"　{size}サイズ\n\n"
-            f"📺 判定チャンネル\n"
-            f"　{item_data.get('hantei_channel', '')}\n\n"
-            f"💰 予想販売価格\n"
-            f"　{item_data.get('yosou_kakaku', '')}\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "梱包が完了したら `梱包完了` と入力してください。",
-            mention_user=user_id, bot_role="konpo")
+
+        if is_old_board:
+            # 旧ボード品：アイテム名と棚番を表示（サイズ・チャンネル等は手動確認）
+            shelf = ""
+            for col_id, col_val in item_data.items():
+                if col_id in ("monday_name", "is_old_board", "monday_item_id", "monday_board_id") or not col_val:
+                    continue
+                if col_val == management_number:
+                    continue
+                if len(col_val) <= 10:
+                    shelf = col_val
+                    break
+            shelf_line = f"📍 棚番\n　{shelf}\n\n" if shelf else ""
+            post_to_slack(channel_id, current_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "📦 *梱包情報確認（旧ボード）*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"🔖 管理番号\n"
+                f"　*{management_number}*\n\n"
+                f"📋 アイテム名\n"
+                f"　{item_data.get('monday_name', '---')}\n\n"
+                f"{shelf_line}"
+                "⚠️ サイズ・チャンネル等は手動で確認してください。\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "梱包が完了したら `梱包完了` と入力してください。",
+                mention_user=user_id, bot_role="konpo")
+        else:
+            post_to_slack(channel_id, current_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "📦 *梱包情報確認*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"🔖 管理番号\n"
+                f"　*{management_number}*\n\n"
+                f"📐 梱包サイズ\n"
+                f"　{size}サイズ\n\n"
+                f"📺 判定チャンネル\n"
+                f"　{item_data.get('hantei_channel', '')}\n\n"
+                f"💰 予想販売価格\n"
+                f"　{item_data.get('yosou_kakaku', '')}\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "梱包が完了したら `梱包完了` と入力してください。",
+                mention_user=user_id, bot_role="konpo")
         return
 
     # ── スレッド内 ────────────────────────────────────────
@@ -2870,7 +2944,7 @@ def handle_konpo_channel(event: dict) -> None:
         konpo_sessions[thread_ts] = session
 
         if text == "4":  # 直接引き取り
-            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "")
+            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "", is_old_board=session.get("is_old_board", False))
             log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                               get_staff_code(user_id), "完了", session.get("start_time"))
             del konpo_sessions[thread_ts]
@@ -2922,7 +2996,7 @@ def handle_konpo_channel(event: dict) -> None:
                 "もう一度写真を送ってください。",
                 mention_user=user_id, bot_role="konpo")
             return
-        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number)
+        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number, is_old_board=session.get("is_old_board", False))
         log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                           get_staff_code(user_id), "完了", session.get("start_time"))
         del konpo_sessions[thread_ts]

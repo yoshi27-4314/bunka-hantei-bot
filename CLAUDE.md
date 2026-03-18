@@ -830,3 +830,8 @@ if user_id == ADMIN_USER_ID:  # 浅野のUserID
 | | MATOME_CHANNELS定数・get_matome_pending_from_thread・_handle_matome_choice・_complete_kakutei を新設 | 確定共通処理を切り出し・選択状態をスレッドマーカーで管理 | | |
 | 2026-03-19 | バグ修正: まとめ選択2でメッセージが2重送信される問題を修正 | _complete_kakuteiにsend_replyパラメータ追加。choice=2はsend_reply=Falseで呼び出す | Claude Code | 6edeadc |
 | 2026-03-19 | UI修正: まとめ選択待ちマーカーをメッセージ末尾に移動 | 先頭に表示されていた管理用マーカー文字列をスタッフが見て混乱しないよう末尾に移動 | Claude Code | 6a9abbf |
+| 2026-03-19 | 梱包チャンネルを旧Monday.comボード2枚に対応 | 浅野儀頼の指示による。旧ボード品（0612HK039形式）も梱包対象として検索・表示できるよう拡張 | Claude Code | （push後に記録） |
+| | MONDAY_OLD_BOARD_IDS定数追加（8199048609・8199056494） | | | |
+| | get_item_from_old_boards()新設・get_item_from_monday()にフォールバック追加 | 新ボード→旧ボードの順に検索 | | |
+| | 管理番号正規表現を旧形式対応（`\d{4}[A-Z]{2}\d{3}`を追加） | 0612HK039形式を認識可能に | | |
+| | 旧ボード品は梱包情報（アイテム名・棚番）を表示、Monday.com更新はスキップ | 列構造が異なるため | | |
