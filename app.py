@@ -2021,13 +2021,13 @@ def handle_satsuei_channel(event: dict) -> None:
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         try:
             update_monday_columns(management_number, {
-                "status": {"label": "撮影済み"},
+                "status": {"label": "撮影完了"},
                 "satsuei_tantosha": get_staff_code(user_id),
                 "satsuei_date": {"date": datetime.now().strftime("%Y-%m-%d")},
                 "drive_url": folder_url,
             })
         except Exception as e:
-            print(f"[Monday.com撮影済み更新エラー] {e}")
+            print(f"[Monday.com撮影完了更新エラー] {e}")
         # 完了メッセージと写真投稿が別メッセージの場合、folder_urlが空になるため取得し直す
         if not folder_url:
             try:
@@ -2048,7 +2048,7 @@ def handle_satsuei_channel(event: dict) -> None:
                 "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
             })
         except Exception as e:
-            print(f"[スプレッドシート撮影済み更新エラー] {e}")
+            print(f"[スプレッドシート撮影完了更新エラー] {e}")
 
 
 # ── 共通：キャンセル・削除・作業ログ ──────────────────────
@@ -2247,9 +2247,11 @@ def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention
         "　`説明文：新しい説明文`\n"
         "　`サイズ：120`\n\n"
         "─────────────────────\n"
-        "✅ 準備ができたら\n"
-        "　*保管ロケーション番号* を入力してください\n"
-        "　例：`A-12`"
+        "✅ *次のステップ*\n\n"
+        "　*Step 1:* ヤフオク/eBayのページを作成したら\n"
+        "　　→ `ページ作成完了` と入力\n\n"
+        "　*Step 2:* 棚に収納したら\n"
+        "　　→ ロケーション番号を入力（例：`A-12`）"
     )
     post_to_slack(channel_id, thread_ts, text, mention_user=mention_user, bot_role="shuppinon")
 
@@ -2259,20 +2261,26 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
     import re
     management_number = session["management_number"]
 
+    # ページ作成時間を計算（ページ作成完了〜ロケーション入力までの分数）
+    page_creation_minutes = 0
+    if session.get("page_created_time"):
+        page_creation_minutes = max(0, int((datetime.now() - session["page_created_time"]).total_seconds() / 60))
+
     # スプレッドシートに出品データを記録
     try:
         send_to_spreadsheet({
-            "action":       "shuppinon_listing",
-            "kanri_bango":  management_number,
-            "title":        session.get("title", ""),
-            "description":  session.get("description", ""),
-            "condition":    session.get("condition", ""),
-            "start_price":  str(session.get("start_price", "")),
-            "buyout_price": str(session.get("buyout_price", "")),
-            "size":         session.get("size", ""),
-            "location":     location,
-            "staff_id":     get_staff_code(user_id),
-            "timestamp":    datetime.now().strftime("%Y/%m/%d %H:%M"),
+            "action":                "shuppinon_listing",
+            "kanri_bango":           management_number,
+            "title":                 session.get("title", ""),
+            "description":           session.get("description", ""),
+            "condition":             session.get("condition", ""),
+            "start_price":           str(session.get("start_price", "")),
+            "buyout_price":          str(session.get("buyout_price", "")),
+            "size":                  session.get("size", ""),
+            "location":              location,
+            "staff_id":              get_staff_code(user_id),
+            "timestamp":             datetime.now().strftime("%Y/%m/%d %H:%M"),
+            "page_creation_minutes": page_creation_minutes,
         })
     except Exception as e:
         print(f"[スプレッドシート出品記録エラー] {e}")
@@ -2379,6 +2387,8 @@ def handle_shuppinon_channel(event: dict) -> None:
             "size":        size,
             "item_data":   item_data,
             "start_time":  datetime.now(),
+            "page_created": False,
+            "page_created_time": None,
         }
         listing_sessions[current_ts] = session
         post_listing_summary(channel_id, current_ts, session, mention_user=user_id)
@@ -2416,6 +2426,39 @@ def handle_shuppinon_channel(event: dict) -> None:
     # 削除コマンド
     if text == "削除":
         handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
+        return
+
+    # ページ作成完了コマンド
+    if text == "ページ作成完了":
+        session["page_created"] = True
+        session["page_created_time"] = datetime.now()
+        listing_sessions[thread_ts] = session
+        try:
+            update_monday_columns(management_number, {
+                "status": {"label": "ページ作成完了"},
+            })
+        except Exception as e:
+            print(f"[Monday.comページ作成完了更新エラー] {e}")
+        try:
+            send_to_spreadsheet({
+                "action":      "shuppinon_page_complete",
+                "kanri_bango": management_number,
+                "staff_id":    get_staff_code(user_id),
+                "timestamp":   datetime.now().strftime("%Y/%m/%d %H:%M"),
+            })
+        except Exception as e:
+            print(f"[スプレッドシートページ作成完了エラー] {e}")
+        post_to_slack(channel_id, thread_ts,
+            "━━━━━━━━━━━━━━━━\n"
+            "🖥️ *ページ作成完了*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号\n"
+            f"　*{management_number}*\n\n"
+            "ページ作成を記録しました！\n\n"
+            "次は商品を棚に収納して\n"
+            "ロケーション番号を入力してください。\n"
+            "例：`A-12`",
+            mention_user=user_id, bot_role="shuppinon")
         return
 
     # 修正コマンドの判定

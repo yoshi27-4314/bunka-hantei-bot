@@ -76,7 +76,8 @@ function doPost(e) {
       switch (action) {
         case 'checklist_update':  result = _handleChecklistUpdate(payload); break;
         case 'satsuei_update':    result = _handleSatsueiUpdate(payload);   break;
-        case 'shuppinon_listing': result = _handleShuppinon(payload);       break;
+        case 'shuppinon_listing':      result = _handleShuppinon(payload);           break;
+        case 'shuppinon_page_complete': result = _handleShuppinonPageComplete(payload); break;
         case 'shipping_update':   result = _handleShippingUpdate(payload);  break;
         case 'work_activity':     result = _handleWorkActivity(payload);    break;
         case 'attendance':        result = _handleAttendance(payload);      break;
@@ -304,7 +305,7 @@ function _handleSatsueiUpdate(payload) {
   const kanriNo = String(payload.kanri_bango || '');
   if (!kanriNo) return { ok: true, skipped: 'no kanri_bango' };
   if (payload.drive_folder_url) _updateListingCell(kanriNo, '画像フォルダURL', String(payload.drive_folder_url));
-  _updateListingCell(kanriNo, '出品ステータス', '撮影済み');
+  _updateListingCell(kanriNo, '出品ステータス', '撮影完了');
   return { ok: true };
 }
 
@@ -322,6 +323,27 @@ function _handleShuppinon(payload) {
   if (payload.location)    _updateListingCell(kanriNo, '保管ロケーション',          String(payload.location));
   _updateListingCell(kanriNo, '出品ステータス', '出品中');
   _updateListingCell(kanriNo, '出品日時',       new Date().toLocaleString('ja-JP'));
+  return { ok: true };
+}
+
+// ============================================================
+// ⑤-b ページ作成完了（出品ページ作成済み・ロケーション入力前）
+// ============================================================
+function _handleShuppinonPageComplete(payload) {
+  const kanriNo = String(payload.kanri_bango || '');
+  if (!kanriNo) return { ok: true, skipped: 'no kanri_bango' };
+
+  // 作業ログに記録
+  const sh = _getDbSheetOrCreate(DB_SH.WORK_LOG);
+  _ensureDbHeader(sh, ['日時', 'チャンネル', '管理番号', '担当者', '操作', '経過秒数'], '#334155');
+  sh.appendRow([
+    payload.timestamp || new Date().toLocaleString('ja-JP'),
+    '出品保管',
+    kanriNo,
+    payload.staff_id || '',
+    'ページ作成完了',
+    '',
+  ]);
   return { ok: true };
 }
 
