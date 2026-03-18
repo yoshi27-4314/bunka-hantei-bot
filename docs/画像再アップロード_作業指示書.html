@@ -43,23 +43,13 @@
     font-size: 15pt; color: #fff; background: #1c2e4a;
     padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
   }
-  h2.subsection {
-    font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
-    padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
-    border-radius: 0 4px 4px 0;
-  }
-  h2.sub-red {
-    font-size: 12pt; color: #c0392b; border-left: 5px solid #c0392b;
-    padding: 4px 12px; margin: 6mm 0 3mm; background: #fdf2f2;
-    border-radius: 0 4px 4px 0;
-  }
 
   .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin: 3mm 0; background: #fafafa; }
   .box-navy   { background: #eaf0f8; border-color: #1c2e4a; }
   .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
-  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
   .box-green  { background: #eafaf1; border-color: #27ae60; }
   .box-yellow { background: #fefde7; border-color: #f39c12; }
+  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
 
   table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 10pt; }
   th { background: #1c2e4a; color: #fff; padding: 7px 10px; text-align: left; font-weight: bold; }
@@ -76,50 +66,46 @@
     font-size: 10pt; line-height: 1.9; margin: 3mm 0; white-space: pre-wrap;
   }
 
-  /* Slackメッセージ再現ブロック */
   .slack-msg {
-    background: #f8f8f8; border: 1px solid #e0e0e0; border-left: 4px solid #4a154b;
+    background: #f8f8f8; border: 1px solid #e0e0e0;
+    border-left: 4px solid #4a154b;
     border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 3mm 0;
     font-size: 10pt; line-height: 1.8;
   }
   .slack-msg .sender {
     font-weight: bold; color: #4a154b; font-size: 9.5pt; margin-bottom: 4px;
   }
-  .slack-msg b { color: #1a1a1a; }
 
   .step-list { list-style: none; margin: 2mm 0; }
   .step-list li {
-    padding: 8px 8px 8px 44px; position: relative;
+    padding: 10px 8px 10px 44px; position: relative;
     border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
   }
+  .step-list li:last-child { border-bottom: none; }
   .step-list li::before {
-    content: attr(data-step); position: absolute; left: 6px; top: 8px;
+    content: attr(data-step); position: absolute; left: 6px; top: 10px;
     background: #c0392b; color: #fff; width: 28px; height: 28px;
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
     font-size: 10pt; font-weight: bold; line-height: 28px; text-align: center;
   }
-  .step-list li:last-child { border-bottom: none; }
 
   .point-list { list-style: none; margin: 2mm 0; }
   .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
   .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
 
-  .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
-  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
   .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 3mm 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
 
-  .flow-h { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: center; }
+  .flow-h { display: flex; flex-wrap: wrap; gap: 0; margin: 5mm 0; align-items: center; }
   .flow-h .step {
-    background: #1c2e4a; color: #fff; padding: 8px 12px;
+    background: #1c2e4a; color: #fff; padding: 8px 14px;
     font-size: 9.5pt; font-weight: bold; text-align: center;
     border-radius: 4px; margin: 2px;
   }
-  .flow-h .arrow { color: #c0392b; font-size: 16pt; margin: 0 4px; font-weight: bold; }
+  .flow-h .arrow { color: #c0392b; font-size: 18pt; margin: 0 4px; font-weight: bold; }
 
-  .cmd-table td:first-child { font-weight: bold; color: #1c2e4a; width: 100px; }
-
-  .page-break { page-break-before: always; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .page-break { page-break-before: always; }
 
   @media print {
     body { font-size: 10pt; }
@@ -134,13 +120,12 @@
 
 <!-- 表紙 -->
 <div class="cover">
-  <div class="logo">📸</div>
-  <h1>画像再アップロード<br>作業指示書</h1>
+  <div class="logo">🔧</div>
+  <h1>画像 再アップロード<br>作業指示書</h1>
   <div class="subtitle">TakeBack事業部　2026年3月　一時対応ドキュメント</div>
   <div style="margin: 6mm 0;">
-    <span class="badge">緊急対応</span>
+    <span class="badge">修正作業専用</span>
     <span class="badge">約50点対象</span>
-    <span class="badge">白洲次郎チャンネル</span>
   </div>
   <div class="rule">
     完了の目印：<br>
@@ -149,89 +134,76 @@
 </div>
 
 
-<!-- 1. この作業の目的 -->
-<h1 class="section">1　この作業の目的</h1>
+<!-- 1. この作業について -->
+<h1 class="section">1　この作業について</h1>
 
 <div class="box box-navy">
-  システムの不具合により、一定期間に登録された商品の写真が<br>
-  <b>Google Driveに保存されていない</b>状態が発生しました。<br><br>
-  Monday.com・スプレッドシートのデータはそのまま残っています。<br>
+  システムの不具合により、一定期間に登録した商品の写真が<br>
+  <b>Google Driveに保存されていなかった</b>ことがわかりました。<br><br>
+  Monday.com・スプレッドシートのデータは問題ありません。<br>
   この作業では<b>写真だけをDriveに再アップロード</b>します。
 </div>
 
-<table style="margin-top: 4mm;">
-  <tr><th>項目</th><th>状態</th><th>この作業での対応</th></tr>
+<table style="margin-top:4mm;">
+  <tr><th>場所</th><th>状態</th></tr>
   <tr>
-    <td>Monday.com 登録</td>
-    <td style="color:#27ae60; font-weight:bold;">✅ 済み</td>
-    <td>そのまま（上書き更新される）</td>
+    <td>Monday.com・スプレッドシート</td>
+    <td style="color:#27ae60; font-weight:bold;">✅ 問題なし（上書き更新される）</td>
   </tr>
   <tr>
-    <td>スプレッドシート記録</td>
-    <td style="color:#27ae60; font-weight:bold;">✅ 済み</td>
-    <td>そのまま（上書き更新される）</td>
-  </tr>
-  <tr>
-    <td>Google Drive 写真保存</td>
-    <td style="color:#c0392b; font-weight:bold;">❌ 未保存</td>
-    <td><b>この作業で再アップロードする</b></td>
+    <td>Google Drive 写真</td>
+    <td style="color:#c0392b; font-weight:bold;">❌ 未保存 → この作業で対応</td>
   </tr>
 </table>
 
 <div class="hint" style="margin-top:4mm;">
-  同じ管理番号で再アップロードしても重複・エラーは起きません。安心して作業してください。
+  同じ管理番号で再アップロードしても重複・エラーは起きません。
 </div>
 
 
 <!-- 2. 作業手順 -->
 <div class="page-break"></div>
-<h1 class="section-dark">2　作業手順（全5ステップ）</h1>
+<h1 class="section-dark">2　作業手順</h1>
 
 <div class="box box-yellow" style="margin-bottom:5mm;">
   <b>作業場所：白洲次郎チャンネル（撮影確認）</b><br>
-  テプラ写真は不要です。管理番号をテキストで入力するだけで始められます。
+  テプラ写真は不要です。管理番号のテキスト入力だけで始められます。
 </div>
 
-<ul class="step-list">
-  <li data-step="1">
-    <b>白洲次郎チャンネルを開く</b><br>
-    <span style="font-size:9.5pt; color:#555;">Slackの「撮影確認（白洲次郎）」チャンネルを開く</span>
-  </li>
+<div class="flow-h">
+  <div class="step">① 管理番号を<br>テキスト投稿</div>
+  <div class="arrow">→</div>
+  <div class="step">② スレッドに<br>商品写真を投稿</div>
+  <div class="arrow">→</div>
+  <div class="step">③ 写真を確認して<br>「完了」と入力</div>
+  <div class="arrow">→</div>
+  <div class="step">④ 古いトークの<br>親メッセージを削除</div>
+</div>
 
-  <li data-step="2">
+<ul class="step-list" style="margin-top:6mm;">
+  <li data-step="1">
     <b>管理番号をテキストで新規投稿する</b><br>
     <span style="font-size:9.5pt; color:#555;">スレッドの返信ではなく、チャンネルへの<b>新規メッセージ</b>として投稿する</span>
     <div class="code-block" style="margin-top:6px;">2603-0001</div>
-    <div class="note">テプラ写真は不要。管理番号のテキスト入力でOK。</div>
-
-    <div style="margin-top:8px; font-size:9.5pt; color:#555;">Botからこのメッセージが届きます：</div>
-    <div class="slack-msg" style="margin-top:4px;">
-      <div class="sender">📸 白洲次郎</div>
+    <div class="slack-msg" style="margin-top:6px;">
+      <div class="sender">📸 白洲次郎（Bot）</div>
       📸 <b>撮影セッション開始</b><br>
-      ━━━━━━━━━━━━━━━━<br><br>
-      🔖 管理番号　<b>2603-0001</b><br><br>
       ━━━━━━━━━━━━━━━━<br>
-      📌 <b>作業手順</b><br><br>
-      　① このスレッドに商品写真を投稿<br>
-      　② Botの確認メッセージが届いたら写真をチェック<br>
-      　③ 問題なければ「完了」と送信<br><br>
+      🔖 管理番号　<b>2603-0001</b><br>
       ━━━━━━━━━━━━━━━━<br>
-      💡 <b>使えるコマンド</b><br><br>
-      　<code>完了</code>　／　撮影完了・Driveに保存<br>
-      　<code>やり直し</code>　／　写真を全削除して1枚目から撮り直す<br>
-      　<code>キャンセル</code>　／　作業を中断する
+      ① このスレッドに商品写真を投稿<br>
+      ② Botの確認メッセージが届いたら写真をチェック<br>
+      ③ 問題なければ <code>完了</code> と送信
     </div>
   </li>
 
-  <li data-step="3">
-    <b>そのスレッドに商品写真を投稿する</b><br>
-    <span style="font-size:9.5pt; color:#555;">Botの返信スレッドに写真を投稿する。複数枚まとめてOK。</span>
-
-    <div style="margin-top:8px; font-size:9.5pt; color:#555;">写真を投稿するとBotからこのメッセージが届きます：</div>
-    <div class="slack-msg" style="margin-top:4px;">
-      <div class="sender">📸 白洲次郎</div>
+  <li data-step="2">
+    <b>Botの返信スレッドに商品写真を投稿する</b><br>
+    <span style="font-size:9.5pt; color:#555;">複数枚まとめてOK。投稿するとBotから確認メッセージが届く。</span>
+    <div class="slack-msg" style="margin-top:6px;">
+      <div class="sender">📸 白洲次郎（Bot）</div>
       📷 <b>3枚</b> を受け取りました<br>
-      ━━━━━━━━━━━━━━━━<br><br>
+      ━━━━━━━━━━━━━━━━<br>
       🔍 <b>投稿した写真を確認してください</b><br><br>
       　□ ピントが合っているか<br>
       　□ 明るさは適切か<br>
@@ -244,54 +216,37 @@
     </div>
   </li>
 
-  <li data-step="4">
+  <li data-step="3">
     <b>写真を確認して「完了」と入力する</b><br>
-    <span style="font-size:9.5pt; color:#555;">Botのチェックリストを見ながら写真を確認する。問題なければスレッドに <code>完了</code> と送信。</span>
+    <span style="font-size:9.5pt; color:#555;">Botのチェックリストを見ながら写真を確認する。問題なければ <code>完了</code> と送信。</span>
     <div class="code-block" style="margin-top:6px;">完了</div>
-
-    <div style="margin-top:8px; font-size:9.5pt; color:#555;">完了後にBotからこのメッセージが届きます：</div>
-    <div class="slack-msg" style="margin-top:4px;">
-      <div class="sender">📸 白洲次郎</div>
+    <div class="slack-msg" style="margin-top:6px;">
+      <div class="sender">📸 白洲次郎（Bot）</div>
       ✅ <b>撮影完了！お疲れ様でした</b><br>
-      ━━━━━━━━━━━━━━━━<br><br>
+      ━━━━━━━━━━━━━━━━<br>
       🔖 管理番号　<b>2603-0001</b><br><br>
       写真をDriveに保存しました。<br><br>
       ━━━━━━━━━━━━━━━━<br>
-      📌 <b>次の作業</b><br><br>
+      📌 <b>次の作業</b><br>
       　このトークの元メッセージを削除して<br>
       　次の商品に進んでください。
     </div>
   </li>
 
-  <li data-step="5">
-    <b>古い元メッセージ（親メッセージ）を削除する</b><br>
-    <span style="font-size:9.5pt; color:#555;">以前の失敗した撮影セッションの親メッセージを削除する。</span><br>
-    <span style="font-size:9.5pt; color:#c0392b;"><b>削除済み ＝ この商品の再アップ完了の目印。</b></span><br>
-    <span style="font-size:9.5pt; color:#555;">残っているトーク ＝ まだ作業が終わっていない商品。</span>
+  <li data-step="4">
+    <b>古いトーク（失敗した撮影セッションの親メッセージ）を削除する</b><br>
+    <span style="font-size:9.5pt; color:#c0392b; font-weight:bold;">削除済み ＝ この商品の再アップ完了の目印</span><br>
+    <span style="font-size:9.5pt; color:#555;">トークが残っている ＝ まだ作業が終わっていない商品</span>
   </li>
 </ul>
 
-<div class="flow-h" style="margin: 6mm 0;">
-  <div class="step">管理番号を<br>テキスト投稿</div>
-  <div class="arrow">→</div>
-  <div class="step">スレッドに<br>商品写真を投稿</div>
-  <div class="arrow">→</div>
-  <div class="step">写真を確認して<br>「完了」と入力</div>
-  <div class="arrow">→</div>
-  <div class="step">古い<br>トークを削除</div>
-</div>
 
-
-<!-- 3. 撮り直しが必要な場合 -->
-<div class="page-break"></div>
+<!-- 3. 写真を撮り直したい場合 -->
 <h1 class="section">3　写真を撮り直したい場合</h1>
 
-<div class="box box-yellow" style="margin-bottom:5mm;">
-  写真を投稿した後に「ピントが合っていない」「枚数が足りない」と気づいた場合は<br>
-  <code>やり直し</code> コマンドを使ってください。
+<div class="box box-yellow" style="margin-bottom:4mm;">
+  「ピントが合っていない」「枚数が足りない」と気づいたら <code>やり直し</code> を使う。
 </div>
-
-<h2 class="subsection">やり直しの手順</h2>
 
 <ul class="step-list">
   <li data-step="1">
@@ -299,107 +254,46 @@
     <div class="code-block" style="margin-top:6px;">やり直し</div>
   </li>
   <li data-step="2">
-    <b>Botからやり直し完了メッセージが届く</b>
+    <b>Botがドライブの写真を全削除してくれる</b>
     <div class="slack-msg" style="margin-top:6px;">
-      <div class="sender">📸 白洲次郎</div>
+      <div class="sender">📸 白洲次郎（Bot）</div>
       🔄 <b>写真をやり直します</b><br>
-      ━━━━━━━━━━━━━━━━<br><br>
-      🗑️ 削除した写真　<b>3枚</b><br><br>
       ━━━━━━━━━━━━━━━━<br>
-      📌 <b>1枚目から撮り直してください</b><br><br>
-      このスレッドに新しい写真を投稿してください。<br><br>
+      🗑️ 削除した写真　<b>3枚</b><br><br>
+      📌 <b>1枚目から撮り直してください</b><br>
       　• テプラ画像は残してあります<br>
       　• 商品写真のみ全て削除しました
     </div>
   </li>
   <li data-step="3">
-    <b>新しい写真をスレッドに投稿して「完了」と入力する</b><br>
-    <span style="font-size:9.5pt; color:#555;">手順2と同じ流れで進める。</span>
+    <b>新しい写真をスレッドに投稿して「完了」と入力する</b>
   </li>
 </ul>
 
-<div class="warn">
+<div class="warn" style="margin-top:4mm;">
   「やり直し」を入力するとDriveの商品写真が全て削除されます。<br>
   テプラ画像（01_テプラ.jpg）は削除されません。
 </div>
 
 
-<!-- 4. コマンド一覧 -->
-<h1 class="section-dark">4　使えるコマンド一覧</h1>
+<!-- 4. 困ったときは -->
+<h1 class="section-dark">4　困ったときは</h1>
 
-<table class="cmd-table">
+<table>
+  <tr><th>困りごと</th><th>対処方法</th></tr>
   <tr>
-    <th>コマンド</th>
-    <th>タイミング</th>
-    <th>動作</th>
+    <td>Botが反応しない</td>
+    <td>管理番号の形式を確認する<br><span style="font-size:9pt; color:#888;">例：2603-0001（半角数字・ハイフン）</span></td>
   </tr>
   <tr>
-    <td><code>完了</code></td>
-    <td>写真確認後</td>
-    <td>Driveに保存してMonday.comの撮影状態を更新する</td>
+    <td>管理番号がわからない</td>
+    <td>Monday.comで商品を検索して確認する</td>
   </tr>
   <tr>
-    <td><code>やり直し</code></td>
-    <td>写真が不満なとき</td>
-    <td>Driveの商品写真を全削除して1枚目から撮り直せる状態にする</td>
-  </tr>
-  <tr>
-    <td><code>キャンセル</code></td>
-    <td>作業を中断したいとき</td>
-    <td>セッションを終了する（写真は削除されない）</td>
+    <td>それでも解決しない</td>
+    <td>浅野さんに相談する</td>
   </tr>
 </table>
-
-
-<!-- 5. 進捗管理 -->
-<h1 class="section">5　進捗管理の方法</h1>
-
-<div class="box box-navy">
-  白洲次郎チャンネルに残っている古いトークを見れば進捗がわかります。<br>
-  複数人で分担するときも同じルールで管理できます。
-</div>
-
-<table style="margin-top:4mm;">
-  <tr>
-    <th>状態</th>
-    <th>意味</th>
-    <th>対応</th>
-  </tr>
-  <tr>
-    <td>古いトークが残っている</td>
-    <td style="color:#c0392b; font-weight:bold;">再アップ未完了</td>
-    <td>この指示書の手順で作業する</td>
-  </tr>
-  <tr>
-    <td>「このメッセージは削除されました」</td>
-    <td style="color:#27ae60; font-weight:bold;">再アップ完了</td>
-    <td>作業不要</td>
-  </tr>
-</table>
-
-
-<!-- 6. 注意事項 -->
-<div class="page-break"></div>
-<h1 class="section-dark">6　注意事項</h1>
-
-<div class="two-col">
-  <div class="box box-red">
-    <b>やってはいけないこと</b>
-    <ul class="point-list" style="margin-top:6px;">
-      <li>スレッド返信として管理番号を入力する<br><span style="font-size:9pt; color:#888;">（必ずチャンネルへの新規投稿で）</span></li>
-      <li>「完了」を入力せずに終わる<br><span style="font-size:9pt; color:#888;">（写真を投稿しても完了しないとDriveに保存されない）</span></li>
-      <li>古いトークの削除を忘れる<br><span style="font-size:9pt; color:#888;">（削除が完了の目印）</span></li>
-    </ul>
-  </div>
-  <div class="box box-green">
-    <b>困ったときの判断基準</b>
-    <ul class="point-list" style="margin-top:6px;">
-      <li>Botが反応しない<br><span style="font-size:9pt; color:#888;">→ 管理番号の形式を確認（例：2603-0001）</span></li>
-      <li>管理番号がわからない<br><span style="font-size:9pt; color:#888;">→ Monday.comで商品を検索して確認</span></li>
-      <li>それでも解決しない<br><span style="font-size:9pt; color:#888;">→ 浅野さんに相談</span></li>
-    </ul>
-  </div>
-</div>
 
 <div class="box box-gray" style="margin-top:8mm; text-align:center;">
   <b>この作業指示書は約50点の再アップロードが完了したら不要になります。</b><br>
