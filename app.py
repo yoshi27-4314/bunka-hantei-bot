@@ -1749,7 +1749,6 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         # まとめ売り系チャンネルは選択肢を表示して一旦止める
         if kakutei_channel in MATOME_CHANNELS:
             post_to_slack(channel_id, thread_ts,
-                f"_[まとめ選択待ち:{kakutei_channel}]_\n\n"
                 "━━━━━━━━━━━━━━━━\n"
                 f"📦 *{kakutei_channel}* が選択されました\n"
                 "━━━━━━━━━━━━━━━━\n\n"
@@ -1757,7 +1756,8 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
                 "1️⃣  このまま管理番号を発行して確定する\n\n"
                 "2️⃣  他のまとめ対象商品と合わせて保管する（管理番号なし）\n\n"
                 "3️⃣  保留にして浅野に相談する\n\n"
-                "`1` `2` `3` のいずれかを返信してください。",
+                f"`1` `2` `3` のいずれかを返信してください。\n\n"
+                f"_[まとめ選択待ち:{kakutei_channel}]_",
                 mention_user=user_id
             )
             return
