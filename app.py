@@ -3661,5 +3661,120 @@ def webhook():
         return jsonify({"ok": False, "error": error_msg}), 500
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    """全サービスの生死確認エンドポイント。Make.comから定期的に呼び出す。"""
+    results = {}
+    alerts = []
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # ── 1. Slack API ──────────────────────────────────────────
+    try:
+        token = get_slack_token()
+        if not token:
+            raise RuntimeError("SLACK_BOT_TOKEN 未設定")
+        r = httpx.get("https://slack.com/api/auth.test",
+                      headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        data = r.json()
+        if data.get("ok"):
+            results["slack"] = "OK"
+        else:
+            raise RuntimeError(data.get("error", "unknown"))
+    except Exception as e:
+        results["slack"] = f"ERROR: {e}"
+        alerts.append(f"🚨 Slack API異常: {e}\n→ Railway環境変数 SLACK_BOT_TOKEN を確認してください")
+
+    # ── 2. Monday.com API ─────────────────────────────────────
+    try:
+        r = monday_graphql("query { me { id name } }")
+        if r.get("data", {}).get("me"):
+            results["monday"] = "OK"
+        else:
+            raise RuntimeError(str(r.get("errors", "unknown")))
+    except Exception as e:
+        results["monday"] = f"ERROR: {e}"
+        alerts.append(f"🚨 Monday.com API異常: {e}\n→ Railway環境変数 MONDAY_TOKEN を確認してください")
+
+    # ── 3. Anthropic API ステータスページ確認 ─────────────────
+    try:
+        r = httpx.get("https://status.anthropic.com/api/v2/status.json", timeout=10)
+        data = r.json()
+        indicator = data.get("status", {}).get("indicator", "unknown")
+        description = data.get("status", {}).get("description", "")
+        if indicator == "none":
+            results["anthropic"] = "OK"
+        else:
+            results["anthropic"] = f"WARN: {indicator} - {description}"
+            alerts.append(f"⚠️ Anthropic障害情報あり: {description}\nhttps://status.anthropic.com")
+    except Exception as e:
+        results["anthropic"] = f"ERROR: {e}"
+        alerts.append(f"⚠️ Anthropicステータス取得失敗: {e}")
+
+    # ── 4. Slack ステータスページ確認 ─────────────────────────
+    try:
+        r = httpx.get("https://status.slack.com/api/v2.0.0/current", timeout=10)
+        data = r.json()
+        status = data.get("status", "unknown")
+        if status == "ok":
+            results["slack_status"] = "OK"
+        else:
+            results["slack_status"] = f"WARN: {status}"
+            alerts.append(f"⚠️ Slack障害情報あり: {status}\nhttps://status.slack.com")
+    except Exception as e:
+        results["slack_status"] = f"ERROR: {e}"
+
+    # ── 5. Google Drive API（設定済みの場合のみ）─────────────
+    try:
+        svc = get_drive_service()
+        if svc:
+            svc.files().list(pageSize=1).execute()
+            results["google_drive"] = "OK"
+        else:
+            results["google_drive"] = "SKIP（未設定）"
+    except Exception as e:
+        results["google_drive"] = f"ERROR: {e}"
+        alerts.append(f"🚨 Google Drive API異常: {e}\n→ GOOGLE_SERVICE_ACCOUNT_JSON を確認してください")
+
+    # ── 6. Bot直近24時間の処理件数確認 ────────────────────────
+    total_ops = sum(v.get("完了", 0) + v.get("キャンセル", 0) + v.get("削除", 0)
+                    for v in daily_stats.values())
+    results["bot_24h_ops"] = total_ops
+    if total_ops == 0:
+        results["bot_activity"] = "WARN: 直近で処理件数が0件"
+    else:
+        results["bot_activity"] = f"OK: {total_ops}件処理済み"
+
+    # ── Slack通知（異常がある場合のみ） ──────────────────────
+    if alerts:
+        alert_channel = os.environ.get("ALERT_CHANNEL_ID", "")
+        if alert_channel:
+            alert_text = (
+                "━━━━━━━━━━━━━━━━\n"
+                "🔍 *ヘルスチェック異常検知*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"確認日時: {now}\n\n"
+                + "\n\n".join(alerts) +
+                "\n\n━━━━━━━━━━━━━━━━"
+            )
+            try:
+                httpx.post("https://slack.com/api/chat.postMessage",
+                    headers={"Authorization": f"Bearer {get_slack_token()}",
+                             "Content-Type": "application/json"},
+                    json={"channel": alert_channel, "text": alert_text},
+                    timeout=10)
+            except Exception as e:
+                print(f"[ヘルスチェック通知エラー] {e}")
+
+    all_ok = all("OK" in str(v) or "SKIP" in str(v) for v in results.values()
+                 if k != "bot_24h_ops" for k in [str(v)])
+    print(f"[ヘルスチェック] {now} 結果: {results}")
+    return jsonify({
+        "ok": len(alerts) == 0,
+        "timestamp": now,
+        "results": results,
+        "alerts": alerts
+    })
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
