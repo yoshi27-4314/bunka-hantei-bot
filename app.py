@@ -66,7 +66,7 @@ ASANO_USER_ID = "U0AL10Q1HQC"  # 浅野儀頼
 STAFF_MAP = {
     "U0AL10Q1HQC": "浅野儀頼",
     "U0ALQ4BJNSV": "林和人",
-    "U0AL4R1EMMZ": "平野光雄",
+    "U0AL4R1EMMZ": "平野光雄",  # 確認済み 2026/03/18
     "U0ALHCGD3U7": "横山優",
     # "UXXXXXXXX": "三島圭織",
     # "UXXXXXXXX": "松本豊彦",
@@ -3697,7 +3697,7 @@ def health_check():
 
     # ── 3. Anthropic API ステータスページ確認 ─────────────────
     try:
-        r = httpx.get("https://status.anthropic.com/api/v2/status.json", timeout=10)
+        r = httpx.get("https://status.claude.com/api/v2/status.json", timeout=10, follow_redirects=True)
         data = r.json()
         indicator = data.get("status", {}).get("indicator", "unknown")
         description = data.get("status", {}).get("description", "")
@@ -3712,7 +3712,7 @@ def health_check():
 
     # ── 4. Slack ステータスページ確認 ─────────────────────────
     try:
-        r = httpx.get("https://status.slack.com/api/v2.0.0/current", timeout=10)
+        r = httpx.get("https://status.slack.com/api/v2.0.0/current", timeout=10, follow_redirects=True)
         data = r.json()
         status = data.get("status", "unknown")
         if status == "ok":
