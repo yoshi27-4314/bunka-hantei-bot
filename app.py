@@ -1937,6 +1937,7 @@ def handle_satsuei_channel(event: dict) -> None:
         # テキストで管理番号が直接入力された場合
         text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
+            print(f"[撮影CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
         if text_mn and not image_urls:
             management_number = text_mn.group(0)
@@ -1977,6 +1978,8 @@ def handle_satsuei_channel(event: dict) -> None:
         # 削除コマンド（セッションなし）
         if text == "削除":
             handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["satsuei"], "satsuei")
+        else:
+            print(f"[撮影CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
         return
 
     # キャンセル・中断
@@ -2339,6 +2342,7 @@ def handle_shuppinon_channel(event: dict) -> None:
         import re as _re
         text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
+            print(f"[出品CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
         if text_mn and not image_urls:
             management_number = text_mn.group(0)
@@ -2404,6 +2408,8 @@ def handle_shuppinon_channel(event: dict) -> None:
         # 削除コマンド（セッションなし）
         if text == "削除":
             handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
+        else:
+            print(f"[出品CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
         return
 
     management_number = session["management_number"]
@@ -2607,6 +2613,7 @@ def handle_konpo_channel(event: dict) -> None:
         # 通常の梱包開始
         text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not text_mn and not image_urls:
+            print(f"[梱包CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
         if text_mn:
             management_number = text_mn.group(0)
@@ -2673,6 +2680,8 @@ def handle_konpo_channel(event: dict) -> None:
         # 削除コマンド（セッションなし）
         if text == "削除":
             handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
+        else:
+            print(f"[梱包CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
         return
     management_number = session["management_number"]
 
@@ -3185,6 +3194,7 @@ def handle_status_channel(event: dict) -> None:
 
     text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
     if not text_mn and not image_urls:
+        print(f"[ステータスCH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
         return
 
     if text_mn:

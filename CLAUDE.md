@@ -30,6 +30,28 @@
 - **定期確認通知のみ実装する**（将来）: 3ヶ月ごとに「相場確認」、1年超えで「再判定検討」をSlack通知
 - **AIの在庫期間推定はあくまで参考値**として扱い、実績データが蓄積されたら随時キャリブレーションする
 
+### API制約・インフラ注意事項（重要）
+
+**Anthropic API（Claude）**
+- Tier1 / **5RPM制限**（毎分5リクエストまで）
+- 同時に複数ユーザーが使うとすぐに上限に達する。高負荷時はエラーになる
+- 残高 約$29（2026/03/18時点）
+
+**Slack Rate Limit**
+- Bot Token / Tier1: **1リクエスト/分**（1req/min）※ 1req/secではない
+- Slackへの返信が集中すると制限にかかる可能性あり
+
+**Railwayのログ**
+- Railwayでは**ファイルへのログ保存は不可**（ストレージが永続化されない）
+- ログは必ず `print()` で stdout に出力する。Railwayのダッシュボードで確認できる
+- 現在の実装はすべてprintで対応済み
+
+**冪等性（重複処理防止）の制限**
+- 現在の実装: `processed_events = set()` というインメモリセットで管理
+- **Railwayが再起動するとリセットされる**。再起動直後は同じイベントが2回処理される可能性あり
+- 完全な冪等性が必要な場合はRedis（Railway Add-on）またはスプレッドシートへの記録が必要
+- 現状はSlackの3秒タイムアウト回避のためのスレッド処理と合わせて実用上は問題少ない
+
 ### Google共有ドライブ
 - フォルダURL: https://drive.google.com/drive/u/1/folders/16G96z45K2coor4QuH5NW9DWxyPNX_56D
 - 作成するファイルは原則このフォルダに保存する
@@ -391,9 +413,9 @@ platform_fee / total_genka / total_rodo_jikan / total_rodohi / arari / junri / r
 
 | 用途 | モデル | max_tokens |
 |---|---|---|
-| 分荷判定メイン | claude-sonnet-4-20250514 | 2048 |
-| 現場査定（genba） | claude-sonnet-4-20250514 | 1024 |
-| 身分証情報抽出 | claude-sonnet-4-20250514 | 512 |
+| 分荷判定メイン | claude-sonnet-4-6 | 2048 |
+| 現場査定（genba） | claude-sonnet-4-6 | 1024 |
+| 身分証情報抽出 | claude-sonnet-4-6 | 512 |
 | 管理番号読取（テプラOCR） | claude-haiku-4-5-20251001 | 50 |
 | 追跡番号OCR（送り状） | claude-haiku-4-5-20251001 | 100 |
 | 出品コンテンツ生成 | claude-haiku-4-5-20251001 | 600 |
