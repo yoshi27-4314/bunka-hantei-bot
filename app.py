@@ -2007,9 +2007,16 @@ def handle_satsuei_channel(event: dict) -> None:
     if image_urls:
         folder_url = upload_images_to_drive(management_number, image_urls, is_tepura=False)
         post_to_slack(channel_id, thread_ts,
-            f"📷 *{len(image_urls)}枚* を保存しました。\n\n"
-            "追加写真を投稿するか、\n"
-            "撮影完了後は `完了` と入力してください。",
+            f"📷 *{len(image_urls)}枚* を受け取った。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "🔍 *投稿した写真を確認してください*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "　□ ピントが合っているか\n"
+            "　□ 明るさ・角度は適切か\n"
+            "　□ 必要なアングルが揃っているか\n"
+            "　□ 枚数は足りているか\n\n"
+            "追加がある場合はそのまま写真を投稿してください。\n"
+            "確認が取れたら `完了` と入力してください。",
             mention_user=user_id, bot_role="satsuei")
 
     # 完了コマンド
