@@ -1446,6 +1446,16 @@ def process_slack_message(event: dict) -> None:
     if not user_message and image_urls:
         user_message = "添付画像の商品を分荷判定してください。"
 
+    # ── まとめ売り選択待ちの確認（1/2/3 をコマンドより優先してキャッチ） ──
+    if event.get("thread_ts") and user_message and user_message.strip() in ('1', '2', '3'):
+        try:
+            matome_channel = get_matome_pending_from_thread(channel_id, thread_ts)
+            if matome_channel:
+                _handle_matome_choice(user_message.strip(), matome_channel, channel_id, thread_ts, event)
+                return
+        except Exception as e:
+            print(f"[まとめ選択処理エラー] {e}")
+
     # ── コマンド判定（確定・再判定・保留・キャンセルはスレッド内のみ） ──
     if user_message:
         cmd_type, cmd_option = parse_command(user_message)
@@ -1563,6 +1573,147 @@ def _handle_zaiko_search(keyword: str, channel_id: str, thread_ts: str, event: d
     post_to_slack(channel_id, thread_ts, "\n".join(lines), mention_user=user_id, bot_role="status")
 
 
+# まとめ売り系チャンネル（確定時に選択肢を表示する対象）
+MATOME_CHANNELS = {"eBayまとめ", "ヤフオクまとめ", "ロット販売"}
+
+
+def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
+    """スレッド内にまとめ売り選択待ちメッセージがあればチャンネル名を返す"""
+    import re as _re
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"channel": channel_id, "ts": thread_ts}
+    try:
+        response = httpx.get(url, headers=headers, params=params, timeout=20)
+        data = response.json()
+    except Exception as e:
+        print(f"[まとめ選択待ち確認エラー] {e}")
+        return None
+    for msg in data.get("messages", []):
+        if not (msg.get("bot_id") or msg.get("bot_profile")):
+            continue
+        m = _re.search(r'\[まとめ選択待ち:([^\]]+)\]', msg.get("text", ""))
+        if m:
+            return m.group(1)
+    return None
+
+
+def _complete_kakutei(kakutei_channel: str, judgment: dict, user_id: str,
+                      channel_id: str, thread_ts: str, event: dict,
+                      with_management_number: bool = True) -> None:
+    """分荷確定の共通処理（管理番号発行・スプレッドシート転記・Slack返信）"""
+    TSUHAN_CHANNELS = {
+        "eBayシングル", "eBayまとめ",
+        "ヤフオクヴィンテージ", "ヤフオク現行", "ヤフオクまとめ",
+    }
+
+    # 管理番号発行（通販チャンネル かつ with_management_number=True の場合のみ）
+    management_number = ""
+    if with_management_number and kakutei_channel in TSUHAN_CHANNELS:
+        management_number = generate_management_number()
+        print(f"[管理番号発行] {management_number} (チャンネル:{kakutei_channel})")
+
+    # 分荷作業時間を計算
+    sakugyou_jikan = 0
+    try:
+        post_ts = float(thread_ts)
+        confirm_ts = float(event.get("ts", thread_ts))
+        sakugyou_jikan = max(0, int((confirm_ts - post_ts) / 60))
+        print(f"[作業時間] {sakugyou_jikan}分")
+    except Exception as e:
+        print(f"[作業時間計算エラー] {e}")
+
+    # スプレッドシートに転記
+    payload = {
+        "kanri_bango":         management_number,
+        "kakutei_channel":     kakutei_channel,
+        "first_channel":       judgment.get("first_channel", ""),
+        "second_channel":      judgment.get("second_channel", ""),
+        "item_name":           judgment.get("item_name", ""),
+        "maker":               judgment.get("maker", ""),
+        "model_number":        judgment.get("model_number", ""),
+        "condition":           judgment.get("condition", ""),
+        "predicted_price":     judgment.get("predicted_price", ""),
+        "start_price":         judgment.get("start_price", ""),
+        "target_price":        judgment.get("target_price", ""),
+        "inventory_period":    judgment.get("inventory_period", ""),
+        "inventory_deadline":  judgment.get("inventory_deadline", ""),
+        "score":               judgment.get("first_score", ""),
+        "storage_cost":        judgment.get("storage_cost", ""),
+        "packing_cost":        judgment.get("packing_cost", ""),
+        "expected_roi":        judgment.get("expected_roi", ""),
+        "internal_keyword":    judgment.get("internal_keyword", ""),
+        "staff_id":            get_staff_code(user_id),
+        "sakugyou_jikan":      sakugyou_jikan,
+        "timestamp":           datetime.now().strftime("%Y/%m/%d %H:%M"),
+    }
+    send_to_spreadsheet(payload)
+
+    # 通販チャンネル かつ 管理番号あり → Monday.com登録
+    if management_number:
+        try:
+            item_name = judgment.get("item_name") or kakutei_channel
+            register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan, kakutei_channel=kakutei_channel)
+            print("[Monday.com登録完了]")
+        except Exception as me:
+            print(f"[Monday.com登録エラー] {me}")
+
+    # Slack確定返信
+    persona = BOT_PERSONA["bunika"]
+    if management_number:
+        reply = persona["confirm"].format(channel=kakutei_channel, kanri=management_number)
+    else:
+        reply = persona["confirm_only"].format(channel=kakutei_channel)
+    post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
+
+    # 高額案件メンション（目標価格30,000円以上）
+    try:
+        target_price_val = int(str(judgment.get("target_price", "0")).replace(",", ""))
+    except (ValueError, TypeError):
+        target_price_val = 0
+    if target_price_val >= 30000:
+        post_to_slack(channel_id, thread_ts,
+            f"<@{ASANO_USER_ID}> 高額案件の確定が入りました。\n"
+            f"予想販売価格：¥{target_price_val:,}\n"
+            f"チャンネル：{kakutei_channel}\n"
+            f"担当：<@{user_id}>"
+        )
+
+
+def _handle_matome_choice(choice: str, kakutei_channel: str, channel_id: str,
+                          thread_ts: str, event: dict) -> None:
+    """まとめ売り選択（1/2/3）を処理する"""
+    user_id = event.get("user", "")
+    judgment = get_judgment_from_thread(channel_id, thread_ts)
+
+    if choice == '1':
+        # 管理番号を発行して通常確定
+        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=True)
+
+    elif choice == '2':
+        # 管理番号なし・まとめ保管として記録
+        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=False)
+        post_to_slack(channel_id, thread_ts,
+            "━━━━━━━━━━━━━━━━\n"
+            "📦 *まとめ保管として記録しました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            "同カテゴリのまとめ対象商品と一緒に保管してください。\n"
+            "まとめ販売が決まった時点で改めて管理番号を発行します。",
+            mention_user=user_id
+        )
+
+    elif choice == '3':
+        # 保留・浅野に相談
+        post_to_slack(channel_id, thread_ts,
+            "━━━━━━━━━━━━━━━━\n"
+            "⏸️ *保留にしました*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"<@{ASANO_USER_ID}> 確定方法について相談があります。\n"
+            f"担当：<@{user_id}>"
+        )
+
+
 def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: str, event: dict) -> None:
     """コマンド（確定/再判定/保留）を処理する"""
     user_id = event.get("user", "不明")
@@ -1593,77 +1744,24 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         else:
             kakutei_channel = normalize_channel(cmd_option)  # 確定/○○ の場合
 
-        # 通販対象チャンネルのみ管理番号発行
-        management_number = ""
-        if kakutei_channel in TSUHAN_CHANNELS:
-            management_number = generate_management_number()
-            print(f"[管理番号発行] {management_number} (チャンネル:{kakutei_channel})")
-
-        # 分荷作業時間を計算（投稿タイムスタンプ〜確定コマンドの経過時間・分）
-        sakugyou_jikan = 0
-        try:
-            post_ts = float(thread_ts)
-            confirm_ts = float(event.get("ts", thread_ts))
-            sakugyou_jikan = max(0, int((confirm_ts - post_ts) / 60))
-            print(f"[作業時間] {sakugyou_jikan}分")
-        except Exception as e:
-            print(f"[作業時間計算エラー] {e}")
-
-        # スプレッドシートに転記（全チャンネル共通）
-        payload = {
-            "kanri_bango":         management_number,
-            "kakutei_channel":     kakutei_channel,
-            "first_channel":       judgment.get("first_channel", ""),
-            "second_channel":      judgment.get("second_channel", ""),
-            "item_name":           judgment.get("item_name", ""),
-            "maker":               judgment.get("maker", ""),
-            "model_number":        judgment.get("model_number", ""),
-            "condition":           judgment.get("condition", ""),
-            "predicted_price":     judgment.get("predicted_price", ""),
-            "start_price":         judgment.get("start_price", ""),
-            "target_price":        judgment.get("target_price", ""),
-            "inventory_period":    judgment.get("inventory_period", ""),
-            "inventory_deadline":  judgment.get("inventory_deadline", ""),
-            "score":               judgment.get("first_score", ""),
-            "storage_cost":        judgment.get("storage_cost", ""),
-            "packing_cost":        judgment.get("packing_cost", ""),
-            "expected_roi":        judgment.get("expected_roi", ""),
-            "internal_keyword":    judgment.get("internal_keyword", ""),
-            "staff_id":            get_staff_code(user_id),
-            "sakugyou_jikan":      sakugyou_jikan,
-            "timestamp":           datetime.now().strftime("%Y/%m/%d %H:%M"),
-        }
-        send_to_spreadsheet(payload)
-
-        # 通販対象のみmonday.comに登録
-        if management_number:
-            try:
-                item_name = judgment.get("item_name") or judgment.get("first_channel", "商品")
-                register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan, kakutei_channel=kakutei_channel)
-                print("[Monday.com登録完了]")
-            except Exception as me:
-                print(f"[Monday.com登録エラー] {me}")
-
-        # Slack確定返信
-        persona = BOT_PERSONA["bunika"]
-        if management_number:
-            reply = persona["confirm"].format(channel=kakutei_channel, kanri=management_number)
-        else:
-            reply = persona["confirm_only"].format(channel=kakutei_channel)
-        post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
-
-        # 浅野メンション：予想販売価格が30,000円以上の案件
-        try:
-            target_price_val = int(str(judgment.get("target_price", "0")).replace(",", ""))
-        except (ValueError, TypeError):
-            target_price_val = 0
-        if target_price_val >= 30000:
+        # まとめ売り系チャンネルは選択肢を表示して一旦止める
+        if kakutei_channel in MATOME_CHANNELS:
             post_to_slack(channel_id, thread_ts,
-                f"<@{ASANO_USER_ID}> 高額案件の確定が入りました。\n"
-                f"予想販売価格：¥{target_price_val:,}\n"
-                f"チャンネル：{kakutei_channel}\n"
-                f"担当：<@{user_id}>"
+                f"_[まとめ選択待ち:{kakutei_channel}]_\n\n"
+                "━━━━━━━━━━━━━━━━\n"
+                f"📦 *{kakutei_channel}* が選択されました\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "どちらで進めますか？\n\n"
+                "1️⃣  このまま管理番号を発行して確定する\n\n"
+                "2️⃣  他のまとめ対象商品と合わせて保管する（管理番号なし）\n\n"
+                "3️⃣  保留にして浅野に相談する\n\n"
+                "`1` `2` `3` のいずれかを返信してください。",
+                mention_user=user_id
             )
+            return
+
+        # まとめ以外 → 通常確定処理
+        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event)
 
     elif cmd_type == 'saihantei':
         persona = BOT_PERSONA["bunika"]
