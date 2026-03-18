@@ -1947,11 +1947,14 @@ def handle_satsuei_channel(event: dict) -> None:
             management_number = extract_management_number_from_image(image_urls[0])
             if not management_number:
                 post_to_slack(channel_id, current_ts,
-                    "━━━━━━━━━━━━━━━━\n"
                     "⚠️ *読み取りエラー*\n"
                     "━━━━━━━━━━━━━━━━\n\n"
-                    "テプラの管理番号を読み取れませんでした。\n\n"
-                    "もう一度管理番号を送信してください。",
+                    "テプラの管理番号を\n"
+                    "読み取れませんでした。\n\n"
+                    "📌 *対処方法*\n"
+                    "　① テプラをもう一度撮影して送る\n"
+                    "　② または管理番号をテキストで入力\n"
+                    "　　例） *2603-0001*",
                     bot_role="satsuei")
                 return
             # テプラ画像をDriveに保存
@@ -1959,14 +1962,21 @@ def handle_satsuei_channel(event: dict) -> None:
         else:
             return
         post_to_slack(channel_id, current_ts,
-            "━━━━━━━━━━━━━━━━\n"
             "📸 *撮影セッション開始*\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "商品写真をこのスレッドに投稿してください。\n\n"
-            "　• 複数枚まとめてOKです\n"
-            "　• 撮影完了後は `完了` と入力してください",
+            f"🔖 管理番号　*{management_number}*\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📌 *作業手順*\n\n"
+            "　① このスレッドに商品写真を投稿\n"
+            "　　（複数枚まとめてOK）\n\n"
+            "　② Botの確認メッセージが届いたら\n"
+            "　　写真をチェックする\n\n"
+            "　③ 問題なければ `完了` と送信\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "💡 *使えるコマンド*\n\n"
+            "　`完了` ／ 撮影完了・Driveに保存\n"
+            "　`やり直し` ／ 写真を全削除して1枚目から撮り直す\n"
+            "　`キャンセル` ／ 作業を中断する",
             bot_role="satsuei")
         return
 
@@ -1988,12 +1998,44 @@ def handle_satsuei_channel(event: dict) -> None:
     if text in CANCEL_WORDS:
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "キャンセル")
         post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "⏹️ *撮影作業キャンセル*\n"
+            "⏹️ *撮影作業を中断しました*\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "撮影作業をキャンセルしました。",
+            f"🔖 管理番号　*{management_number}*\n\n"
+            "作業を再開するときは\n"
+            "もう一度管理番号を投稿してください。",
+            mention_user=user_id, bot_role="satsuei")
+        return
+
+    # やり直しコマンド
+    if text == "やり直し":
+        deleted_count = 0
+        try:
+            svc = get_drive_service()
+            root_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+            if svc and root_folder_id:
+                yymm_id = get_or_create_drive_folder(svc, root_folder_id, management_number[:4])
+                item_id = get_or_create_drive_folder(svc, yymm_id, management_number)
+                files = svc.files().list(
+                    q=f"'{item_id}' in parents and trashed=false and not name contains '01_'",
+                    fields="files(id,name)",
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True
+                ).execute().get("files", [])
+                for f in files:
+                    svc.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+                    deleted_count += 1
+        except Exception as e:
+            print(f"[Drive やり直しエラー] {e}")
+        post_to_slack(channel_id, thread_ts,
+            "🔄 *写真をやり直します*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🗑️ 削除した写真　*{deleted_count}枚*\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📌 *1枚目から撮り直してください*\n\n"
+            "このスレッドに\n"
+            "新しい写真を投稿してください。\n\n"
+            "　• テプラ画像は残してあります\n"
+            "　• 商品写真のみ全て削除しました",
             mention_user=user_id, bot_role="satsuei")
         return
 
@@ -2007,28 +2049,30 @@ def handle_satsuei_channel(event: dict) -> None:
     if image_urls:
         folder_url = upload_images_to_drive(management_number, image_urls, is_tepura=False)
         post_to_slack(channel_id, thread_ts,
-            f"📷 *{len(image_urls)}枚* を受け取った。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "🔍 *投稿した写真を確認してください*\n"
+            f"📷 *{len(image_urls)}枚* を受け取りました\n"
             "━━━━━━━━━━━━━━━━\n\n"
+            "🔍 *投稿した写真を確認してください*\n\n"
             "　□ ピントが合っているか\n"
-            "　□ 明るさ・角度は適切か\n"
-            "　□ 必要なアングルが揃っているか\n"
+            "　□ 明るさは適切か\n"
+            "　□ 角度・アングルは揃っているか\n"
             "　□ 枚数は足りているか\n\n"
-            "追加がある場合はそのまま写真を投稿してください。\n"
-            "確認が取れたら `完了` と入力してください。",
+            "━━━━━━━━━━━━━━━━\n"
+            "✅ 問題なければ `完了` と送信\n"
+            "📷 追加写真があればそのまま投稿\n"
+            "🔄 撮り直す場合は `やり直し` と送信",
             mention_user=user_id, bot_role="satsuei")
 
     # 完了コマンド
     if text == "完了":
         post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "✅ *撮影完了*\n"
+            "✅ *撮影完了！お疲れ様でした*\n"
             "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "お疲れ様です。\n"
-            "写真の保存が完了しました。",
+            f"🔖 管理番号　*{management_number}*\n\n"
+            "写真をDriveに保存しました。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📌 *次の作業*\n\n"
+            "　このトークの元メッセージを削除して\n"
+            "　次の商品に進んでください。",
             mention_user=user_id, bot_role="satsuei")
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         try:
