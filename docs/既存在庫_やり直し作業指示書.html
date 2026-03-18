@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>既存在庫 やり直し作業指示書｜TakeBack事業部</title>
+<title>既存在庫 やり直し作業指示書 V2｜TakeBack事業部</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -29,11 +29,6 @@
     display: inline-block; background: #c0392b; color: #fff;
     padding: 5px 16px; border-radius: 20px; font-size: 10pt; margin: 3px;
   }
-  .cover .rule {
-    margin-top: 10mm; padding: 12px 24px; background: #fdf2f2;
-    border: 2px solid #c0392b; border-radius: 8px; font-size: 13pt;
-    color: #c0392b; display: inline-block; line-height: 1.8; font-weight: bold;
-  }
 
   h1.section {
     font-size: 15pt; color: #fff; background: #c0392b;
@@ -46,11 +41,6 @@
   h2.subsection {
     font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
     padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
-    border-radius: 0 4px 4px 0;
-  }
-  h2.sub-red {
-    font-size: 12pt; color: #c0392b; border-left: 5px solid #c0392b;
-    padding: 4px 12px; margin: 6mm 0 3mm; background: #fdf2f2;
     border-radius: 0 4px 4px 0;
   }
 
@@ -78,11 +68,12 @@
 
   .step-list { list-style: none; margin: 2mm 0; }
   .step-list li {
-    padding: 8px 8px 8px 44px; position: relative;
+    padding: 10px 8px 10px 44px; position: relative;
     border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
   }
+  .step-list li:last-child { border-bottom: none; }
   .step-list li::before {
-    content: attr(data-step); position: absolute; left: 6px; top: 8px;
+    content: attr(data-step); position: absolute; left: 6px; top: 10px;
     background: #c0392b; color: #fff; width: 28px; height: 28px;
     border-radius: 50%; display: flex; align-items: center; justify-content: center;
     font-size: 10pt; font-weight: bold; line-height: 28px; text-align: center;
@@ -92,38 +83,22 @@
   .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
   .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
 
-  .check-list { list-style: none; margin: 2mm 0; }
-  .check-list li { padding: 6px 8px 6px 32px; position: relative; font-size: 10.5pt; border-bottom: 1px solid #eee; }
-  .check-list li::before { content: "□"; position: absolute; left: 6px; color: #c0392b; font-weight: bold; font-size: 14pt; top: 3px; }
-
-  .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
-  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
   .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 3mm 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
 
-  .category-card {
-    border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px;
-    margin: 4mm 0; background: #fafafa;
-  }
-  .category-card .cat-title {
-    font-size: 11pt; font-weight: bold; color: #fff;
-    background: #1c2e4a; padding: 4px 12px; border-radius: 4px;
-    display: inline-block; margin-bottom: 6px;
-  }
-  .category-card .action {
-    background: #eafaf1; border: 1px solid #27ae60; border-radius: 4px;
-    padding: 6px 10px; margin-top: 6px; font-size: 10pt;
-  }
-
-  .flow-h { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: center; }
+  .flow-h { display: flex; flex-wrap: wrap; gap: 0; margin: 5mm 0; align-items: center; }
   .flow-h .step {
-    background: #1c2e4a; color: #fff; padding: 8px 12px;
+    background: #1c2e4a; color: #fff; padding: 10px 14px;
     font-size: 9.5pt; font-weight: bold; text-align: center;
     border-radius: 4px; margin: 2px;
   }
-  .flow-h .arrow { color: #c0392b; font-size: 16pt; margin: 0 4px; font-weight: bold; }
+  .flow-h .step.out {
+    background: #bdc3c7; color: #fff;
+  }
+  .flow-h .arrow { color: #c0392b; font-size: 18pt; margin: 0 4px; font-weight: bold; }
 
-  .page-break { page-break-before: always; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .page-break { page-break-before: always; }
 
   @media print {
     body { font-size: 10pt; }
@@ -140,112 +115,156 @@
 <div class="cover">
   <div class="logo">🔄</div>
   <h1>既存在庫 やり直し作業指示書</h1>
-  <div class="subtitle">TakeBack事業部　2026年3月　一時対応ドキュメント</div>
+  <div class="subtitle">TakeBack事業部　2026年3月　V2</div>
   <div style="margin: 6mm 0;">
     <span class="badge">緊急対応</span>
-    <span class="badge">2026年3月版</span>
-  </div>
-  <div class="rule">
-    統一ルール：<br>
-    全ての商品を分荷判定チャンネルからやり直す
+    <span class="badge">全員対応</span>
+    <span class="badge">2026年3月版 V2</span>
   </div>
 </div>
 
 
-<!-- 1. なぜやり直すか -->
-<h1 class="section">1　なぜやり直すのか</h1>
-
-<div class="box box-navy">
-  新しいAI分荷判定システムが稼働したことで、全商品をこの仕組みの中で管理するようになりました。<br><br>
-  過去に手動で進めた商品は記録がバラバラになっているため、<b>一度分荷判定チャンネルからやり直すことで、全商品をシステムに乗せ直します。</b><br><br>
-  やり直すことで以下が揃います：
-  <ul class="point-list" style="margin-top:6px;">
-    <li>新しい管理番号の発行</li>
-    <li>Monday.comへの自動登録</li>
-    <li>スプレッドシートへの記録</li>
-    <li>以降の全工程（撮影・出品・梱包・出荷）が自動で追跡される</li>
-  </ul>
-</div>
-
-<div class="warn">
-  旧管理番号・旧記録は削除しません。参考として残しておきます。<br>
-  今後の作業は全て新しい管理番号で進めてください。
+<!-- まず最初に読む -->
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 16px 20px; margin-bottom: 8mm; background: #fdf2f2;">
+  <div style="font-size: 15pt; font-weight: bold; color: #c0392b; margin-bottom: 8px;">
+    ⚠️ この指示書を読む前に必ず確認してください
+  </div>
+  <div style="font-size: 11pt; line-height: 2.2;">
+    この作業は<b>通常業務の延長ではありません。</b><br>
+    自分の担当チャンネルだけを見て判断しないでください。<br><br>
+    <b>わからないこと・迷ったことは必ず浅野に確認してから作業してください。</b><br>
+    勝手に判断して作業を進めることは禁止です。
+  </div>
 </div>
 
 
-<!-- 2. 対象商品の分類 -->
+<!-- 1. なぜこの作業が必要なのか -->
+<h1 class="section">1　なぜこの作業が必要なのか　─ まず全員読んでください</h1>
+
+<div class="box box-navy" style="font-size:11pt; line-height:2.2;">
+  現在、在庫の商品には<b>古い形式の管理番号</b>がついています。<br>
+  新しいAI管理システムでは管理番号の形式が変わったため、<br>
+  <b>古い番号のまま出品・梱包・発送の各工程に進むことができません。</b><br><br>
+  そこで<b>全員で一斉に、古い番号を新しい番号に付け替える作業</b>を行います。<br>
+  これが今回の「やり直し作業」の目的です。
+</div>
+
+<div style="border: 2px solid #1c2e4a; border-radius: 8px; padding: 12px 16px; margin: 4mm 0; background: #eaf0f8; font-size:11pt; line-height:2;">
+  📌 <b>重要：日付の扱いについて</b><br><br>
+  今日この作業で分荷判定をした商品は、<br>
+  <b>たとえ1年前に入荷した商品であっても「今日入荷した商品」として登録されます。</b><br>
+  これは仕様です。問題ありません。
+</div>
+
+
+<!-- 2. 今回の作業範囲 -->
 <div class="page-break"></div>
-<h1 class="section">2　対象商品の分類と対処法</h1>
+<h1 class="section">2　今回の作業範囲　─ やること・やらないこと</h1>
+
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #fdf2f2;">
+  <div style="font-size: 14pt; font-weight: bold; color: #c0392b; margin-bottom: 8px;">
+    ❌ 出品保管（岩崎弥太郎チャンネル）は今回の対象外です
+  </div>
+  <div style="font-size: 11pt; line-height: 2;">
+    出品作業はシステムで自動化されていないため、今回は行いません。<br>
+    <b>岩崎弥太郎チャンネルには入らないでください。</b>
+  </div>
+</div>
+
+<table>
+  <tr>
+    <th>作業</th>
+    <th>チャンネル</th>
+    <th>今回の対応</th>
+  </tr>
+  <tr>
+    <td><b>分荷判定</b>（新しい管理番号の発行）</td>
+    <td>北大路魯山人</td>
+    <td style="color:#27ae60; font-weight:bold;">✅ 全員で行う</td>
+  </tr>
+  <tr>
+    <td><b>動作確認</b>（状態ランク入力）</td>
+    <td>北大路魯山人（スレッド内）</td>
+    <td style="color:#27ae60; font-weight:bold;">✅ 全員で行う</td>
+  </tr>
+  <tr>
+    <td><b>写真撮影</b>（Drive保存）</td>
+    <td>白洲次郎</td>
+    <td style="color:#27ae60; font-weight:bold;">✅ 第2段階で行う</td>
+  </tr>
+  <tr>
+    <td><b>出品保管</b>（タイトル・説明文・ロケーション番号）</td>
+    <td>岩崎弥太郎</td>
+    <td style="color:#c0392b; font-weight:bold;">❌ 今回は対象外</td>
+  </tr>
+</table>
+
+<h2 class="subsection">作業の全体フロー</h2>
+
+<div style="margin: 4mm 0 2mm; font-size:10pt; color:#1c2e4a; font-weight:bold;">【第1段階】全員で</div>
+<div class="flow-h">
+  <div class="step">分荷判定チャンネル<br>新しい管理番号を発行</div>
+  <div class="arrow">→</div>
+  <div class="step">同じスレッドで<br>動作確認・状態ランク入力</div>
+  <div class="arrow">→</div>
+  <div class="step out">出品保管<br>（今回対象外）</div>
+</div>
+
+<div style="margin: 6mm 0 2mm; font-size:10pt; color:#1c2e4a; font-weight:bold;">【第2段階】分担して同時進行</div>
+<div class="flow-h">
+  <div class="step" style="background:#27ae60;">撮影チーム<br>白洲次郎で写真撮影</div>
+  <div style="margin: 0 16px; font-size:10pt; color:#555; align-self:center;">同時に</div>
+  <div class="step" style="background:#27ae60;">分荷チーム<br>まだ番号がない商品を分荷</div>
+</div>
+<div class="hint" style="margin-top:3mm;">
+  第2段階への移行タイミングは浅野が指示します。勝手に切り替えないでください。
+</div>
+
+
+<!-- 3. 作業ルール -->
+<div class="page-break"></div>
+<h1 class="section-dark">3　作業ルール　─ 必ず守ってください</h1>
+
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 14px 18px; margin-bottom: 6mm; background: #fdf2f2; font-size:11.5pt; line-height:2.4;">
+  <div style="font-weight:bold; color:#c0392b; font-size:13pt; margin-bottom:6px;">絶対ルール</div>
+  　① <b>自分で判断して作業方法を決めない</b><br>
+  　② <b>途中でやめる場合は必ず浅野に報告する</b><br>
+  　③ <b>迷ったら手を止めて浅野に確認する</b><br>
+  　④ <b>1つの工程を最後まで完了してから次へ進む</b>
+</div>
+
+<div class="two-col">
+  <div class="box box-red">
+    <b>やってはいけないこと</b>
+    <ul class="point-list" style="margin-top:6px;">
+      <li>対象外のチャンネル（岩崎弥太郎）で作業する</li>
+      <li>工程を途中でやめて放置する</li>
+      <li>自分の担当チャンネルだけ読んで判断する</li>
+      <li>迷ったまま作業を続ける</li>
+      <li>旧管理番号をそのまま使い続ける</li>
+    </ul>
+  </div>
+  <div class="box box-green">
+    <b>迷ったときの行動</b>
+    <ul class="point-list" style="margin-top:6px;">
+      <li>手を止める</li>
+      <li>浅野に確認する</li>
+      <li>確認が取れてから再開する</li>
+    </ul>
+    <div style="margin-top:8px; padding:6px 10px; background:#fff; border-radius:4px; font-size:10pt;">
+      「自分はこう解釈しましたが合っていますか？」<br>
+      この一言が間違いを防ぎます。
+    </div>
+  </div>
+</div>
+
+
+<!-- 4. 第1段階の手順 -->
+<h1 class="section">4　第1段階の手順</h1>
 
 <div class="box box-yellow" style="margin-bottom:5mm;">
-  <b>基本方針：迷ったら分荷判定チャンネルからやり直す</b><br>
-  以下の6パターンに当てはまる商品が対象です。どのパターンでも最終的には同じ流れに乗せます。
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン A　古い管理番号で分荷だけしてある</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">例：旧形式の管理番号（2603V0001など）はあるが、その後の工程が進んでいない</div>
-  <div class="action">
-    <b>対処：分荷判定チャンネルからやり直す</b><br>
-    商品情報または写真を分荷判定チャンネルに投稿して新しく判定を取り直す。
-  </div>
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン B　商品撮影はしたがGoogleフォトにあるだけ</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">撮影済みだが写真の保存先がシステムと連携していない</div>
-  <div class="action">
-    <b>対処：分荷判定チャンネルからやり直す</b><br>
-    写真はGoogleフォトにあるままでよい。新しい管理番号を発行し、撮影チャンネルで改めて写真を投稿する。
-  </div>
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン C　撮影してSlackに送信したが「完了」を打っていない</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">白洲次郎チャンネルのスレッドが途中で止まっている</div>
-  <div class="action">
-    <b>対処：そのスレッドで「完了」と入力する</b><br>
-    スレッドを探して <code>完了</code> と入力するだけでOK。Monday.comが「撮影済み」に更新される。<br>
-    スレッドが見つからない場合は分荷判定チャンネルからやり直す。
-  </div>
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン D　手動でリスト作成途中</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">ヤフオクの出品データを手動で作りかけている</div>
-  <div class="action">
-    <b>対処：岩崎弥太郎チャンネルに管理番号を投稿してAI生成に切り替える</b><br>
-    手動で作りかけたデータは破棄してOK。AIが自動生成したものを確認・修正する方が速い。<br>
-    管理番号がない場合は分荷判定チャンネルからやり直す。
-  </div>
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン E　管理番号なしで分荷の途中</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">どのチャンネルに出品するか決まっていない、または決まっているが記録がない</div>
-  <div class="action">
-    <b>対処：分荷判定チャンネルからやり直す</b><br>
-    商品情報または写真を分荷判定チャンネルに投稿して新規に判定を取る。
-  </div>
-</div>
-
-<div class="category-card">
-  <div class="cat-title">パターン F　分荷はしたが動作確認をしていない</div>
-  <div style="font-size:10pt; color:#555; margin: 4px 0;">分荷確定済みで管理番号はあるが、チェックリストに回答していない</div>
-  <div class="action">
-    <b>対処：分荷判定のスレッドで状態ランクを入力する</b><br>
-    スレッドに <code>B 電源OK・外観に小傷あり</code> のように入力するとチェックリストが完了する。<br>
-    スレッドが見つからない場合は分荷判定チャンネルからやり直す。
-  </div>
-</div>
-
-
-<!-- 3. やり直しの手順 -->
-<div class="page-break"></div>
-<h1 class="section-dark">3　やり直しの手順（全パターン共通）</h1>
-
-<div class="box box-navy" style="margin-bottom:5mm;">
-  迷ったらこの手順に従って進めてください。全パターンで最終的にはこの流れになります。
+  <b>対象：古い管理番号がついている商品 ／ まだ管理番号がない商品</b><br>
+  分荷判定チャンネル（北大路魯山人）で新しい管理番号を発行し、動作確認まで完了させます。
 </div>
 
 <ul class="step-list">
@@ -255,48 +274,67 @@
   </li>
   <li data-step="2">
     <b>AIの判定を確認する</b><br>
-    <span style="font-size:9.5pt; color:#555;">北大路魯山人が販売チャンネルの第一候補・第二候補を提示する</span>
+    <span style="font-size:9.5pt; color:#555;">北大路魯山人が販売チャンネルの第一候補・第二候補を提示する</span><br>
+    <span style="font-size:9.5pt; color:#888;">※判定内容に迷いがあれば浅野に確認してから確定する</span>
   </li>
   <li data-step="3">
     <b>確定コマンドを入力する</b><br>
     <span style="font-size:9.5pt; color:#555;">スレッドに返信する形で <code>第一</code> または <code>第二</code> と入力する</span><br>
-    <span style="font-size:9.5pt; color:#555;">→ 新しい管理番号が発行され、Monday.comに登録される</span>
+    <span style="font-size:9.5pt; color:#555;">→ 新しい管理番号が発行される</span>
   </li>
   <li data-step="4">
     <b>動作確認チェックリストに回答する</b><br>
-    <span style="font-size:9.5pt; color:#555;">確定後に自動で表示されるチェックリストに状態ランクで回答する</span><br>
-    <div class="code-block" style="margin-top:4px; font-size:9pt;">例：B 電源OK・外観に小傷あり・付属品全部揃ってます</div>
-  </li>
-  <li data-step="5">
-    <b>撮影確認チャンネル（白洲次郎）で写真を撮る</b><br>
-    <span style="font-size:9.5pt; color:#555;">管理番号をテキストで投稿 → スレッドに商品写真を投稿 → <code>完了</code> と入力</span>
-  </li>
-  <li data-step="6" style="border-bottom:none;">
-    <b>出品保管チャンネル（岩崎弥太郎）で出品準備をする</b><br>
-    <span style="font-size:9.5pt; color:#555;">管理番号を投稿 → 出品データを確認・修正 → 保管棚に置いてロケーション番号を入力</span><br>
-    <span style="font-size:9.5pt; color:#c0392b;">※ロケーション番号の入力が出品登録完了のトリガーです</span>
+    <span style="font-size:9.5pt; color:#555;">確定後に自動で表示されるチェックリストに状態ランクで回答する</span>
+    <div class="code-block" style="margin-top:6px;">例：B 電源OK・外観に小傷あり・付属品全部揃ってます</div>
+    <span style="font-size:9.5pt; color:#c0392b; font-weight:bold;">ここまで完了したら1点終了です。次の商品へ進んでください。</span>
   </li>
 </ul>
 
-<div class="flow-h" style="margin: 6mm 0; flex-wrap: wrap;">
-  <div class="step">分荷判定チャンネル<br>写真/商品名を投稿</div>
-  <div class="arrow">→</div>
-  <div class="step">「第一」「第二」<br>で確定</div>
-  <div class="arrow">→</div>
-  <div class="step">状態ランク入力<br>（チェックリスト）</div>
-  <div class="arrow">→</div>
-  <div class="step">白洲次郎<br>写真撮影・完了</div>
-  <div class="arrow">→</div>
-  <div class="step">岩崎弥太郎<br>ロケーション入力</div>
+<div class="warn" style="margin-top:4mm;">
+  ステップ4（動作確認）まで完了させてから次の商品に進んでください。<br>
+  途中でやめて放置しないこと。やめる場合は浅野に報告してください。
 </div>
 
 
-<!-- 4. 今日の作業チェックリスト -->
+<!-- 5. 第2段階の手順 -->
 <div class="page-break"></div>
-<h1 class="section">4　今日の作業チェックリスト</h1>
+<h1 class="section">5　第2段階の手順　─ 浅野の指示があってから開始</h1>
 
 <div class="box box-navy" style="margin-bottom:5mm;">
-  商品1点ごとに以下を確認しながら進めてください。
+  第2段階は浅野から開始の指示が出てから始めます。<br>
+  <b>第1段階が終わっていない商品が残っている状態で勝手に第2段階に進まないこと。</b>
+</div>
+
+<h2 class="subsection">撮影チームの作業（白洲次郎チャンネル）</h2>
+<ul class="step-list">
+  <li data-step="1">
+    <b>管理番号をテキストで新規投稿する</b>
+    <div class="code-block" style="margin-top:6px;">2603-0001</div>
+  </li>
+  <li data-step="2">
+    <b>スレッドに商品写真を投稿する</b><br>
+    <span style="font-size:9.5pt; color:#555;">Botから確認チェックリストが届いたら写真を確認する</span>
+  </li>
+  <li data-step="3">
+    <b>問題なければ「完了」と入力する</b>
+    <div class="code-block" style="margin-top:6px;">完了</div>
+    <span style="font-size:9.5pt; color:#555;">写真に問題がある場合は <code>キャンセル</code> で中断して浅野に報告する</span>
+  </li>
+</ul>
+<div class="hint">詳細は「商品撮影 作業マニュアル」を参照してください。</div>
+
+<h2 class="subsection">分荷チームの作業</h2>
+<div class="box box-gray">
+  まだ一度も管理番号がついたことのない新規商品を分荷判定チャンネルで処理します。<br>
+  手順は第1段階と同じです。
+</div>
+
+
+<!-- 6. 1点完了の確認 -->
+<h1 class="section-dark">6　1点完了の確認チェック</h1>
+
+<div class="box box-navy" style="margin-bottom:4mm;">
+  商品1点ごとに以下を確認してください。<b>全て✅になったら次の商品へ進みます。</b>
 </div>
 
 <table>
@@ -307,67 +345,38 @@
   </tr>
   <tr>
     <td style="text-align:center; font-size:16pt;">□</td>
-    <td>分荷判定チャンネルで確定し、管理番号が発行された</td>
+    <td>分荷判定チャンネルで確定し、<b>新しい</b>管理番号が発行された</td>
     <td>分荷判定（北大路魯山人）</td>
   </tr>
   <tr>
     <td style="text-align:center; font-size:16pt;">□</td>
-    <td>チェックリストに状態ランクを入力した</td>
+    <td>動作確認チェックリストに状態ランクを入力した</td>
     <td>分荷判定チャンネルのスレッド</td>
   </tr>
-  <tr>
-    <td style="text-align:center; font-size:16pt;">□</td>
-    <td>撮影チャンネルで写真を投稿し「完了」を入力した</td>
-    <td>撮影確認（白洲次郎）</td>
-  </tr>
-  <tr>
-    <td style="text-align:center; font-size:16pt;">□</td>
-    <td>出品保管チャンネルでデータを確認・修正した</td>
-    <td>出品保管（岩崎弥太郎）</td>
-  </tr>
-  <tr>
-    <td style="text-align:center; font-size:16pt;">□</td>
-    <td>商品を保管棚に置いてロケーション番号を入力した</td>
-    <td>出品保管（岩崎弥太郎）</td>
-  </tr>
-  <tr>
-    <td style="text-align:center; font-size:16pt;">□</td>
-    <td>Monday.comのステータスが「出品待ち」になっている</td>
-    <td>Monday.com</td>
+  <tr style="background:#fdf2f2;">
+    <td style="text-align:center; font-size:16pt; color:#c0392b;">─</td>
+    <td style="color:#c0392b;">出品保管（岩崎弥太郎）での作業　<b>← 今回は対象外</b></td>
+    <td style="color:#c0392b;">やらない</td>
   </tr>
 </table>
 
 <div class="hint" style="margin-top:4mm;">
-  全てのチェックが入ったら1点完了です。次の商品に進んでください。
+  第2段階に進んだ場合は、撮影完了（白洲次郎で「完了」入力済み）も確認してください。
 </div>
 
 
-<!-- 5. 注意事項 -->
-<h1 class="section-dark">5　注意事項</h1>
+<!-- 7. 注意事項 -->
+<h1 class="section">7　注意事項</h1>
 
-<div class="two-col">
-  <div class="box box-red">
-    <b>やってはいけないこと</b>
-    <ul class="point-list" style="margin-top:6px;">
-      <li>旧管理番号を手動でMonday.comに入力する</li>
-      <li>分荷確定前にロケーション番号を入力する</li>
-      <li>スレッド以外のメッセージで確定コマンドを入力する</li>
-      <li>出品データを確認せずにロケーション番号を入力する</li>
-    </ul>
-  </div>
-  <div class="box box-green">
-    <b>困ったときの判断基準</b>
-    <ul class="point-list" style="margin-top:6px;">
-      <li>迷ったら分荷判定チャンネルからやり直す</li>
-      <li>エラーが出たら浅野さんに相談</li>
-      <li>管理番号がわからない商品は新規扱いにする</li>
-      <li>旧記録は無視して新フローで進める</li>
-    </ul>
-  </div>
+<div class="box box-yellow">
+  <b>⚠️ このマニュアルは自分の担当チャンネルだけ読んでも理解できません</b><br><br>
+  この作業は通常の業務フローとは異なる緊急対応です。<br>
+  自分が普段担当している工程の記述だけを読んで作業方法を決めないでください。<br><br>
+  <b>全体を読んだ上で、わからなければ浅野に確認してから作業を開始してください。</b>
 </div>
 
-<div class="box box-navy" style="margin-top:8mm; text-align:center;">
-  <b>この作業指示書は今回の切り替え対応が完了したら不要になります。</b><br>
+<div class="box box-gray" style="margin-top:6mm; text-align:center;">
+  <b>この作業指示書は既存在庫の管理番号付け替えが完了したら不要になります。</b><br>
   通常運用では各チャンネルのマニュアル（分荷判定・商品撮影・出品保管）を参照してください。
 </div>
 
