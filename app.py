@@ -409,7 +409,7 @@ def call_claude(user_message: str, image_urls: list[str] | None = None, history:
     if not client:
         raise RuntimeError("ANTHROPIC_API_KEY が設定されていません")
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1024,
         system=SYSTEM_PROMPT,
         messages=messages,
