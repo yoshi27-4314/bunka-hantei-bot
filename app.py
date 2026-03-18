@@ -3550,6 +3550,33 @@ def slack_events():
     return jsonify({"ok": True})
 
 
+@app.route("/test-drive", methods=["GET"])
+def test_drive():
+    """Google Drive接続テスト"""
+    import base64
+    result = {"GOOGLE_SERVICE_ACCOUNT_JSON": "未設定", "GOOGLE_DRIVE_FOLDER_ID": "未設定", "drive_service": "NG", "folder_access": "NG", "error": ""}
+    json_b64 = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+    result["GOOGLE_SERVICE_ACCOUNT_JSON"] = "設定済み" if json_b64 else "未設定"
+    result["GOOGLE_DRIVE_FOLDER_ID"] = folder_id if folder_id else "未設定"
+    if not json_b64 or not folder_id:
+        return jsonify(result)
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        creds_dict = json.loads(base64.b64decode(json_b64).decode())
+        result["service_account_email"] = creds_dict.get("client_email", "不明")
+        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
+        service = build("drive", "v3", credentials=creds)
+        result["drive_service"] = "OK"
+        folder = service.files().get(fileId=folder_id, fields="id,name,permissions").execute()
+        result["folder_access"] = "OK"
+        result["folder_name"] = folder.get("name", "不明")
+    except Exception as e:
+        result["error"] = str(e)
+    return jsonify(result)
+
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     """MakeからのWebhookを受け取るエンドポイント（既存）"""
