@@ -3685,7 +3685,7 @@ def health_check():
             raise RuntimeError(data.get("error", "unknown"))
     except Exception as e:
         results["slack"] = f"ERROR: {e}"
-        alerts.append(f"🚨 Slack API異常: {e}\n→ Railway環境変数 SLACK_BOT_TOKEN を確認してください")
+        alerts.append(f"🚨 Slack APIに接続できません\n→ Railwayの環境変数 SLACK_BOT_TOKEN が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
     # ── 2. Monday.com API ─────────────────────────────────────
     try:
@@ -3696,7 +3696,7 @@ def health_check():
             raise RuntimeError(str(r.get("errors", "unknown")))
     except Exception as e:
         results["monday"] = f"ERROR: {e}"
-        alerts.append(f"🚨 Monday.com API異常: {e}\n→ Railway環境変数 MONDAY_TOKEN を確認してください")
+        alerts.append(f"🚨 Monday.comに接続できません\n→ Railwayの環境変数 MONDAY_TOKEN が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
     # ── 3. Anthropic API ステータスページ確認 ─────────────────
     try:
@@ -3708,10 +3708,10 @@ def health_check():
             results["anthropic"] = "OK"
         else:
             results["anthropic"] = f"WARN: {indicator} - {description}"
-            alerts.append(f"⚠️ Anthropic障害情報あり: {description}\nhttps://status.anthropic.com")
+            alerts.append(f"⚠️ Claude AI（Anthropic）で障害が発生しています\n→ AI判定が一時的に使えない可能性があります\n→ 詳細: https://status.anthropic.com")
     except Exception as e:
         results["anthropic"] = f"ERROR: {e}"
-        alerts.append(f"⚠️ Anthropicステータス取得失敗: {e}")
+        alerts.append(f"⚠️ Claude AIのステータス確認ができませんでした\n→ しばらく待ってから再確認してください")
 
     # ── 4. Slack ステータスページ確認 ─────────────────────────
     try:
@@ -3722,7 +3722,7 @@ def health_check():
             results["slack_status"] = "OK"
         else:
             results["slack_status"] = f"WARN: {status}"
-            alerts.append(f"⚠️ Slack障害情報あり: {status}\nhttps://status.slack.com")
+            alerts.append(f"⚠️ Slackで障害が発生しています\n→ メッセージが届かない・遅延する可能性があります\n→ 詳細: https://status.slack.com")
     except Exception as e:
         results["slack_status"] = f"ERROR: {e}"
 
@@ -3740,7 +3740,7 @@ def health_check():
                     results["google_drive_folder"] = f"OK: {folder.get('name', '名前不明')}"
                 except Exception as fe:
                     results["google_drive_folder"] = f"NG: {fe}"
-                    alerts.append(f"🚨 Google Driveフォルダアクセス不可\n→ 共有ドライブのメンバーにサービスアカウントが追加されているか確認してください\n→ bunka-bot-drive@ordinal-gear-489903-a5.iam.gserviceaccount.com を編集者で追加\nエラー: {fe}")
+                    alerts.append(f"🚨 Google Drive 写真フォルダにアクセスできません\n→ 撮影チャンネルの画像自動保存が止まっています\n→ 対応手順：\n　1. Google Drive「TKB｜A｜自社在庫」フォルダを開く\n　2. 右クリック→「共有」\n　3. bunka-bot-drive@ordinal-gear-489903-a5.iam.gserviceaccount.com を「編集者」で追加\n→ 人間の対応が必要です")
             else:
                 results["google_drive_folder"] = "SKIP（GOOGLE_DRIVE_FOLDER_ID未設定）"
         else:
@@ -3749,7 +3749,7 @@ def health_check():
     except Exception as e:
         results["google_drive"] = f"ERROR: {e}"
         results["google_drive_folder"] = "SKIP"
-        alerts.append(f"🚨 Google Drive API異常: {e}\n→ GOOGLE_SERVICE_ACCOUNT_JSON を確認してください")
+        alerts.append(f"🚨 Google Driveに接続できません\n→ Railwayの環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
     # ── 6. Bot直近24時間の処理件数確認 ────────────────────────
     total_ops = sum(v.get("完了", 0) + v.get("キャンセル", 0) + v.get("削除", 0)
