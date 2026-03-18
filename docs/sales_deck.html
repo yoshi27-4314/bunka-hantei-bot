@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>AI業務自動化システム 導入事例・提案資料</title>
+<style>
+/* ━━━ 基本 ━━━ */
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+  font-size:13px; color:#1a1a1a; background:#e8e8e8; line-height:1.7;
+}
+@media print{
+  body{background:white;font-size:11px;}
+  .page{box-shadow:none;margin:0;border-radius:0;}
+  .no-print{display:none;}
+  .pb{page-break-before:always;}
+  @page{margin:10mm 10mm;size:A4;}
+}
+
+/* ━━━ ページ ━━━ */
+.page{
+  width:794px; min-height:1123px;
+  background:white; margin:20px auto;
+  border-radius:8px;
+  box-shadow:0 4px 24px rgba(0,0,0,.15);
+  padding:52px 56px;
+  position:relative; overflow:hidden;
+}
+.page-num{
+  position:absolute;bottom:22px;right:32px;
+  font-size:10px;color:#bbb;font-style:italic;
+}
+
+/* ━━━ 印刷ボタン ━━━ */
+.print-bar{
+  width:794px;margin:0 auto 8px;
+  display:flex;justify-content:flex-end;gap:8px;
+}
+.print-btn{
+  background:#1976d2;color:white;border:none;
+  border-radius:6px;padding:8px 20px;font-size:12px;
+  cursor:pointer;font-family:inherit;
+}
+.print-btn:hover{background:#1565c0;}
+
+/* ━━━ 表紙 ━━━ */
+.cover{
+  min-height:1123px; padding:0;
+  background:linear-gradient(160deg,#0d1b2a 0%,#1b3a5c 50%,#0d47a1 100%);
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  text-align:center;color:white;
+  position:relative;overflow:hidden;
+}
+.cover::before{
+  content:'';position:absolute;
+  width:600px;height:600px;border-radius:50%;
+  background:rgba(255,255,255,.03);
+  top:-200px;right:-200px;
+}
+.cover::after{
+  content:'';position:absolute;
+  width:400px;height:400px;border-radius:50%;
+  background:rgba(255,255,255,.04);
+  bottom:-100px;left:-100px;
+}
+.cover-inner{position:relative;z-index:1;padding:60px;}
+.cover-eyecatch{
+  font-size:72px;margin-bottom:16px;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.4));
+}
+.cover-catchcopy{
+  font-size:13px;letter-spacing:3px;color:#90caf9;
+  margin-bottom:20px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:30px;padding:6px 24px;
+  display:inline-block;
+}
+.cover-title{
+  font-size:38px;font-weight:900;line-height:1.25;
+  margin-bottom:14px;
+  text-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+.cover-title span{color:#64b5f6;}
+.cover-sub{font-size:15px;color:#90caf9;margin-bottom:40px;}
+.cover-divider{
+  width:80px;height:3px;
+  background:linear-gradient(90deg,#64b5f6,#e040fb);
+  border-radius:2px;margin:0 auto 40px;
+}
+.cover-tags{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  margin-bottom:48px;
+}
+.cover-tag{
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:20px;padding:5px 16px;
+  font-size:11px;color:rgba(255,255,255,.85);
+}
+.cover-kpi{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:16px;max-width:580px;margin:0 auto 40px;
+}
+.cover-kpi-item{
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:14px;padding:18px 14px;
+}
+.cover-kpi-num{
+  font-size:34px;font-weight:900;
+  color:#64b5f6;line-height:1;
+  font-family:'Arial Black',sans-serif;
+}
+.cover-kpi-unit{font-size:13px;color:#90caf9;}
+.cover-kpi-label{font-size:10px;color:rgba(255,255,255,.6);margin-top:4px;}
+.cover-footer{
+  font-size:10px;color:rgba(255,255,255,.3);
+  border-top:1px solid rgba(255,255,255,.1);
+  padding-top:16px;margin-top:16px;
+}
+
+/* ━━━ ページヘッダー ━━━ */
+.ph{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:28px;padding-bottom:12px;
+  border-bottom:3px solid;
+}
+.ph-left{display:flex;align-items:center;gap:10px;}
+.ph-icon{
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:white;flex-shrink:0;
+}
+.ph-title{font-size:19px;font-weight:800;}
+.ph-sub{font-size:10px;color:#888;margin-top:1px;}
+.ph-chapter{font-size:10px;color:#bbb;font-style:italic;}
+
+/* ━━━ Before/After ━━━ */
+.ba-wrap{display:grid;grid-template-columns:1fr 32px 1fr;gap:0;margin-bottom:18px;}
+.ba-col{border-radius:12px;overflow:hidden;}
+.ba-header{
+  padding:10px 16px;display:flex;align-items:center;gap:8px;
+  font-weight:700;font-size:13px;
+}
+.ba-body{background:white;padding:12px 14px;}
+.ba-item{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:7px 10px;border-radius:7px;margin-bottom:5px;
+  font-size:11px;line-height:1.5;
+}
+.ba-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.ba-arrow{
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;color:#bbb;
+}
+
+/* ━━━ 問題カード ━━━ */
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.prob-card{
+  border-radius:12px;overflow:hidden;
+  border:2px solid;
+}
+.prob-card-head{
+  padding:10px 14px;display:flex;align-items:center;gap:10px;
+}
+.prob-card-icon{font-size:26px;}
+.prob-card-title{font-size:12px;font-weight:700;}
+.prob-card-sub{font-size:10px;opacity:.75;}
+.prob-card-body{background:white;padding:10px 14px;}
+.prob-card-body li{
+  font-size:10px;color:#444;margin-bottom:4px;
+  list-style:none;padding-left:2px;
+}
+.prob-card-body li::before{content:"▸ ";color:#999;font-size:9px;}
+
+/* ━━━ 解決策カード ━━━ */
+.sol-item{
+  display:flex;align-items:flex-start;gap:14px;
+  border-radius:12px;padding:14px 16px;
+  margin-bottom:10px;border:2px solid;
+}
+.sol-icon-wrap{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.sol-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.sol-desc{font-size:10px;color:#555;line-height:1.6;}
+.sol-badge{
+  display:inline-block;font-size:9px;padding:1px 6px;
+  border-radius:4px;font-weight:700;margin-left:6px;
+  vertical-align:middle;
+}
+
+/* ━━━ フロー図 ━━━ */
+.flow-wrap{
+  background:#f8f9fa;border-radius:14px;
+  padding:20px;margin-bottom:14px;
+}
+.flow-row{
+  display:flex;align-items:stretch;justify-content:center;gap:0;
+  margin-bottom:10px;
+}
+.flow-box{
+  background:white;border:2px solid #e0e0e0;
+  border-radius:10px;padding:10px 8px;
+  text-align:center;flex:1;min-width:0;
+}
+.flow-box-icon{font-size:26px;margin-bottom:4px;}
+.flow-box-title{font-size:10px;font-weight:700;line-height:1.3;}
+.flow-box-sub{font-size:9px;color:#888;margin-top:2px;}
+.flow-arrow{
+  display:flex;align-items:center;padding:0 4px;
+  font-size:18px;color:#bbb;flex-shrink:0;
+}
+.flow-down{text-align:center;font-size:22px;color:#bbb;margin:4px 0;}
+
+/* ━━━ 数値インパクト ━━━ */
+.impact-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
+.impact-card{
+  border-radius:12px;padding:16px;text-align:center;
+  border:2px solid;
+}
+.impact-num{
+  font-size:38px;font-weight:900;line-height:1;
+  font-family:'Arial Black',sans-serif;
+}
+.impact-unit{font-size:13px;font-weight:700;}
+.impact-label{font-size:10px;color:#666;margin-top:6px;}
+.impact-before{
+  font-size:10px;margin-top:4px;
+  text-decoration:line-through;opacity:.5;
+}
+
+/* ━━━ ロードマップ ━━━ */
+.roadmap{position:relative;padding:0 0 0 28px;}
+.roadmap::before{
+  content:'';position:absolute;
+  left:10px;top:8px;bottom:8px;
+  width:2px;background:linear-gradient(180deg,#1976d2,#e040fb);
+}
+.rm-item{position:relative;margin-bottom:16px;}
+.rm-dot{
+  position:absolute;left:-22px;top:5px;
+  width:16px;height:16px;border-radius:50%;
+  border:3px solid white;
+  box-shadow:0 0 0 2px;
+}
+.rm-phase{
+  font-size:9px;font-weight:700;
+  margin-bottom:3px;letter-spacing:1px;
+}
+.rm-title{font-size:13px;font-weight:700;margin-bottom:4px;}
+.rm-items{
+  display:flex;flex-wrap:wrap;gap:5px;
+}
+.rm-tag{
+  font-size:10px;background:#f5f5f5;
+  border:1px solid #e0e0e0;border-radius:5px;
+  padding:2px 8px;color:#555;
+}
+
+/* ━━━ ROI試算 ━━━ */
+.roi-table{width:100%;border-collapse:collapse;margin-bottom:14px;}
+.roi-table th{
+  padding:8px 14px;font-size:11px;font-weight:700;
+  text-align:center;
+}
+.roi-table td{
+  padding:7px 14px;border:1px solid #e8e8e8;
+  font-size:11px;text-align:center;vertical-align:middle;
+}
+.roi-table tr:hover td{background:#f9fafb;}
+.roi-total td{background:#e3f2fd;font-weight:700;font-size:12px;}
+
+/* ━━━ 比較表 ━━━ */
+.compare-wrap{overflow:hidden;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:16px;}
+.compare-table{width:100%;border-collapse:collapse;}
+.compare-table th{padding:10px 14px;font-size:11px;font-weight:700;text-align:center;}
+.compare-table td{padding:8px 14px;border:1px solid #eeeeee;font-size:11px;vertical-align:middle;}
+.compare-table .label-col{font-weight:700;background:#f5f5f5;font-size:11px;color:#555;}
+.check{font-size:16px;}
+.cross{font-size:14px;color:#ccc;}
+
+/* ━━━ Quote ━━━ */
+.quote{
+  background:#e3f2fd;border-left:5px solid #1976d2;
+  border-radius:0 10px 10px 0;
+  padding:14px 18px;margin:16px 0;
+  font-size:13px;color:#1565c0;font-style:italic;font-weight:600;
+}
+
+/* ━━━ ユーティリティ ━━━ */
+h3{
+  font-size:13px;font-weight:700;color:#37474f;
+  margin:18px 0 10px;
+  display:flex;align-items:center;gap:6px;
+}
+h3::before{
+  content:'';display:inline-block;
+  width:4px;height:15px;background:#1976d2;border-radius:2px;
+}
+.note{
+  border-left:4px solid;border-radius:0 8px 8px 0;
+  padding:10px 14px;font-size:11px;margin-top:10px;
+}
+.note.tip{border-color:#388e3c;background:#e8f5e9;color:#2e7d32;}
+.note.info{border-color:#1976d2;background:#e3f2fd;color:#1565c0;}
+.nt{font-weight:700;margin-bottom:2px;}
+
+/* ━━━ 配色 ━━━ */
+.c1{color:#1565c0;} .b1{border-color:#90caf9;} .bg1{background:#e3f2fd;} .ic1{background:#1976d2;}
+.c2{color:#b71c1c;} .b2{border-color:#ef9a9a;} .bg2{background:#fce4ec;}
+.c3{color:#2e7d32;} .b3{border-color:#a5d6a7;} .bg3{background:#e8f5e9;} .ic3{background:#388e3c;}
+.c4{color:#e65100;} .b4{border-color:#ffcc80;} .bg4{background:#fff3e0;} .ic4{background:#f57c00;}
+.c5{color:#6a1b9a;} .b5{border-color:#ce93d8;} .bg5{background:#f3e5f5;} .ic5{background:#7b1fa2;}
+.c6{color:#004d40;} .b6{border-color:#80cbc4;} .bg6{background:#e0f2f1;} .ic6{background:#00796b;}
+.c7{color:#1a237e;} .ic7{background:#303f9f;}
+</style>
+</head>
+<body>
+
+<!-- 印刷ボタン -->
+<div class="print-bar no-print">
+  <button class="print-btn" onclick="window.print()">🖨️ PDFとして保存（Ctrl+P）</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     表紙
+════════════════════════════════════════ -->
+<div class="page">
+<div class="cover">
+<div class="cover-inner">
+  <div class="cover-eyecatch">🤖</div>
+  <div class="cover-catchcopy">AI × 業務自動化 ／ 導入事例・提案資料</div>
+  <div class="cover-title">
+    「入力したら<span>全部終わる」</span><br>
+    AI業務自動化システムの<br>つくり方と成果
+  </div>
+  <div class="cover-sub">手作業・確認ミス・情報バラバラ——3つの課題をまとめて解決</div>
+  <div class="cover-divider"></div>
+
+  <div class="cover-tags">
+    <div class="cover-tag">📦 在庫・販売管理</div>
+    <div class="cover-tag">💬 チャット連携</div>
+    <div class="cover-tag">🧠 AI自動判定</div>
+    <div class="cover-tag">📊 リアルタイム管理</div>
+    <div class="cover-tag">🚚 物流・出荷記録</div>
+  </div>
+
+  <div class="cover-kpi">
+    <div class="cover-kpi-item">
+      <div class="cover-kpi-num">80<span class="cover-kpi-unit">%</span></div>
+      <div class="cover-kpi-label">手入力作業の削減率</div>
+    </div>
+    <div class="cover-kpi-item">
+      <div class="cover-kpi-num">0<span class="cover-kpi-unit">回</span></div>
+      <div class="cover-kpi-label">システム間の転記ミス</div>
+    </div>
+    <div class="cover-kpi-item">
+      <div class="cover-kpi-num">全<span class="cover-kpi-unit">工程</span></div>
+      <div class="cover-kpi-label">進捗をリアルタイム可視化</div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    本資料は実際に稼働中のシステムをベースに作成しています
+  </div>
+</div>
+</div>
+<div class="page-num">- 1 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P2 — 課題：現状の3つの痛み
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#ef5350;">
+  <div class="ph-left">
+    <div class="ph-icon ic4">😓</div>
+    <div>
+      <div class="ph-title">現状の課題：なぜ「忙しいのに儲からない」のか</div>
+      <div class="ph-sub">現場で起きている3つの根本問題</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 01</div>
+</div>
+
+<div class="quote">
+  「作業は確かにやっている。でも、どこに時間がかかっているか分からない。<br>
+  情報がバラバラで、誰が何をどこまでやったのか確認するのが大変。」
+</div>
+
+<div class="prob-grid">
+  <div class="prob-card b2">
+    <div class="prob-card-head bg2">
+      <div class="prob-card-icon">✍️</div>
+      <div>
+        <div class="prob-card-title c2">課題①：手入力・二重入力の連続</div>
+        <div class="prob-card-sub c2">同じ情報を何度も別々の場所に入れる</div>
+      </div>
+    </div>
+    <div class="prob-card-body">
+      <li>チャットに書いた内容をExcelにも転記する</li>
+      <li>転記するたびにミスが起きる</li>
+      <li>入力作業だけで1件あたり数分〜数十分消費</li>
+      <li>人が増えるほどミスも増える</li>
+    </div>
+  </div>
+  <div class="prob-card b4">
+    <div class="prob-card-head bg4">
+      <div class="prob-card-icon">❓</div>
+      <div>
+        <div class="prob-card-title c4">課題②：進捗が「聞かないと分からない」</div>
+        <div class="prob-card-sub c4">今どこまで進んでいるか誰も把握できない</div>
+      </div>
+    </div>
+    <div class="prob-card-body">
+      <li>「あの案件、今どこ？」と毎回確認が必要</li>
+      <li>担当者が休んだら状況が分からなくなる</li>
+      <li>確認のためのミーティングが増える</li>
+      <li>複数の案件を同時に抱えると管理が破綻</li>
+    </div>
+  </div>
+  <div class="prob-card b5">
+    <div class="prob-card-head bg5">
+      <div class="prob-card-icon">🕰️</div>
+      <div>
+        <div class="prob-card-title c5">課題③：知識・判断が属人化している</div>
+        <div class="prob-card-sub c5">「あの人にしか分からない」が積み重なる</div>
+      </div>
+    </div>
+    <div class="prob-card-body">
+      <li>何をどう判断するか、熟練者の頭の中だけにある</li>
+      <li>新人への教育に時間がかかる</li>
+      <li>判断の品質が担当者によってバラつく</li>
+      <li>ベテランが休むと業務が止まる</li>
+    </div>
+  </div>
+  <div class="prob-card b6">
+    <div class="prob-card-head bg6">
+      <div class="prob-card-icon">📉</div>
+      <div>
+        <div class="prob-card-title c6">課題④：データが活用されていない</div>
+        <div class="prob-card-sub c6">記録はあるが分析・改善に使えていない</div>
+      </div>
+    </div>
+    <div class="prob-card-body">
+      <li>「どの商品が売れているか」の集計に時間がかかる</li>
+      <li>作業コストを工程別に把握できていない</li>
+      <li>勘と経験頼りの意思決定が続く</li>
+      <li>改善すべき点が分からないまま同じ業務を繰り返す</li>
+    </div>
+  </div>
+</div>
+
+<!-- 構造図 -->
+<h3>これらの課題が引き起こす「負のサイクル」</h3>
+<div class="flow-wrap" style="background:#fff5f5;border:2px solid #ffcdd2;">
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;">
+    <div style="background:white;border:2px solid #ef9a9a;border-radius:10px;padding:10px 12px;text-align:center;min-width:110px;">
+      <div style="font-size:22px;">✍️</div>
+      <div style="font-size:10px;font-weight:700;color:#c62828;">手入力・転記<br>ミスが発生</div>
+    </div>
+    <div style="font-size:20px;color:#ef9a9a;padding:0 6px;">→</div>
+    <div style="background:white;border:2px solid #ef9a9a;border-radius:10px;padding:10px 12px;text-align:center;min-width:110px;">
+      <div style="font-size:22px;">🔍</div>
+      <div style="font-size:10px;font-weight:700;color:#c62828;">確認・修正に<br>時間がかかる</div>
+    </div>
+    <div style="font-size:20px;color:#ef9a9a;padding:0 6px;">→</div>
+    <div style="background:white;border:2px solid #ef9a9a;border-radius:10px;padding:10px 12px;text-align:center;min-width:110px;">
+      <div style="font-size:22px;">😰</div>
+      <div style="font-size:10px;font-weight:700;color:#c62828;">本来の作業が<br>後回しになる</div>
+    </div>
+    <div style="font-size:20px;color:#ef9a9a;padding:0 6px;">→</div>
+    <div style="background:white;border:2px solid #ef9a9a;border-radius:10px;padding:10px 12px;text-align:center;min-width:110px;">
+      <div style="font-size:22px;">💸</div>
+      <div style="font-size:10px;font-weight:700;color:#c62828;">利益率が<br>下がる</div>
+    </div>
+    <div style="font-size:20px;color:#ef9a9a;padding:0 6px;">→</div>
+    <div style="background:white;border:2px solid #ef9a9a;border-radius:10px;padding:10px 12px;text-align:center;min-width:110px;">
+      <div style="font-size:22px;">🔁</div>
+      <div style="font-size:10px;font-weight:700;color:#c62828;">人を増やして<br>また繰り返す</div>
+    </div>
+  </div>
+</div>
+
+<div class="note info">
+  <div class="nt">💡 この資料が伝えたいこと</div>
+  このサイクルは「仕組み」で断ち切れます。重要なのは「人が頑張る」のではなく、「Botが自動でやる仕組みを作る」ことです。
+</div>
+
+<div class="page-num">- 2 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P3 — Before/After 全体像
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#43a047;">
+  <div class="ph-left">
+    <div class="ph-icon ic3">🔄</div>
+    <div>
+      <div class="ph-title">Before / After：業務はここまで変わる</div>
+      <div class="ph-sub">導入前と導入後の具体的な違いを比較</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 02</div>
+</div>
+
+<!-- ── 比較テーブル ── -->
+<div class="compare-wrap">
+<table class="compare-table">
+<thead>
+  <tr style="background:#1a1a1a;color:white;">
+    <th style="width:26%;text-align:left;padding:10px 14px;">業務項目</th>
+    <th style="width:35%;background:#c62828;padding:10px;">😓 導入前（現状）</th>
+    <th style="width:35%;background:#2e7d32;padding:10px;">✅ 導入後（自動化）</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="label-col">商品の振り分け<br>判断</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">担当者の経験・勘に依存。判断の根拠が人によってバラバラ。新人には難しい。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">AIが4つの基準で100点採点し、最適な判断を即座に提示。誰でも同じ品質で判断できる。</td>
+  </tr>
+  <tr>
+    <td class="label-col">情報の記録</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">チャット・Excel・管理ツールに手動で3回入力。転記ミスが頻発。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">チャットに1回入力するだけで、管理ツール・台帳・クラウドが自動更新。ミスゼロ。</td>
+  </tr>
+  <tr>
+    <td class="label-col">進捗の把握</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">担当者に口頭確認。ミーティングで時間消費。休んだら分からなくなる。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">管理ツールでいつでも全案件の進捗をリアルタイム確認。確認の手間ゼロ。</td>
+  </tr>
+  <tr>
+    <td class="label-col">出品文・説明文<br>の作成</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">担当者が毎回手書き。1件15〜30分かかる。品質もバラバラ。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">AIが自動生成。数秒で完成。必要なら修正コマンドで調整。品質が均一化。</td>
+  </tr>
+  <tr>
+    <td class="label-col">商品番号の<br>管理・照合</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">番号を手打ちして検索。打ち間違いで見つからないことも。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">ラベルの写真を送っても・番号をテキスト入力してもどちらでも自動認識。用途に合わせて使い分けられる。</td>
+  </tr>
+  <tr>
+    <td class="label-col">追跡番号の<br>記録</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">送り状から手打ち入力。12〜15桁の数字を打ち間違えることも。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">送り状を写真で撮るだけ。AIが番号を自動抽出してそのまま記録。</td>
+  </tr>
+  <tr>
+    <td class="label-col">作業時間の<br>把握</td>
+    <td style="background:#fff8f8;color:#b71c1c;font-size:11px;">誰がどの作業に何分かかったか、まったく分からない。</td>
+    <td style="background:#f1f8e9;color:#2e7d32;font-size:11px;">各工程の開始〜完了時刻を自動記録。工程別・担当者別のコストが数値で分かる。</td>
+  </tr>
+</tbody>
+</table>
+</div>
+
+<!-- ビフォーアフター図 -->
+<h3>働き方のイメージ変化</h3>
+<div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:0;align-items:center;">
+  <div style="background:#fff5f5;border:2px solid #ef9a9a;border-radius:12px;padding:14px;">
+    <div style="font-size:12px;font-weight:700;color:#c62828;margin-bottom:10px;text-align:center;">😓 Before — チームの1日</div>
+    <div style="font-size:10px;color:#555;line-height:2;">
+      09:00 商品を確認して、どこに出品するか悩む<br>
+      09:30 Excelに情報を手入力（転記）<br>
+      10:00 別の管理ツールにも同じ情報を入力<br>
+      11:00 「あの案件どこまで進んだ？」を確認<br>
+      13:00 出品文をゼロから手書きで作成<br>
+      14:30 送り状の番号を手打ちで記録<br>
+      15:00 ミスが見つかって修正対応<br>
+      <strong style="color:#c62828;">→ 本来の作業より「管理作業」の方が長い</strong>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:32px;color:#1976d2;font-weight:900;">→</div>
+  <div style="background:#f0faf0;border:2px solid #a5d6a7;border-radius:12px;padding:14px;">
+    <div style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:10px;text-align:center;">✅ After — チームの1日</div>
+    <div style="font-size:10px;color:#555;line-height:2;">
+      09:00 商品の写真をチャットに送信（10秒）<br>
+      09:01 AIが販売先を提案 → 「第一」と返信（5秒）<br>
+      09:02 管理番号発行・全システム自動更新<br>
+      09:10 写真を送信してDriveに自動保存<br>
+      10:00 出品文はAIが自動生成済み、確認のみ<br>
+      14:00 送り状写真を送信→追跡番号自動記録<br>
+      <strong style="color:#2e7d32;">→ 管理作業が激減。付加価値の高い仕事に集中</strong>
+    </div>
+  </div>
+</div>
+
+<div class="page-num">- 3 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P4 — 解決策：何を作るか
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#1976d2;">
+  <div class="ph-left">
+    <div class="ph-icon ic1">🔧</div>
+    <div>
+      <div class="ph-title">解決策：何を作り、どう動くのか</div>
+      <div class="ph-sub">システムの全体構造と各機能の役割</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 03</div>
+</div>
+
+<!-- 全体アーキテクチャ -->
+<h3>システムの全体像</h3>
+<div class="flow-wrap" style="margin-bottom:18px;">
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:12px;">
+    <div class="flow-box" style="border-color:#90caf9;background:#e3f2fd;max-width:120px;">
+      <div class="flow-box-icon">💬</div>
+      <div class="flow-box-title" style="color:#1565c0;">チャットツール</div>
+      <div class="flow-box-sub">担当者が<br>普段使うツール</div>
+    </div>
+    <div class="flow-arrow">⇄</div>
+    <div class="flow-box" style="border-color:#1976d2;background:#1976d2;color:white;max-width:160px;">
+      <div class="flow-box-icon">🤖</div>
+      <div class="flow-box-title" style="color:white;font-size:12px;">自動処理エンジン<br>（Bot + AI）</div>
+      <div class="flow-box-sub" style="color:#bbdefb;">クラウドサーバーで常時稼働</div>
+    </div>
+    <div class="flow-arrow">⇄</div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+      <div class="flow-box" style="border-color:#a5d6a7;background:#e8f5e9;min-height:0;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          <span style="font-size:18px;">📋</span>
+          <span style="font-size:10px;font-weight:700;color:#2e7d32;">進捗管理ツール</span>
+        </div>
+      </div>
+      <div class="flow-box" style="border-color:#ce93d8;background:#f3e5f5;min-height:0;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          <span style="font-size:18px;">📊</span>
+          <span style="font-size:10px;font-weight:700;color:#6a1b9a;">台帳・集計シート</span>
+        </div>
+      </div>
+      <div class="flow-box" style="border-color:#ffcc80;background:#fff3e0;min-height:0;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          <span style="font-size:18px;">🗂️</span>
+          <span style="font-size:10px;font-weight:700;color:#e65100;">クラウドストレージ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:10px;color:#888;">
+    担当者はチャットツールを使うだけ。Botが裏で全てのシステムを同時に更新します。
+  </div>
+</div>
+
+<!-- 6つの主要機能 -->
+<h3>6つの主要機能</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+  <div class="sol-item b1 bg1">
+    <div class="sol-icon-wrap ic1">🧠</div>
+    <div>
+      <div class="sol-title c1">① AI自動判定エンジン</div>
+      <div class="sol-desc">商品の情報を受け取ると、AIが4つの指標（収益・在庫回転・物流コスト・作業コスト）で100点採点し、最適な販売先を提案。確信度（高/中/低）も合わせて表示。</div>
+    </div>
+  </div>
+
+  <div class="sol-item b3 bg3">
+    <div class="sol-icon-wrap ic3">📷</div>
+    <div>
+      <div class="sol-title c3">② 管理番号の「写真でもテキストでも」認識</div>
+      <div class="sol-desc">テプラで印刷した管理番号ラベルを写真で撮って送信してもよし、番号を直接テキスト入力してもよし。どちらの方法でも同じようにBotが反応し、正確に商品を特定。状況に応じて使い分けできるのが強み。</div>
+    </div>
+  </div>
+
+  <div class="sol-item b4 bg4">
+    <div class="sol-icon-wrap ic4">⚡</div>
+    <div>
+      <div class="sol-title c4">③ ワンアクション・全連携</div>
+      <div class="sol-desc">チャットへの1回の入力で、進捗管理ツール・台帳・クラウドストレージを同時更新。情報の転記作業が完全になくなる。</div>
+    </div>
+  </div>
+
+  <div class="sol-item b5 bg5">
+    <div class="sol-icon-wrap ic5">✍️</div>
+    <div>
+      <div class="sol-title c5">④ 出品コンテンツ自動生成</div>
+      <div class="sol-desc">商品情報をAIに渡すと、出品タイトル・説明文・推奨価格を数秒で自動作成。修正が必要なら「タイトル：〇〇」と打つだけで即座に反映。</div>
+    </div>
+  </div>
+
+  <div class="sol-item b6 bg6">
+    <div class="sol-icon-wrap ic6">📊</div>
+    <div>
+      <div class="sol-title c6">⑤ リアルタイム進捗ダッシュボード</div>
+      <div class="sol-desc">全案件のステータスが自動更新されるため、「今どこまで進んでいるか」をいつでも確認できる。確認の口頭連絡・ミーティングが不要になる。</div>
+    </div>
+  </div>
+
+  <div class="sol-item" style="border-color:#b0bec5;background:#eceff1;">
+    <div class="sol-icon-wrap" style="background:#546e7a;">⏱️</div>
+    <div>
+      <div class="sol-title" style="color:#37474f;">⑥ 作業時間の自動計測</div>
+      <div class="sol-desc">各工程の開始〜完了時刻を自動計測・記録。担当者別・工程別の所要時間が蓄積されていく。何にコストがかかっているかが数値で見えるようになる。</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="page-num">- 4 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P5 — 業務フロー全体
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#7b1fa2;">
+  <div class="ph-left">
+    <div class="ph-icon ic5">🔄</div>
+    <div>
+      <div class="ph-title">実際の業務フロー：チャットへの入力だけで全工程が動く</div>
+      <div class="ph-sub">各ステップで「担当者の操作」と「Botの自動処理」を色で区別</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 04</div>
+</div>
+
+<div style="display:flex;gap:12px;margin-bottom:14px;">
+  <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+    <div style="width:14px;height:14px;background:#1976d2;border-radius:3px;"></div>
+    <span>担当者の操作（チャットへの入力）</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+    <div style="width:14px;height:14px;background:#2e7d32;border-radius:3px;"></div>
+    <span>Botの自動処理</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+    <div style="width:14px;height:14px;background:#f57c00;border-radius:3px;"></div>
+    <span>手動更新が必要（取引確認等）</span>
+  </div>
+</div>
+
+<!-- STEP 1 -->
+<div style="border:2px solid #90caf9;border-radius:12px;overflow:hidden;margin-bottom:8px;">
+  <div style="background:#e3f2fd;padding:8px 16px;display:flex;align-items:center;gap:10px;">
+    <div style="background:#1976d2;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">STEP 1</div>
+    <div style="font-weight:700;color:#1565c0;font-size:13px;">商品の受入・販売先判定</div>
+  </div>
+  <div style="background:white;padding:10px 16px;">
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 担当者の操作</div>
+        <div style="font-size:10px;color:#333;">商品の写真またはテキスト情報をチャットに投稿</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:2;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">🤖 Botの自動処理</div>
+        <div style="font-size:10px;color:#333;">AIが商品を分析 → 販売先を第一・第二候補で提案（スコア付き）</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 担当者の操作</div>
+        <div style="font-size:10px;color:#333;">「第一」または「第二」と返信するだけ</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:2;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">🤖 自動記録</div>
+        <div style="font-size:10px;color:#333;">管理番号を発行 → 進捗管理・台帳・シートを一括更新</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div style="border:2px solid #a5d6a7;border-radius:12px;overflow:hidden;margin-bottom:8px;">
+  <div style="background:#e8f5e9;padding:8px 16px;display:flex;align-items:center;gap:10px;">
+    <div style="background:#388e3c;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">STEP 2</div>
+    <div style="font-weight:700;color:#2e7d32;font-size:13px;">商品撮影・画像保管</div>
+  </div>
+  <div style="background:white;padding:10px 16px;">
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">ラベル写真 or 管理番号を投稿</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">商品写真をチャットに複数投稿</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:2;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">🤖 自動処理</div>
+        <div style="font-size:10px;color:#333;">クラウドストレージに管理番号フォルダを作成して写真を自動保存</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">「完了」と入力するだけ</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div style="border:2px solid #ffcc80;border-radius:12px;overflow:hidden;margin-bottom:8px;">
+  <div style="background:#fff3e0;padding:8px 16px;display:flex;align-items:center;gap:10px;">
+    <div style="background:#f57c00;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">STEP 3</div>
+    <div style="font-weight:700;color:#e65100;font-size:13px;">出品準備・保管場所の登録</div>
+  </div>
+  <div style="background:white;padding:10px 16px;">
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <div style="flex:2;background:#fff3e0;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#e65100;margin-bottom:4px;">🤖 自動生成</div>
+        <div style="font-size:10px;color:#333;">商品情報からAIが出品タイトル・説明文・推奨価格を自動作成して表示</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">「ページ作成完了」と入力</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">棚に収納し、棚番号（例: A-12）を入力</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:2;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">🤖 自動記録</div>
+        <div style="font-size:10px;color:#333;">保管場所・担当者・作業時間を自動記録。ステータスを「出品待ち」に更新。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 手動エリア -->
+<div style="background:#fffde7;border:2px dashed #f9a825;border-radius:10px;padding:8px 14px;margin-bottom:8px;text-align:center;">
+  <div style="font-size:11px;font-weight:700;color:#e65100;margin-bottom:4px;">🖐 ここは取引プラットフォームでの手動操作（出品→落札→入金確認）</div>
+  <div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;">
+    <div style="background:white;border:1px solid #f9a825;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;color:#e65100;">出品中</div>
+    <span style="color:#f9a825;">→</span>
+    <div style="background:white;border:1px solid #f9a825;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;color:#e65100;">落札済み</div>
+    <span style="color:#f9a825;">→</span>
+    <div style="background:white;border:1px solid #f9a825;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;color:#e65100;">入金確認済み</div>
+  </div>
+</div>
+
+<!-- STEP 4 -->
+<div style="border:2px solid #ce93d8;border-radius:12px;overflow:hidden;margin-bottom:10px;">
+  <div style="background:#f3e5f5;padding:8px 16px;display:flex;align-items:center;gap:10px;">
+    <div style="background:#7b1fa2;color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">STEP 4</div>
+    <div style="font-weight:700;color:#6a1b9a;font-size:13px;">梱包・発送処理</div>
+  </div>
+  <div style="background:white;padding:10px 16px;">
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">管理番号を入力 → 梱包情報・推奨サイズを確認</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">「梱包完了」と入力 → 運送会社を番号で選択</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:1;background:#e3f2fd;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#1565c0;margin-bottom:4px;">👤 操作</div>
+        <div style="font-size:10px;color:#333;">送り状ラベルの写真を送信</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:18px;color:#bbb;">→</div>
+      <div style="flex:2;background:#e8f5e9;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#2e7d32;margin-bottom:4px;">🤖 自動処理</div>
+        <div style="font-size:10px;color:#333;">AIが追跡番号を自動読取 → 運送会社・追跡番号・出荷日を記録</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note tip">
+  <div class="nt">✅ このフロー全体を通じて、担当者がするのは「チャットへの短い入力」だけです</div>
+  記録・集計・連携・通知はすべてBotが自動で行います。
+</div>
+
+<div class="page-num">- 5 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P6 — 成果の数値化と今後の展開
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#e040fb;">
+  <div class="ph-left">
+    <div class="ph-icon" style="background:#8e24aa;color:white;">📈</div>
+    <div>
+      <div class="ph-title">導入効果と今後の展開で得られる成果</div>
+      <div class="ph-sub">今日得られる成果と、データが蓄積された先に見える可能性</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 05</div>
+</div>
+
+<!-- 即効成果 -->
+<h3>今すぐ得られる効果（導入直後）</h3>
+<div class="impact-grid" style="margin-bottom:18px;">
+  <div class="impact-card b2" style="background:#fce4ec;">
+    <div class="impact-num c2">80<span class="impact-unit">%</span></div>
+    <div class="impact-label">手入力・転記作業の削減</div>
+    <div class="impact-before">3箇所に転記 → チャット1回入力</div>
+  </div>
+  <div class="impact-card b3" style="background:#e8f5e9;">
+    <div class="impact-num c3">0<span class="impact-unit">件</span></div>
+    <div class="impact-label">転記・入力ミスの発生</div>
+    <div class="impact-before">手打ちミス多発 → 自動入力でゼロに</div>
+  </div>
+  <div class="impact-card b1" style="background:#e3f2fd;">
+    <div class="impact-num c1">全<span class="impact-unit">件</span></div>
+    <div class="impact-label">案件の進捗を即座に確認</div>
+    <div class="impact-before">口頭確認必要 → 管理ツールで即時確認</div>
+  </div>
+  <div class="impact-card b4" style="background:#fff3e0;">
+    <div class="impact-num c4">数秒<span class="impact-unit"></span></div>
+    <div class="impact-label">出品文の生成時間</div>
+    <div class="impact-before">手書き15〜30分 → AIが数秒で生成</div>
+  </div>
+  <div class="impact-card b5" style="background:#f3e5f5;">
+    <div class="impact-num c5">均<span class="impact-unit">一化</span></div>
+    <div class="impact-label">判断・アウトプットの品質</div>
+    <div class="impact-before">担当者依存 → 全員が同じ基準で判断</div>
+  </div>
+  <div class="impact-card b6" style="background:#e0f2f1;">
+    <div class="impact-num c6">蓄<span class="impact-unit">積開始</span></div>
+    <div class="impact-label">工程別の作業時間データ</div>
+    <div class="impact-before">計測不能 → 全工程を自動計測・記録</div>
+  </div>
+</div>
+
+<!-- ロードマップ -->
+<h3>データ蓄積後に開けるドア（今後の展開）</h3>
+<div class="roadmap">
+  <div class="rm-item">
+    <div class="rm-dot" style="background:#1976d2;box-shadow:0 0 0 2px #1976d2;"></div>
+    <div class="rm-phase" style="color:#1976d2;">PHASE 1 ／ 導入直後〜3ヶ月</div>
+    <div class="rm-title">業務の可視化と標準化</div>
+    <div class="rm-items">
+      <div class="rm-tag">✅ 全工程の記録が始まる</div>
+      <div class="rm-tag">✅ 進捗がリアルタイムで見える</div>
+      <div class="rm-tag">✅ 転記ミスがゼロになる</div>
+      <div class="rm-tag">✅ 担当者全員が同じ判断基準になる</div>
+      <div class="rm-tag">✅ 作業時間の計測が始まる</div>
+    </div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-dot" style="background:#7b1fa2;box-shadow:0 0 0 2px #7b1fa2;"></div>
+    <div class="rm-phase" style="color:#7b1fa2;">PHASE 2 ／ 3〜6ヶ月：コスト分析</div>
+    <div class="rm-title">「どこに時間とコストがかかっているか」が数値で分かる</div>
+    <div class="rm-items">
+      <div class="rm-tag">📊 工程別の平均作業時間が分かる</div>
+      <div class="rm-tag">📊 担当者別のスピードと品質を比較できる</div>
+      <div class="rm-tag">📊 商品カテゴリ別のコスト構造が見える</div>
+      <div class="rm-tag">📊 1件あたりの人件費を計算できる</div>
+      <div class="rm-tag">📊 ボトルネック工程を特定して改善できる</div>
+    </div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-dot" style="background:#00796b;box-shadow:0 0 0 2px #00796b;"></div>
+    <div class="rm-phase" style="color:#00796b;">PHASE 3 ／ 6ヶ月〜1年：販売データ分析</div>
+    <div class="rm-title">「何が売れるか」「いつ売れるか」の実績が蓄積される</div>
+    <div class="rm-items">
+      <div class="rm-tag">📈 チャンネル別の落札率・落札価格の実績</div>
+      <div class="rm-tag">📈 商品カテゴリ別の在庫期間の実績値</div>
+      <div class="rm-tag">📈 季節・時期による相場の変動傾向</div>
+      <div class="rm-tag">📈 AIの判定精度の実績検証ができる</div>
+      <div class="rm-tag">📈 仕入れ基準の数値化（ROI計算）</div>
+    </div>
+  </div>
+  <div class="rm-item">
+    <div class="rm-dot" style="background:#f57c00;box-shadow:0 0 0 2px #f57c00;"></div>
+    <div class="rm-phase" style="color:#f57c00;">PHASE 4 ／ 1年以降：AI精度向上と更なる自動化</div>
+    <div class="rm-title">実績データをAIに還元し、判断精度と自動化範囲を拡大</div>
+    <div class="rm-items">
+      <div class="rm-tag">🚀 在庫期間の予測精度向上（実績値ベース）</div>
+      <div class="rm-tag">🚀 最適価格の自動提案（相場データ活用）</div>
+      <div class="rm-tag">🚀 取引プラットフォームとのAPI連携・自動出品</div>
+      <div class="rm-tag">🚀 仕入れ判断のAI自動化（現場査定連携）</div>
+      <div class="rm-tag">🚀 複数拠点・複数チームへの横展開</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-num">- 6 -</div>
+</div>
+
+<!-- ════════════════════════════════════════
+     P7 — まとめ・選ばれる理由
+════════════════════════════════════════ -->
+<div class="page pb">
+<div class="ph" style="border-color:#1976d2;">
+  <div class="ph-left">
+    <div class="ph-icon ic1">🏆</div>
+    <div>
+      <div class="ph-title">なぜ「オーダーメイドのAI開発」を選ぶのか</div>
+      <div class="ph-sub">既製品ツールとの違い、実績、開発の進め方</div>
+    </div>
+  </div>
+  <div class="ph-chapter">Chapter 06</div>
+</div>
+
+<!-- 既製品 vs カスタム開発 -->
+<h3>市販の管理ツールとの違い</h3>
+<div class="compare-wrap" style="margin-bottom:18px;">
+<table class="compare-table">
+<thead>
+  <tr style="background:#1a1a1a;color:white;">
+    <th style="width:28%;text-align:left;padding:9px 14px;">比較項目</th>
+    <th style="width:36%;background:#546e7a;">📦 市販の管理ツール</th>
+    <th style="width:36%;background:#1565c0;">🤖 オーダーメイドAI開発</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="label-col">業務への適合度</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">ツールに合わせて業務を変える必要がある</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">今の業務の流れにそのまま合わせて作る</td>
+  </tr>
+  <tr>
+    <td class="label-col">チャットとの連携</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">別々のツールを切り替えながら操作</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">普段使うチャットから離れずに全操作が完結</td>
+  </tr>
+  <tr>
+    <td class="label-col">AI判定・生成</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">基本なし（別途AI契約が必要）</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">最新AIを組み込み。判定・生成・OCRをフル活用</td>
+  </tr>
+  <tr>
+    <td class="label-col">写真・OCR読取</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">対応していないか、別料金</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">ラベル・送り状のOCRを標準搭載</td>
+  </tr>
+  <tr>
+    <td class="label-col">独自の業務ルール</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">設定できる範囲に限界がある</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">独自の採点基準・判断ルール・コード体系を完全再現</td>
+  </tr>
+  <tr>
+    <td class="label-col">拡張・改修</td>
+    <td style="font-size:11px;background:#fafafa;color:#666;">ベンダーの開発スケジュールに依存</td>
+    <td style="font-size:11px;background:#f0f7ff;color:#1565c0;font-weight:600;">必要な機能を必要なタイミングで追加できる</td>
+  </tr>
+</tbody>
+</table>
+</div>
+
+<!-- 開発の進め方 -->
+<h3>開発の進め方（ステップ）</h3>
+<div class="flow-wrap">
+  <div class="flow-row">
+    <div class="flow-box" style="border-color:#90caf9;background:#e3f2fd;">
+      <div class="flow-box-icon">💬</div>
+      <div class="flow-box-title" style="color:#1565c0;">ヒアリング</div>
+      <div class="flow-box-sub">現状の業務フロー・課題・目標をお聞きします</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#a5d6a7;background:#e8f5e9;">
+      <div class="flow-box-icon">📐</div>
+      <div class="flow-box-title" style="color:#2e7d32;">設計・提案</div>
+      <div class="flow-box-sub">自動化できる箇所を図解して提案</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#ffcc80;background:#fff3e0;">
+      <div class="flow-box-icon">🔧</div>
+      <div class="flow-box-title" style="color:#e65100;">開発・テスト</div>
+      <div class="flow-box-sub">実際の業務データで動作確認しながら構築</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#ce93d8;background:#f3e5f5;">
+      <div class="flow-box-icon">🚀</div>
+      <div class="flow-box-title" style="color:#6a1b9a;">本番稼働</div>
+      <div class="flow-box-sub">現場スタッフへの操作説明とサポート</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#80cbc4;background:#e0f2f1;">
+      <div class="flow-box-icon">📈</div>
+      <div class="flow-box-title" style="color:#00695c;">改善・拡張</div>
+      <div class="flow-box-sub">稼働後のフィードバックをもとに継続改善</div>
+    </div>
+  </div>
+</div>
+
+<!-- 最後のメッセージ -->
+<div style="background:linear-gradient(135deg,#1a237e,#1565c0);border-radius:16px;padding:28px 32px;color:white;margin-top:14px;">
+  <div style="font-size:20px;font-weight:900;margin-bottom:10px;line-height:1.4;">
+    「AIに詳しくなくていい。<br>今の業務を話してくれればいい。」
+  </div>
+  <div style="font-size:12px;color:#bbdefb;line-height:1.8;margin-bottom:18px;">
+    システムの技術的なことは私たちが全部考えます。<br>
+    大切なのは「今何に困っているか」「何ができるようになりたいか」だけです。<br>
+    ヒアリングは無料。まずは30分、話を聞かせてください。
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:4px;">🆓</div>
+      <div style="font-size:11px;font-weight:700;">初回ヒアリング無料</div>
+      <div style="font-size:10px;color:#bbdefb;margin-top:2px;">課題の整理と自動化できる箇所のご説明</div>
+    </div>
+    <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:4px;">📋</div>
+      <div style="font-size:11px;font-weight:700;">稼働中の実績あり</div>
+      <div style="font-size:10px;color:#bbdefb;margin-top:2px;">この資料のシステムは現在も実稼働中</div>
+    </div>
+    <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:4px;">🔧</div>
+      <div style="font-size:11px;font-weight:700;">稼働後も継続サポート</div>
+      <div style="font-size:10px;color:#bbdefb;margin-top:2px;">機能追加・修正に柔軟に対応</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-num">- 7 -</div>
+</div>
+
+</body>
+</html>
