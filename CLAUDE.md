@@ -830,11 +830,13 @@ if user_id == ADMIN_USER_ID:  # 浅野のUserID
 | | MATOME_CHANNELS定数・get_matome_pending_from_thread・_handle_matome_choice・_complete_kakutei を新設 | 確定共通処理を切り出し・選択状態をスレッドマーカーで管理 | | |
 | 2026-03-19 | バグ修正: まとめ選択2でメッセージが2重送信される問題を修正 | _complete_kakuteiにsend_replyパラメータ追加。choice=2はsend_reply=Falseで呼び出す | Claude Code | 6edeadc |
 | 2026-03-19 | UI修正: まとめ選択待ちマーカーをメッセージ末尾に移動 | 先頭に表示されていた管理用マーカー文字列をスタッフが見て混乱しないよう末尾に移動 | Claude Code | 6a9abbf |
-| 2026-03-19 | 梱包チャンネルを旧Monday.comボード2枚に対応 | 浅野儀頼の指示による。旧ボード品（0612HK039形式）も梱包対象として検索・表示できるよう拡張 | Claude Code | （push後に記録） |
+| 2026-03-19 | 梱包チャンネルを旧Monday.comボード2枚に対応 | 浅野儀頼の指示による。旧ボード品（0612HK039形式）も梱包対象として検索・表示できるよう拡張 | Claude Code | 9cacdc5 |
 | | MONDAY_OLD_BOARD_IDS定数追加（8199048609・8199056494） | | | |
 | | get_item_from_old_boards()新設・get_item_from_monday()にフォールバック追加 | 新ボード→旧ボードの順に検索 | | |
 | | 管理番号正規表現を旧形式対応（`\d{4}[A-Z]{2}\d{3}`を追加） | 0612HK039形式を認識可能に | | |
 | | 旧ボード品は梱包情報（アイテム名・棚番）を表示、Monday.com更新はスキップ | 列構造が異なるため | | |
+| 2026-03-19 | 旧ボード品の出荷完了時に通販業務_共有コミュニティへ通知・ピン留めを追加 | 浅野儀頼の指示。旧ボードはMonday.com自動更新不可のため、@channel通知＋ピン留めで手動対応を促す | Claude Code | （push後に記録） |
+| | 通知内容：管理番号・アイテム名・運送会社・追跡番号・ボード直リンク・「出荷待ち」への変更依頼 | TSUHAN_COMMUNITY_CHANNEL_ID=C0AN99GAG2C | | |
 | 2026-03-19 | Slackアラートメッセージを全て日本語化 | 英語が読めないスタッフへの配慮。浅野儀頼の指示による | Claude Code | 4fc75a0 |
 | 2026-03-19 | /healthエンドポイントにGoogle Driveフォルダアクセス確認を追加 | フォルダアクセス障害を早期検知するため | Claude Code | abfd29b |
 | 2026-03-19 | 撮影チャンネルに「やり直し」コマンドを追加 | 撮影失敗時に全商品写真を削除して1枚目から撮り直せるようにするため。浅野儀頼の指示による | Claude Code | fe22337 |

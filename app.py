@@ -37,6 +37,7 @@ def get_monday_token():
 
 MONDAY_BOARD_ID = "18404143384"
 MONDAY_OLD_BOARD_IDS = ["8199048609", "8199056494"]  # 旧ボード（手作業登録・現在出品中の商品）
+TSUHAN_COMMUNITY_CHANNEL_ID = "C0AN99GAG2C"  # 通販業務_共有コミュニティ
 MONDAY_API_URL = "https://api.monday.com/v2"
 _monday_setup_log: list = []
 GAS_URL = os.environ.get("GAS_URL", "https://script.google.com/macros/s/AKfycbx9JpYWvi3p0HgA9Bb0RLgEjkgzbF6iJRuAX7Ks2VL3hwIEnpuTR0J1ydtxegGKRXjh/exec")
@@ -2730,7 +2731,56 @@ def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
         return ""
 
 
-def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number, is_old_board: bool = False):
+def _notify_tsuhan_community(management_number: str, item_name: str,
+                             carrier: str, tracking_number: str,
+                             monday_board_id: str) -> None:
+    """通販業務_共有コミュニティに出荷完了通知を投稿してピン留めする"""
+    token = get_slack_token()
+    if not token:
+        return
+    board_url = f"https://monday.com/boards/{monday_board_id}"
+    tracking_line = f"\n📮 追跡番号：*{tracking_number}*" if tracking_number else ""
+    text = (
+        "<!channel>\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "🚚 *出荷手配が完了しました*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"🔖 管理番号：*{management_number}*\n"
+        f"📋 アイテム名：{item_name}\n"
+        f"🏢 運送会社：{carrier}"
+        f"{tracking_line}\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "✅ *対応をお願いします*\n"
+        f"Monday.com のステータスを *「出荷待ち」* に変更してください。\n\n"
+        f"<{board_url}|📋 Monday.com ボードを開く>\n"
+        "━━━━━━━━━━━━━━━━"
+    )
+    try:
+        url = "https://slack.com/api/chat.postMessage"
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
+        resp = httpx.post(url, headers=headers, json={
+            "channel": TSUHAN_COMMUNITY_CHANNEL_ID,
+            "text": text,
+            "username": "黒田官兵衛",
+        }, timeout=10)
+        result = resp.json()
+        if not result.get("ok"):
+            print(f"[通販コミュニティ通知エラー] {result.get('error')}")
+            return
+        # ピン留め
+        msg_ts = result.get("ts")
+        if msg_ts:
+            httpx.post("https://slack.com/api/pins.add", headers=headers, json={
+                "channel": TSUHAN_COMMUNITY_CHANNEL_ID,
+                "timestamp": msg_ts,
+            }, timeout=10)
+            print(f"[通販コミュニティ通知] 投稿・ピン留め完了 ts={msg_ts}")
+    except Exception as e:
+        print(f"[通販コミュニティ通知例外] {e}")
+
+
+def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number,
+                     is_old_board: bool = False, monday_board_id: str = "", item_name: str = ""):
     """出荷手配完了の共通処理"""
     tracking_line = f"\n📮 追跡番号\n　*{tracking_number}*" if tracking_number else ""
     post_to_slack(channel_id, thread_ts,
@@ -2744,8 +2794,10 @@ def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier,
         f"{tracking_line}",
         mention_user=user_id, bot_role="konpo")
     if is_old_board:
-        # 旧ボード品はMonday.com列構造が異なるため更新をスキップ
+        # 旧ボード品はMonday.com列構造が異なるため更新をスキップ → 通販コミュニティに通知
         print(f"[旧ボード品] Monday.com更新スキップ: {management_number}")
+        _notify_tsuhan_community(management_number, item_name, carrier, tracking_number,
+                                 monday_board_id or MONDAY_BOARD_ID)
     else:
         try:
             monday_cols = {
@@ -2790,7 +2842,11 @@ def handle_konpo_channel(event: dict) -> None:
         if delayed_m:
             mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
             carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
-            _finish_shipping(channel_id, current_ts, user_id, mn, carrier_name, tracking)
+            delayed_item = get_item_from_monday(mn)
+            _finish_shipping(channel_id, current_ts, user_id, mn, carrier_name, tracking,
+                             is_old_board=delayed_item.get("is_old_board", False),
+                             monday_board_id=delayed_item.get("monday_board_id", ""),
+                             item_name=delayed_item.get("monday_name", ""))
             return
 
         # 通常の梱包開始
@@ -2831,12 +2887,14 @@ def handle_konpo_channel(event: dict) -> None:
 
         konpo_sessions[current_ts] = {
             "management_number": management_number,
-            "size": size,
-            "packed": False,
-            "carrier": None,
-            "waiting_label": False,
-            "start_time": datetime.now(),
-            "is_old_board": is_old_board,
+            "item_name":         item_data.get("monday_name", ""),
+            "size":              size,
+            "packed":            False,
+            "carrier":           None,
+            "waiting_label":     False,
+            "start_time":        datetime.now(),
+            "is_old_board":      is_old_board,
+            "monday_board_id":   item_data.get("monday_board_id", MONDAY_BOARD_ID),
         }
 
         if is_old_board:
@@ -2944,7 +3002,10 @@ def handle_konpo_channel(event: dict) -> None:
         konpo_sessions[thread_ts] = session
 
         if text == "4":  # 直接引き取り
-            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "", is_old_board=session.get("is_old_board", False))
+            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "",
+                             is_old_board=session.get("is_old_board", False),
+                             monday_board_id=session.get("monday_board_id", ""),
+                             item_name=session.get("item_name", ""))
             log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                               get_staff_code(user_id), "完了", session.get("start_time"))
             del konpo_sessions[thread_ts]
@@ -2996,7 +3057,10 @@ def handle_konpo_channel(event: dict) -> None:
                 "もう一度写真を送ってください。",
                 mention_user=user_id, bot_role="konpo")
             return
-        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number, is_old_board=session.get("is_old_board", False))
+        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number,
+                         is_old_board=session.get("is_old_board", False),
+                         monday_board_id=session.get("monday_board_id", ""),
+                         item_name=session.get("item_name", ""))
         log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                           get_staff_code(user_id), "完了", session.get("start_time"))
         del konpo_sessions[thread_ts]
