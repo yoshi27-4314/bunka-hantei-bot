@@ -647,8 +647,10 @@ STAFF_MAP = {
     "U0AL4R1EMMZ": "平野光雄",
     "U0ALKDQEC2F": "桃井侑菜",
     "U0ALV7C2EHJ": "伊藤佐和子",
+    "U0ALHCGD3U7": "横山優",
+    "U0AMXQ8JH6V": "三島圭織",
     "U0AM4HG1PRP": "奥村亜優李",
-    # 横山優 / 三島圭織 / 松本豊彦 / 北瀬孝 / 白木雄介 → UserID未確定・コメントアウト中
+    # 松本豊彦 / 北瀬孝 / 白木雄介 → UserID未確定・コメントアウト中
 }
 ```
 未登録UserIDはそのままUserIDをスタッフ名として使用する（get_staff_code）。

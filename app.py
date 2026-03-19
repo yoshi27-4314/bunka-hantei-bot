@@ -70,7 +70,7 @@ STAFF_MAP = {
     "U0ALQ4BJNSV": "林和人",
     "U0AL4R1EMMZ": "平野光雄",  # 確認済み 2026/03/18
     "U0ALHCGD3U7": "横山優",
-    # "UXXXXXXXX": "三島圭織",
+    "U0AMXQ8JH6V": "三島圭織",
     # "UXXXXXXXX": "松本豊彦",
     # "UXXXXXXXX": "北瀬孝",
     "U0ALKDQEC2F": "桃井侑菜",
