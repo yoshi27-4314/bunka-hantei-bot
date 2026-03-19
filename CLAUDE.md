@@ -229,6 +229,7 @@ Slack の #system-alert チャンネルIDを設定すること
 | ATTENDANCE_CHANNEL_ID | 出退勤チャンネルID | 未設定時はスキップ |
 | GENBA_CHANNEL_ID | 現場査定チャンネルID | 未設定時はスキップ |
 | KINTAI_CHANNEL_ID | 勤怠連絡チャンネルID | 未設定時はスキップ |
+| ATARASHII_KOE_CHANNEL_ID | 新しい声チャンネルID（浅野専用） | C0AMM3N5Z7F |
 | GOOGLE_SERVICE_ACCOUNT_JSON | Google Drive API認証情報（base64エンコード） | 未設定時はDriveスキップ |
 | GOOGLE_DRIVE_FOLDER_ID | Driveのルートフォルダ（TakeBack商品画像） | 未設定時はDriveスキップ |
 
