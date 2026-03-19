@@ -155,8 +155,18 @@
     .page { padding: 10mm 14mm; }
     .cover { page-break-after: always; }
     .page-break { page-break-before: always; }
-    h1.section { page-break-after: avoid; }
+    h1.section, h1.section-red { page-break-before: always; page-break-after: avoid; }
     h2.subsection { page-break-after: avoid; }
+    h3.item { page-break-after: avoid; }
+    .box, .box-green, .box-blue, .box-yellow, .box-red, .box-gray, .box-pink, .box-orange { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    .code-block { page-break-inside: avoid; }
+    .flow { page-break-inside: avoid; }
+    .redo-flow { page-break-inside: avoid; }
+    .two-col, .three-col { page-break-inside: avoid; }
+    .step-list li { page-break-inside: avoid; }
+    .slack-msg, .slack-staff { page-break-inside: avoid; }
+    .warn { page-break-inside: avoid; }
   }
 
   .two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -234,7 +244,7 @@
   <div style="margin: 6mm 0;">
     <span class="badge">アスカラ</span>
     <span class="badge">株式会社テイクバック</span>
-    <span class="badge">2026年3月版 V2</span>
+    <span class="badge">2026年3月版 V2.1</span>
   </div>
   <div class="welcome">
     このマニュアルは、はじめてこの仕組みを使う方でも<br>
@@ -901,6 +911,7 @@
 
 
 <!-- ======== 8. スコアの見方 ======== -->
+<div class="page-break"></div>
 <h1 class="section">8　スコアの見方</h1>
 
 <h2 class="subsection">スコアとは何か</h2>
@@ -1318,7 +1329,7 @@
 
 <!-- ======== フッター ======== -->
 <div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
-  アスカラ　株式会社テイクバック　TakeBack事業部　分荷判定 作業マニュアル V2　2026年3月20日更新
+  アスカラ　株式会社テイクバック　TakeBack事業部　分荷判定 作業マニュアル V2.1　2026年3月20日更新
 </div>
 
 </div><!-- /page -->

@@ -110,8 +110,15 @@
     .page { padding: 10mm 14mm; }
     .cover { page-break-after: always; }
     .page-break { page-break-before: always; }
-    h1.section { page-break-after: avoid; }
+    h1.section { page-break-before: always; page-break-after: avoid; }
     h2.subsection { page-break-after: avoid; }
+    .box, .box-navy, .box-yellow, .box-red, .box-gray, .box-green, .box-orange { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    .code-block { page-break-inside: avoid; }
+    .flow { page-break-inside: avoid; }
+    .two-col { page-break-inside: avoid; }
+    .step-list li { page-break-inside: avoid; }
+    .warn { page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -459,6 +466,7 @@ A-05
 
 
 <!-- 7. 困ったときは -->
+<div class="page-break"></div>
 <h1 class="section">7　困ったときは</h1>
 
 <table>
@@ -496,6 +504,10 @@ A-05
   <b>このチャンネルは「出品準備完了」の登録が目的です。</b><br>
   実際のヤフオク・eBayへの出品はMonday.comのステータスが「出品待ち」になった後、<br>
   別途手動で行います。
+</div>
+
+<div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
+  株式会社テイクバック　TakeBack事業部　出品保管 作業マニュアル　ver.1.1　2026年3月20日更新
 </div>
 
 </div>

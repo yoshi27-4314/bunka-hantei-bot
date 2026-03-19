@@ -142,8 +142,17 @@
     .page { padding: 10mm 14mm; }
     .cover { page-break-after: always; }
     .page-break { page-break-before: always; }
-    h1.section { page-break-after: avoid; }
+    h1.section { page-break-before: always; page-break-after: avoid; }
     h2.subsection { page-break-after: avoid; }
+    h3.item { page-break-after: avoid; }
+    .box, .box-navy, .box-blue, .box-yellow, .box-red, .box-gray, .box-green, .box-pink { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+    .code-block, .folder-tree { page-break-inside: avoid; }
+    .flow { page-break-inside: avoid; }
+    .two-col { page-break-inside: avoid; }
+    .step-list li { page-break-inside: avoid; }
+    .slack-msg, .slack-staff { page-break-inside: avoid; }
+    .warn { page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -270,6 +279,7 @@
 
 
 <!-- 3. セッション開始 -->
+<div class="page-break"></div>
 <h1 class="section">3　セッション開始の方法</h1>
 
 <h2 class="subsection">方法A：テプラ写真を投稿する（推奨）</h2>
@@ -725,7 +735,7 @@
 </div>
 
 <div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
-  株式会社テイクバック　TakeBack事業部　商品撮影 作業マニュアル　2026年3月版
+  株式会社テイクバック　TakeBack事業部　商品撮影 作業マニュアル　ver.1.1　2026年3月20日更新
 </div>
 
 </div>
