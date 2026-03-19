@@ -79,6 +79,14 @@ STAFF_MAP = {
     "U0AM4HG1PRP": "奥村亜優李",
 }
 
+# 出品担当マーク（ヤフオクタイトル先頭に付与。担当業務上不要な人は含めない）
+STAFF_LISTING_MARKS = {
+    "林和人":     "〇",
+    "横山優":     "▽",
+    "奥村亜優李": "☆",
+    "桃井侑菜":  "◎",
+}
+
 
 def get_staff_code(user_id: str) -> str:
     """Slack UserIDからスタッフコードを返す。未登録の場合はUserIDをそのまま返す"""
@@ -2293,6 +2301,16 @@ LISTING_COMMANDS = {
     "サイズ":    "size",
 }
 
+# ロケーション番号のバリデーションパターン
+LOCATION_PATTERN = re.compile(
+    r'^('
+    r'[A-Za-z]-?\d{1,3}(\s?[A-Za-z横奥])?'   # A-12, A12, B2 x, A2横
+    r'|倉庫[外奥]?'                              # 倉庫, 倉庫外, 倉庫奥
+    r'|\d{1,2}[階F]'                             # 2階, 1F
+    r')$',
+    re.IGNORECASE
+)
+
 
 def parse_listing_command(text: str):
     """出品データ修正コマンドを解析して (field, value) を返す"""
@@ -2369,34 +2387,149 @@ def get_item_from_old_boards(management_number: str) -> dict:
     return {}
 
 
-def generate_listing_content(management_number: str, item_data: dict) -> dict:
+# アカウント別タイトル・説明文ルール
+LISTING_RULES = {
+    "ヤフオクヴィンテージ": {
+        "brand_tag": "古道具と器のライノトリ",
+        "title_style": (
+            "古道具専門店のタイトルスタイルで作成。\n"
+            "構造: [商品名]◇[タグ1]｜[タグ2]｜...｜古道具と器のライノトリ\n"
+            "・商品名は素材＋品名を簡潔に（例:「南部鉄器 岩鋳 鉄瓶」）\n"
+            "・◇の後に検索用タグを｜区切りで列挙（寸法｜在銘｜素材｜用途｜時代）\n"
+            "・末尾は必ず「古道具と器のライノトリ」で締める\n"
+            "・ペルソナ：30歳女性。暮らし・インテリアとしての魅力が伝わるタグ選び"
+        ),
+        "desc_style": (
+            "古道具店の商品説明スタイルで作成。\n"
+            "・簡潔で品のある文体。余計な装飾語は不要\n"
+            "・構成：商品概要→状態詳細→サイズ→用途提案\n"
+            "・経年変化はポジティブに表現（味わい・風合い）\n"
+            "・インテリアとしての活用提案を一言添える\n"
+            "・ペルソナ：30歳女性の暮らしに馴染む提案を意識"
+        ),
+        "price_style": "値ごろ感のあるスタート価格。入札1〜3件で落札される想定。予想販売価格の80〜100%程度。",
+    },
+    "ヤフオク現行": {
+        "brand_tag": "",
+        "title_style": (
+            "中古品販売のタイトルスタイルで作成。\n"
+            "構造: [商品名]◇[タグ1]｜[タグ2]｜...\n"
+            "・メーカー名＋品名＋型番を先頭に。検索されやすさ最優先\n"
+            "・◇の後に状態｜付属品｜動作確認結果を｜区切りで列挙\n"
+            "・スペック重視。感性的な表現より正確な情報"
+        ),
+        "desc_style": (
+            "中古品の商品説明スタイルで作成。\n"
+            "・メーカー・型番・スペックを明記\n"
+            "・動作確認結果を具体的に\n"
+            "・傷や汚れは場所と程度を正直に記載\n"
+            "・付属品の有無を明記"
+        ),
+        "price_style": "値ごろ感のあるスタート価格。入札1〜3件で落札される想定。予想販売価格の80〜100%程度。",
+    },
+    "ヤフオクまとめ": {
+        "brand_tag": "",
+        "title_style": (
+            "まとめ売りのタイトルスタイルで作成。\n"
+            "構造: [点数]点まとめ [代表商品名]◇[タグ1]｜[タグ2]｜...\n"
+            "・点数を先頭に明記\n"
+            "・代表的な商品名で内容が想像できるように\n"
+            "・「まとめ」「セット」「大量」等のキーワードを含める"
+        ),
+        "desc_style": (
+            "まとめ売りの商品説明スタイルで作成。\n"
+            "・全体の点数と内訳を箇条書き\n"
+            "・代表的な商品の状態を記載\n"
+            "・1点あたりの単価のお得感を伝える"
+        ),
+        "price_style": "まとめ売りとしてお得感のあるスタート価格。1点あたり単価が安く見える設定。",
+    },
+}
+# デフォルト（上記以外のチャンネル）
+LISTING_RULES_DEFAULT = {
+    "brand_tag": "",
+    "title_style": (
+        "ヤフオク出品タイトルを作成。\n"
+        "構造: [商品名]◇[タグ1]｜[タグ2]｜...\n"
+        "・商品名＋メーカー＋型番を先頭に\n"
+        "・◇の後に検索用タグを｜区切りで列挙"
+    ),
+    "desc_style": (
+        "ヤフオク商品説明文を作成。\n"
+        "・商品の特徴・状態・付属品を簡潔に記載"
+    ),
+    "price_style": "値ごろ感のあるスタート価格。入札1〜3件で落札される想定。",
+}
+
+
+def generate_listing_content(management_number: str, item_data: dict, max_title_len: int = 65) -> dict:
     """Claudeでヤフオク出品タイトル・説明文・価格を生成する"""
     import re
     client = get_anthropic_client()
     if not client:
         return {}
+
+    item_name = item_data.get("item_name", "") or item_data.get("monday_name", "")
+    maker = item_data.get("maker", "")
+    model_number = item_data.get("model_number", "")
+    condition = item_data.get("condition", "")
+    channel = item_data.get("hantei_channel", "")
+    price = item_data.get("yosou_kakaku", "")
+    period = item_data.get("zaiko_kikan", "")
+    kw = item_data.get("internal_keyword", "")
+
+    # アカウント別ルールを取得
+    rules = LISTING_RULES.get(channel, LISTING_RULES_DEFAULT)
+    brand_tag = rules["brand_tag"]
+
+    # ブランドタグ分の文字数を確保
+    if brand_tag:
+        tag_suffix = f"｜{brand_tag}"
+        effective_title_len = max_title_len - len(tag_suffix)
+    else:
+        tag_suffix = ""
+        effective_title_len = max_title_len
+
     prompt = (
-        f"以下の商品情報をもとに、ヤフオクの出品データをJSON形式で作成してください。\n\n"
-        f"管理番号：{management_number}\n"
-        f"販売チャンネル：{item_data.get('hantei_channel', '')}\n"
-        f"予想販売価格：{item_data.get('yosou_kakaku', '')}\n"
-        f"在庫予測期間：{item_data.get('zaiko_kikan', '')}\n"
-        f"内部KW：{item_data.get('internal_keyword', '')}\n\n"
-        "以下のJSON形式のみで返してください（説明文不要）：\n"
-        '{"title":"出品タイトル（40文字以内）",'
-        '"description":"商品説明文（200〜400文字）",'
-        '"start_price":開始価格の数字}'
+        f"あなたはヤフオク出品のプロです。以下の商品情報をもとに出品データを作成してください。\n\n"
+        f"【商品情報】\n"
+        f"アイテム名：{item_name}\n"
+        f"メーカー/ブランド：{maker}\n"
+        f"品番/型式：{model_number}\n"
+        f"商品状態：{condition}\n"
+        f"販売チャンネル：{channel}\n"
+        f"予想販売価格：{price}\n"
+        f"内部KW：{kw}\n\n"
+        f"【タイトルのルール】\n"
+        f"{rules['title_style']}\n"
+        f"・タイトル本文は{effective_title_len}文字以内（末尾にシステムが自動付与するタグがあるため）\n"
+        f"・区切り記号は ◇（本文と詳細の間）と ｜（全角パイプ、詳細タグ間）のみ使用\n"
+        f"・/（スラッシュ）や_（アンダーバー）は使わない\n\n"
+        f"【説明文のルール】\n"
+        f"{rules['desc_style']}\n"
+        f"・600〜1000文字程度\n"
+        f"・サイズは「未計測」と記載\n\n"
+        f"【価格のルール】\n"
+        f"{rules['price_style']}\n\n"
+        f"以下のJSON形式のみで返してください（前置き不要）：\n"
+        f'{{"title":"タイトル本文（{effective_title_len}文字以内）",'
+        f'"description":"商品説明文",'
+        f'"start_price":開始価格の数字}}'
     )
     try:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=600,
+            max_tokens=1200,
             messages=[{"role": "user", "content": prompt}]
         )
         text = response.content[0].text.strip()
         m = re.search(r'\{.*\}', text, re.DOTALL)
         if m:
-            return json.loads(m.group(0))
+            result = json.loads(m.group(0))
+            # ブランドタグを自動付与
+            if brand_tag and result.get("title"):
+                result["title"] = result["title"][:effective_title_len] + tag_suffix
+            return result
     except Exception as e:
         print(f"[出品コンテンツ生成エラー] {e}")
     return {}
@@ -2552,20 +2685,30 @@ def handle_shuppinon_channel(event: dict) -> None:
                 bot_role="shuppinon")
             return
 
+        # 担当マーク判定（タイトル先頭に付与）
+        staff_name = get_staff_code(user_id)
+        staff_mark = STAFF_LISTING_MARKS.get(staff_name, "")
+        mark_prefix = f"{staff_mark} " if staff_mark else ""
+        max_title_len = 65 - len(mark_prefix)
+
         # Claudeで出品コンテンツ生成
         post_to_slack(channel_id, current_ts, "⏳ 出品データを生成中...", bot_role="shuppinon")
-        listing = generate_listing_content(management_number, item_data)
+        listing = generate_listing_content(management_number, item_data, max_title_len=max_title_len)
 
         # 梱包サイズを内部KWから推定（例: /S80/ → 80）
         kw = item_data.get("internal_keyword", "")
         size_m = re.search(r'/[A-Z]+(\d+)/', kw)
         size = size_m.group(1) if size_m else ""
 
+        # タイトルにマークを付与
+        raw_title = listing.get("title", management_number)
+        title_with_mark = mark_prefix + raw_title[:max_title_len]
+
         session = {
             "management_number": management_number,
-            "title":       listing.get("title", management_number),
+            "title":       title_with_mark,
             "description": listing.get("description", ""),
-            "condition":   item_data.get("kakushin_do", ""),
+            "condition":   item_data.get("condition", ""),
             "start_price": listing.get("start_price", 0),
             "buyout_price": listing.get("buyout_price", 0),
             "size":        size,
@@ -2666,12 +2809,21 @@ def handle_shuppinon_channel(event: dict) -> None:
         post_listing_summary(channel_id, thread_ts, session, mention_user=user_id)
         return
 
-    # ロケーション番号（修正コマンド以外のすべてのテキスト）→ 出品確定
+    # ロケーション番号（バリデーション付き）→ 出品確定
     if text:
-        execute_listing(session, text, channel_id, thread_ts, user_id)
-        log_work_activity(CHANNEL_NAMES["shuppinon"], session["management_number"],
-                          get_staff_code(user_id), "完了", session.get("start_time"))
-        del listing_sessions[thread_ts]
+        if LOCATION_PATTERN.match(text):
+            execute_listing(session, text, channel_id, thread_ts, user_id)
+            log_work_activity(CHANNEL_NAMES["shuppinon"], session["management_number"],
+                              get_staff_code(user_id), "完了", session.get("start_time"))
+            del listing_sessions[thread_ts]
+        else:
+            post_to_slack(channel_id, thread_ts,
+                "⚠️ ロケーション番号の形式を確認してください。\n\n"
+                "入力例：\n"
+                "　`A-12`　`B3`　`倉庫外`　`2階`\n\n"
+                "修正コマンド：\n"
+                "　`タイトル：` `開始価格：` `説明文：` `サイズ：`",
+                bot_role="shuppinon")
 
 
 # ── 梱包出荷チャンネル（黒田官兵衛）────────────────────

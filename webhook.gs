@@ -321,7 +321,7 @@ function _handleShuppinon(payload) {
   if (payload.start_price) _updateListingCell(kanriNo, '開始価格',                 String(payload.start_price));
   if (payload.size)        _updateListingCell(kanriNo, '発送サイズ',               String(payload.size));
   if (payload.location)    _updateListingCell(kanriNo, '保管ロケーション',          String(payload.location));
-  _updateListingCell(kanriNo, '出品ステータス', '出品中');
+  _updateListingCell(kanriNo, '出品ステータス', '出品待ち');
   _updateListingCell(kanriNo, '出品日時',       new Date().toLocaleString('ja-JP'));
   return { ok: true };
 }
