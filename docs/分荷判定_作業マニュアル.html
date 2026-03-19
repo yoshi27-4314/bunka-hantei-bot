@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>分荷判定 作業マニュアル｜TakeBack事業部</title>
+<title>分荷判定 作業マニュアル V2｜TakeBack事業部</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -55,6 +55,10 @@
     font-size: 15pt; color: #fff; background: #1a3a2a;
     padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
   }
+  h1.section-red {
+    font-size: 15pt; color: #fff; background: #c0392b;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
   h2.subsection {
     font-size: 12pt; color: #1a3a2a; border-left: 5px solid #1a3a2a;
     padding: 4px 12px; margin: 6mm 0 3mm; background: #f0f5f2;
@@ -80,6 +84,7 @@
   .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
   .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
   .box-pink   { background: #fef0f6; border-color: #e91e8c; }
+  .box-orange { background: #fef5e7; border-color: #e67e22; border-width: 2px; }
 
   /* フロー図 */
   .flow { display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: stretch; }
@@ -139,6 +144,7 @@
   .note { font-size: 9pt; color: #666; margin: 2mm 0; padding: 6px 10px; background: #f9f9f9; border-left: 3px solid #bdc3c7; border-radius: 0 4px 4px 0; }
   .important { font-size: 10pt; color: #c0392b; font-weight: bold; }
   .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
+  .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 3mm 0; }
 
   /* 改ページ */
   .page-break { page-break-before: always; }
@@ -201,6 +207,20 @@
   }
   .chat-label-staff { font-size: 8pt; color: #2980b9; margin-top: 6px; margin-left: 30px; }
   .chat-label-ai    { font-size: 8pt; color: #1a3a2a; margin-top: 6px; text-align: right; margin-right: 30px; }
+
+  /* やり直しフロー */
+  .redo-flow {
+    display: flex; flex-wrap: wrap; gap: 0; margin: 4mm 0; align-items: stretch;
+  }
+  .redo-step {
+    flex: 1; min-width: 80px; text-align: center; padding: 10px 6px;
+    font-size: 9pt; font-weight: bold; position: relative; border-radius: 4px; margin: 2px;
+  }
+  .redo-step.cancel { background: #e74c3c; color: #fff; }
+  .redo-step.redo   { background: #f39c12; color: #fff; }
+  .redo-step.confirm { background: #27ae60; color: #fff; }
+  .redo-step .redo-label { font-size: 8pt; opacity: 0.9; display: block; margin-top: 2px; }
+  .redo-arrow { color: #666; font-size: 16pt; display: flex; align-items: center; padding: 0 2px; }
 </style>
 </head>
 <body>
@@ -214,7 +234,7 @@
   <div style="margin: 6mm 0;">
     <span class="badge">アスカラ</span>
     <span class="badge">株式会社テイクバック</span>
-    <span class="badge">2026年3月版</span>
+    <span class="badge">2026年3月版 V2</span>
   </div>
   <div class="welcome">
     このマニュアルは、はじめてこの仕組みを使う方でも<br>
@@ -231,13 +251,15 @@
     <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>この仕組みの目的</b>　─ 何のためにあるか、あなたの仕事との関係</td></tr>
     <tr><td style="color:#888; font-weight:bold;">2</td><td><b>販売チャンネルとは何か</b>　─ 9種類の販路とその違い</td></tr>
     <tr><td style="color:#888; font-weight:bold;">3</td><td><b>分荷作業の流れ（8ステップ）</b>　─ 商品を受け取ってから確定するまで</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>コマンド一覧</b>　─ 確定・キャンセル・再判定・保留・在庫検索・相談モード</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>管理番号について</b>　─ 番号の読み方・発行ルール</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>状態ランクの判断基準</b>　─ S / A / B / C / D の見分け方</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>スコアの見方</b>　─ 数値が示す意味</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">8</td><td><b>自動で記録されること</b>　─ 確定後に何が起きるか</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">9</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">10</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>まとめ売りチャンネルの確定手順</b>　─ ヤフオクまとめ・eBayまとめ・ロット販売の場合</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>コマンド一覧</b>　─ 確定・キャンセル・再判定・保留・在庫検索・相談モード</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>管理番号について</b>　─ 番号の読み方・発行ルール</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>状態ランクの判断基準</b>　─ S / A / B / C / D の見分け方</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">8</td><td><b>スコアの見方</b>　─ 数値が示す意味</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">9</td><td><b>自動で記録されること</b>　─ 確定後に何が起きるか</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">10</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
+    <tr><td style="color:#c0392b; font-weight:bold;">11</td><td><b style="color:#c0392b;">間違えたときの対処方法</b>　─ キャンセル・やり直しの手順</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">12</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
   </table>
 </div>
 
@@ -422,7 +444,8 @@
 <div class="box box-yellow" style="margin-top:4px;">
   <b>⚠️ 「スレッドに返信」とは？</b><br>
   AIのメッセージの右側に出る「返信」をクリックして、そのメッセージに対して返信することです。<br>
-  新しいメッセージとして投稿すると、AIはコマンドと認識できません。
+  新しいメッセージとして投稿すると、AIはコマンドと認識できません。<br><br>
+  <b>スマートフォンの場合：</b>メッセージを長押し → 「スレッドで返信」をタップします。
 </div>
 
 <h2 class="subsection">ステップ4〜5　AIが状態確認を依頼する（通販チャンネル候補のみ）</h2>
@@ -537,30 +560,99 @@
       <li>推奨目標価格¥30,000以上の場合 → 責任者に自動通知</li>
     </ul>
   </div>
-  <div class="box box-yellow" style="margin-top:6px;">
-    <b>確定後のAI返信イメージ（通販チャンネルの場合）：</b>
-    <div class="code-block" style="margin-top:6px;">よかろう。
 
-━━━━━━━━━━━━━━━━
-✅ 確定完了
-━━━━━━━━━━━━━━━━
-
-📌 確定チャンネル
-　ヤフオク現行
-
-🔖 管理番号
-　2603-0001
-
-📋 スプレッドシート・Monday.com
-　転記完了じゃ。
-━━━━━━━━━━━━━━━━</div>
+  <div class="box box-orange" style="margin-top:6px;">
+    <b>📦 まとめ売りチャンネルの場合は追加の選択画面が出ます</b><br>
+    「ヤフオクまとめ」「eBayまとめ」「ロット販売」で確定した場合は、すぐに確定されず<b>3択の選択画面</b>が表示されます。<br>
+    → 詳しくは次のセクション「4. まとめ売りチャンネルの確定手順」を参照してください。
   </div>
 </div>
 
 
-<!-- ======== 4. コマンド一覧 ======== -->
+<!-- ======== 4. まとめ売りチャンネルの確定手順 ======== -->
 <div class="page-break"></div>
-<h1 class="section">4　コマンド一覧</h1>
+<h1 class="section-red">4　まとめ売りチャンネルの確定手順</h1>
+
+<div class="box box-red" style="margin-bottom:5mm;">
+  <b>⚠️ このセクションは特に重要です。必ず読んでください。</b><br>
+  まとめ売りチャンネル（ヤフオクまとめ・eBayまとめ・ロット販売）では、<br>
+  確定時に <b>追加の選択画面</b> が表示されます。ここで正しい選択をしないと、やり直しが必要になります。
+</div>
+
+<h2 class="subsection">対象となるチャンネル</h2>
+<div style="margin:4mm 0 2mm;">
+  <span class="channel-badge" style="border-color:#c0392b; color:#c0392b; background:#fdf2f2;">ヤフオクまとめ</span>
+  <span class="channel-badge" style="border-color:#c0392b; color:#c0392b; background:#fdf2f2;">eBayまとめ</span>
+  <span class="channel-badge" style="border-color:#c0392b; color:#c0392b; background:#fdf2f2;">ロット販売</span>
+</div>
+
+<h2 class="subsection">なぜ特別な手順があるのか</h2>
+<div class="box box-blue">
+  まとめ売りチャンネルの商品は、<b>1個ずつ管理番号を発行して売るケース</b>と、<b>他の同種商品と合わせてまとめ保管するケース</b>の2通りがあります。<br><br>
+  ほとんどの場合は「まとめ保管」です。管理番号の発行は、浅野から特別な指示があった場合のみ選びます。
+</div>
+
+<h2 class="subsection">3択画面の見方と選び方</h2>
+
+<p>まとめ売りチャンネルで <code>第一</code>（または <code>第二</code>）を入力すると、以下の画面が表示されます：</p>
+
+<div class="code-block" style="margin-top:4mm;">━━━━━━━━━━━━━━━━
+📦 ヤフオクまとめ（まとめ売り）が選択されました
+━━━━━━━━━━━━━━━━
+
+どちらで進めますか？
+
+1️⃣  まとめ保管する（管理番号なし）← ほとんどの場合はこちら
+
+2️⃣  個別に管理番号を発行して確定する
+
+3️⃣  保留にして浅野に相談する
+
+`1` `2` `3` のいずれかを返信してください。</div>
+
+<div style="margin-top:5mm;">
+  <table>
+    <tr>
+      <th style="width:15%; text-align:center;">選択肢</th>
+      <th style="width:35%;">意味</th>
+      <th>いつ選ぶか</th>
+    </tr>
+    <tr>
+      <td style="text-align:center; font-size:16pt; font-weight:bold; background:#eafaf1; color:#27ae60;">1</td>
+      <td><b>まとめ保管</b>（管理番号なし）</td>
+      <td><b>ほとんどの場合はこれを選びます。</b><br>同カテゴリの商品がまとまったら、後日一括で管理番号を発行して出品します。</td>
+    </tr>
+    <tr>
+      <td style="text-align:center; font-size:16pt; font-weight:bold;">2</td>
+      <td>個別に管理番号を発行して確定</td>
+      <td>浅野から「この商品は個別で管理番号をつけて」と指示があった場合のみ。<br><b>自己判断で選ばないでください。</b></td>
+    </tr>
+    <tr>
+      <td style="text-align:center; font-size:16pt; font-weight:bold;">3</td>
+      <td>保留にして浅野に相談</td>
+      <td>「これまとめでいいのかな？」と迷ったときに選びます。浅野に通知が届きます。</td>
+    </tr>
+  </table>
+</div>
+
+<div class="warn" style="margin-top:5mm;">
+  <b>⚠️ 迷ったら <code>1</code> を選んでください。</b><br>
+  <code>2</code>（管理番号発行）を間違えて選ぶと、不要な管理番号が発行されてしまい、キャンセル→やり直しの手間が発生します。
+</div>
+
+<h2 class="subsection">まとめ保管を選んだ場合の画面</h2>
+<div class="code-block">━━━━━━━━━━━━━━━━
+📦 まとめ保管として記録しました
+━━━━━━━━━━━━━━━━
+
+同カテゴリのまとめ対象商品と一緒に保管してください。
+まとめ販売が決まった時点で改めて管理番号を発行します。</div>
+<div class="hint">💡 これで完了です。管理番号は発行されず、スプレッドシートにまとめ保管として記録されます。</div>
+
+
+<!-- ======== 5. コマンド一覧 ======== -->
+<div class="page-break"></div>
+<h1 class="section">5　コマンド一覧</h1>
 
 <div class="box box-red" style="margin-bottom:4mm;">
   <b>⚠️ 最重要ルール：確定・再判定・保留・キャンセルは必ず「スレッド内」で入力してください。</b><br>
@@ -667,15 +759,16 @@
 </div>
 
 
-<!-- ======== 5. 管理番号 ======== -->
+<!-- ======== 6. 管理番号 ======== -->
 <div class="page-break"></div>
-<h1 class="section">5　管理番号について</h1>
+<h1 class="section">6　管理番号について</h1>
 
 <h2 class="subsection">管理番号とは何か</h2>
 <div class="box box-green">
   管理番号は、通販チャンネルに確定した商品に自動で発行される<b>個別の識別番号</b>です。<br>
   この番号を使って、撮影・出品・梱包・出荷の各工程で商品を追跡・管理します。<br><br>
-  <b>非通販チャンネル（ロット販売・社内利用・スクラップ・廃棄）には発行されません。</b>
+  <b>非通販チャンネル（ロット販売・社内利用・スクラップ・廃棄）には発行されません。</b><br>
+  <b>まとめ保管（3択で「1」を選んだ場合）にも発行されません。</b>
 </div>
 
 <h2 class="subsection">管理番号のフォーマット</h2>
@@ -712,32 +805,29 @@
 <h2 class="subsection">発行ルールまとめ</h2>
 <div class="two-col">
   <div class="box box-blue">
-    <b>管理番号が発行されるチャンネル</b>
+    <b>管理番号が発行されるケース</b>
     <ul class="check-list" style="margin-top:6px;">
-      <li>eBayシングル</li>
-      <li>eBayまとめ</li>
-      <li>ヤフオクヴィンテージ</li>
-      <li>ヤフオク現行</li>
-      <li>ヤフオクまとめ</li>
+      <li>eBayシングルで確定</li>
+      <li>ヤフオクヴィンテージで確定</li>
+      <li>ヤフオク現行で確定</li>
+      <li>まとめ系で「2」（個別発行）を選択</li>
     </ul>
     <div class="note" style="margin-top:4px;">形式：<code>YYMM-連番4桁</code>（例：<code>2603-0001</code>）</div>
   </div>
   <div class="box box-gray">
-    <b>管理番号が発行されないチャンネル</b>
+    <b>管理番号が発行されないケース</b>
     <ul class="check-list" style="margin-top:6px;">
-      <li>ロット販売</li>
-      <li>社内利用</li>
-      <li>スクラップ</li>
-      <li>廃棄</li>
+      <li>ロット販売・社内利用・スクラップ・廃棄</li>
+      <li>まとめ系で「1」（まとめ保管）を選択</li>
     </ul>
     <div class="note" style="margin-top:4px;">データベースには記録されます。</div>
   </div>
 </div>
 
 
-<!-- ======== 6. 状態ランク ======== -->
+<!-- ======== 7. 状態ランク ======== -->
 <div class="page-break"></div>
-<h1 class="section">6　状態ランクの判断基準</h1>
+<h1 class="section">7　状態ランクの判断基準</h1>
 
 <div class="box box-yellow" style="margin-bottom:4mm;">
   <b>状態ランクは「購入者が受け取ったときにどう感じるか」を基準に判断します。</b><br>
@@ -810,8 +900,8 @@
 </div>
 
 
-<!-- ======== 7. スコアの見方 ======== -->
-<h1 class="section">7　スコアの見方</h1>
+<!-- ======== 8. スコアの見方 ======== -->
+<h1 class="section">8　スコアの見方</h1>
 
 <h2 class="subsection">スコアとは何か</h2>
 <div class="box box-green">
@@ -871,9 +961,9 @@
 </div>
 
 
-<!-- ======== 8. 自動記録 ======== -->
+<!-- ======== 9. 自動記録 ======== -->
 <div class="page-break"></div>
-<h1 class="section">8　自動で記録されること</h1>
+<h1 class="section">9　自動で記録されること</h1>
 
 <h2 class="subsection">確定すると何が起こるか</h2>
 <div class="box box-green">
@@ -915,9 +1005,9 @@
 </div>
 
 
-<!-- ======== 9. 操作例 ======== -->
+<!-- ======== 10. 操作例 ======== -->
 <div class="page-break"></div>
-<h1 class="section">9　よくある操作例</h1>
+<h1 class="section">10　よくある操作例</h1>
 
 <h2 class="subsection">例1：写真を投稿して第一候補で確定する（基本パターン）</h2>
 <div class="box">
@@ -945,7 +1035,7 @@
     </tr>
     <tr>
       <td style="background:#f0f5f2; text-align:center;">AI</td>
-      <td>📦 分荷判定結果（第一候補：ヤフオク現行 / スコア：68点 / 予想価格：¥8,000〜¥12,000 / 推奨目標：¥10,000 / 期待ROI：約42%）</td>
+      <td>📦 分荷判定結果（第一候補：ヤフオク現行 / スコア：68点 / 予想価格：¥8,000〜¥12,000）</td>
     </tr>
     <tr>
       <td style="background:#eaf2fb; text-align:center;">スタッフ</td>
@@ -972,41 +1062,45 @@
   <div class="hint" style="margin-top:4px;">💡 AIが違う商品を認識しても、正しく教えれば自動で修正されます。遠慮なく訂正してください。</div>
 </div>
 
-<h2 class="subsection">例3：第二候補で確定する</h2>
-<div class="box">
+<h2 class="subsection">例3：まとめ売りチャンネルで確定する（まとめ保管パターン）</h2>
+<div class="box box-orange">
   <table>
     <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
-    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>判定結果（第一候補：ヤフオク現行 / 第二候補：ヤフオクまとめ）</td></tr>
-    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>第二</code> または <code>ヤフオクまとめ</code>（← スレッド返信）</td></tr>
-    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>✅ 確定完了</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>判定結果（第一候補：ヤフオクまとめ / 第二候補：ロット販売）</td></tr>
+    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>第一</code>（← スレッド返信）</td></tr>
+    <tr>
+      <td style="background:#f0f5f2; text-align:center;">AI</td>
+      <td>📦 <b>ヤフオクまとめ（まとめ売り）</b>が選択されました<br>
+        1️⃣ まとめ保管する（管理番号なし）← ほとんどの場合はこちら<br>
+        2️⃣ 個別に管理番号を発行して確定する<br>
+        3️⃣ 保留にして浅野に相談する
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#eaf2fb; text-align:center;"><b>スタッフ</b></td>
+      <td><code>1</code>（← <b>まとめ保管を選択</b>）</td>
+    </tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 まとめ保管として記録しました</td></tr>
   </table>
+  <div class="warn" style="margin-top:4px;">
+    <b>⚠️ ここで <code>2</code> を選ぶと管理番号が発行されます。通常は <code>1</code> を選んでください。</b>
+  </div>
 </div>
 
-<h2 class="subsection">例4：確定後に間違いに気づいてキャンセルする</h2>
-<div class="box">
-  <table>
-    <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
-    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>キャンセル</code>（← 確定後のスレッドに返信）</td></tr>
-    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>🗑️ 取り消し完了 / データベースにキャンセルとして記録</td></tr>
-    <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td>改めて商品情報を新規投稿して、再度判定・確定</td></tr>
-  </table>
-  <div class="hint" style="margin-top:4px;">💡 間違いに気づいたら必ずキャンセルして再確定してください。記録の正確さが大切です。</div>
-</div>
-
-<h2 class="subsection">例5：非通販チャンネルへの確定（状態確認なし）</h2>
+<h2 class="subsection">例4：非通販チャンネルへの確定（状態確認なし）</h2>
 <div class="box">
   <table>
     <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
     <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td>写真を投稿</td></tr>
     <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>「〇〇の商品と見たが、合っておるか？」</td></tr>
     <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>はい</code></td></tr>
-    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 分荷判定結果（第一候補：ロット販売）← 状態確認は省略される</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 分荷判定結果（第一候補：スクラップ）← 状態確認は省略される</td></tr>
     <tr><td style="background:#eaf2fb; text-align:center;">スタッフ</td><td><code>第一</code></td></tr>
     <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>✅ 確定完了 ／ スプレッドシートへ転記完了（管理番号は発行されない）</td></tr>
   </table>
 </div>
 
-<h2 class="subsection">例6：在庫を検索する</h2>
+<h2 class="subsection">例5：在庫を検索する</h2>
 <div class="box">
   <table>
     <tr><th style="width:80px;">誰が</th><th>メッセージ内容</th></tr>
@@ -1016,9 +1110,95 @@
 </div>
 
 
-<!-- ======== 10. 困ったとき ======== -->
+<!-- ======== 11. 間違えたときの対処方法 ======== -->
 <div class="page-break"></div>
-<h1 class="section">10　困ったときは</h1>
+<h1 class="section-red">11　間違えたときの対処方法</h1>
+
+<div class="box box-red" style="margin-bottom:5mm;">
+  <b>間違いは誰にでも起こります。大事なのは、すぐに正しい手順でやり直すことです。</b><br>
+  以下の手順に従えば、自分ひとりでやり直しができます。
+</div>
+
+<h2 class="subsection">やり直しの全体フロー</h2>
+<div class="redo-flow">
+  <div class="redo-step cancel">削除<span class="redo-label">キャンセルする</span></div>
+  <div class="redo-arrow">→</div>
+  <div class="redo-step redo">再判定<span class="redo-label">もう一度判定</span></div>
+  <div class="redo-arrow">→</div>
+  <div class="redo-step confirm">第一 / 第二<span class="redo-label">正しく確定</span></div>
+</div>
+
+<h2 class="subsection">ケース1：確定するチャンネルを間違えた</h2>
+<div class="box">
+  <p><b>例：</b>ヤフオク現行で確定すべきだったのに、ヤフオクヴィンテージで確定してしまった</p>
+  <table style="margin-top:6px;">
+    <tr><th style="width:80px;">誰が</th><th>操作</th></tr>
+    <tr><td style="background:#fdf2f2; text-align:center;">スタッフ</td><td>スレッドに <code>削除</code> と入力</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>❌ キャンセルしました（管理番号がキャンセルされる）</td></tr>
+    <tr><td style="background:#fefde7; text-align:center;">スタッフ</td><td>同じスレッドに <code>再判定</code> と入力</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 新しい判定結果が表示される</td></tr>
+    <tr><td style="background:#eafaf1; text-align:center;">スタッフ</td><td>正しいチャンネルで確定（例：<code>確定/ヤフオク現行</code>）</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>✅ 確定完了（新しい管理番号が発行される）</td></tr>
+  </table>
+</div>
+
+<h2 class="subsection">ケース2：まとめ売りで管理番号を発行してしまった</h2>
+<div class="box box-orange">
+  <p><b>例：</b>ヤフオクまとめで「まとめ保管」にすべきだったのに、「個別発行」を選んでしまった</p>
+  <table style="margin-top:6px;">
+    <tr><th style="width:80px;">誰が</th><th>操作</th></tr>
+    <tr><td style="background:#fdf2f2; text-align:center;">スタッフ</td><td>スレッドに <code>削除</code> と入力</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>❌ キャンセルしました</td></tr>
+    <tr><td style="background:#fefde7; text-align:center;">スタッフ</td><td>同じスレッドに <code>再判定</code> と入力</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 新しい判定結果が表示される</td></tr>
+    <tr><td style="background:#eafaf1; text-align:center;">スタッフ</td><td><code>第一</code>（ヤフオクまとめを選択）</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 3択画面が表示される</td></tr>
+    <tr><td style="background:#eafaf1; text-align:center;"><b>スタッフ</b></td><td><code>1</code>（← <b>今度は「まとめ保管」を選ぶ</b>）</td></tr>
+    <tr><td style="background:#f0f5f2; text-align:center;">AI</td><td>📦 まとめ保管として記録しました</td></tr>
+  </table>
+</div>
+
+<h2 class="subsection">ケース3：まだ確定していない段階で間違えた</h2>
+<div class="box">
+  <p><b>例：</b>状態ランクを間違えて入力した / 商品名の確認で「はい」と言ったが実は違った</p>
+  <div class="box box-green" style="margin-top:6px;">
+    <b>確定前なら、<code>再判定</code> だけでOKです。</b><br>
+    <code>削除</code> は不要です。<code>再判定</code> と入力すれば、最初からやり直せます。
+  </div>
+</div>
+
+<h2 class="subsection">やり直し時の注意点</h2>
+<div class="box box-yellow">
+  <table>
+    <tr><th>注意点</th><th>理由</th></tr>
+    <tr>
+      <td>必ず <code>削除</code> してから <code>再判定</code> する</td>
+      <td>削除せずに再判定すると、キャンセルされない管理番号がMonday.comに残り続けます</td>
+    </tr>
+    <tr>
+      <td>新規投稿ではなく、同じスレッドで操作する</td>
+      <td>別のスレッドで操作しても、元のスレッドの確定は取り消されません</td>
+    </tr>
+    <tr>
+      <td>再判定の結果が前回と少し変わることがある</td>
+      <td>正常です。AIは毎回判定するため多少変わります。候補にチャンネルが出ていればOK</td>
+    </tr>
+    <tr>
+      <td>候補に出てこない場合は <code>確定/チャンネル名</code> で直接指定</td>
+      <td>例：<code>確定/ヤフオクまとめ</code> と入力すれば直接そのチャンネルで確定できます</td>
+    </tr>
+  </table>
+</div>
+
+<div class="hint" style="margin-top:5mm;">
+  💡 <b>間違いに気づいたらすぐに対処してください。</b>後回しにすると、後工程（撮影・出品）が間違った情報で進んでしまう可能性があります。<br>
+  自分で対処が難しい場合は、浅野にSlackで連絡してください。
+</div>
+
+
+<!-- ======== 12. 困ったとき ======== -->
+<div class="page-break"></div>
+<h1 class="section">12　困ったときは</h1>
 
 <h2 class="subsection">よくある質問</h2>
 
@@ -1034,6 +1214,7 @@
 <div class="box">
   <ul class="check-list">
     <li>ロット販売・社内利用・スクラップ・廃棄のチャンネルでは、もともと管理番号は発行されません（正常です）</li>
+    <li>まとめ売りチャンネルで「1」（まとめ保管）を選んだ場合も発行されません（正常です）</li>
     <li>ヤフオク系・eBay系のチャンネルで発行されない場合は担当者に連絡してください</li>
   </ul>
 </div>
@@ -1041,9 +1222,8 @@
 <h3 class="item">Q. 「スレッドに返信」の方法がわからない</h3>
 <div class="box">
   <ul class="check-list">
-    <li>AIのメッセージにマウスを近づけると、右側にメニューアイコンが出ます</li>
-    <li>「返信」または吹き出しアイコンをクリックして、そのメッセージに返信してください</li>
-    <li>スマートフォンの場合はメッセージを長押しすると「返信」が出ます</li>
+    <li><b>パソコンの場合：</b>AIのメッセージにマウスを近づけると、右側にメニューアイコンが出ます。「返信」または吹き出しアイコンをクリック</li>
+    <li><b>スマートフォンの場合：</b>メッセージを長押し →「スレッドで返信」をタップ</li>
   </ul>
 </div>
 
@@ -1070,6 +1250,24 @@
     <li><code>再判定</code> コマンドを使って追加情報を入力すると、精度が上がることがあります</li>
     <li>それでも迷う場合は <code>@浅野儀頼 相談</code>（または「相談があります」「相談です」）と送って相談モードを使ってください</li>
     <li>AIの提案はあくまで「参考意見」です。最終判断はスタッフが行います</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. まとめ売りの3択で何番を選べばいいかわからない</h3>
+<div class="box">
+  <ul class="check-list">
+    <li><b>迷ったら <code>1</code>（まとめ保管）を選んでください。</b>これが一番安全です</li>
+    <li><code>2</code>（個別発行）は浅野から指示があった場合のみ選びます</li>
+    <li>判断に自信がなければ <code>3</code>（保留・浅野に相談）を選んでください</li>
+  </ul>
+</div>
+
+<h3 class="item">Q. 間違えて確定してしまった・やり直したい</h3>
+<div class="box">
+  <ul class="check-list">
+    <li>スレッドに <code>削除</code> と入力 → <code>再判定</code> → 正しく確定し直せます</li>
+    <li>詳しい手順はセクション11「間違えたときの対処方法」を参照してください</li>
+    <li>自分で対処が難しければ、浅野にSlack DMで連絡してください</li>
   </ul>
 </div>
 
@@ -1101,6 +1299,10 @@
       <td><code>再判定</code> コマンドを使うか、<code>@浅野儀頼 相談</code> で直接相談</td>
     </tr>
     <tr>
+      <td>確定を間違えた・やり直したい</td>
+      <td><code>削除</code> → <code>再判定</code> で自力対処。難しければ浅野に連絡</td>
+    </tr>
+    <tr>
       <td>¥30,000以上の高額案件</td>
       <td>確定時に浅野へ自動通知が届きます（手動連絡不要）</td>
     </tr>
@@ -1116,7 +1318,7 @@
 
 <!-- ======== フッター ======== -->
 <div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
-  アスカラ　株式会社テイクバック　TakeBack事業部　分荷判定 作業マニュアル　2026年3月版
+  アスカラ　株式会社テイクバック　TakeBack事業部　分荷判定 作業マニュアル V2　2026年3月20日更新
 </div>
 
 </div><!-- /page -->
