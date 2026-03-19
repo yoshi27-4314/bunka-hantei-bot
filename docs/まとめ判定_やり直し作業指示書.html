@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>まとめ判定 やり直し作業指示書｜TakeBack事業部</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Meiryo", "MS Gothic", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  .page { max-width: 210mm; margin: 0 auto; padding: 15mm 18mm; }
+
+  .cover {
+    text-align: center;
+    padding: 20mm 0 14mm;
+    border-bottom: 3px solid #c0392b;
+    margin-bottom: 10mm;
+    page-break-after: always;
+  }
+  .cover .logo { font-size: 38pt; margin-bottom: 6mm; }
+  .cover h1 { font-size: 22pt; color: #c0392b; margin-bottom: 3mm; line-height: 1.4; }
+  .cover .subtitle { font-size: 12pt; color: #555; margin-bottom: 6mm; }
+  .cover .badge {
+    display: inline-block; background: #c0392b; color: #fff;
+    padding: 5px 16px; border-radius: 20px; font-size: 10pt; margin: 3px;
+  }
+
+  h1.section {
+    font-size: 15pt; color: #fff; background: #c0392b;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h1.section-dark {
+    font-size: 15pt; color: #fff; background: #1c2e4a;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h2.subsection {
+    font-size: 12pt; color: #1c2e4a; border-left: 5px solid #1c2e4a;
+    padding: 4px 12px; margin: 6mm 0 3mm; background: #eaf0f8;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin: 3mm 0; background: #fafafa; }
+  .box-navy   { background: #eaf0f8; border-color: #1c2e4a; }
+  .box-red    { background: #fdf2f2; border-color: #e74c3c; border-width: 2px; }
+  .box-gray   { background: #f4f6f7; border-color: #bdc3c7; }
+  .box-green  { background: #eafaf1; border-color: #27ae60; }
+  .box-yellow { background: #fefde7; border-color: #f39c12; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0; font-size: 10pt; }
+  th { background: #1c2e4a; color: #fff; padding: 7px 10px; text-align: left; font-weight: bold; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+
+  code {
+    background: #1c2e4a; color: #ecf0f1; padding: 2px 7px;
+    border-radius: 4px; font-family: "Courier New", monospace; font-size: 10pt;
+  }
+  .code-block {
+    background: #1c2e4a; color: #ecf0f1; padding: 12px 16px;
+    border-radius: 6px; font-family: "Courier New", monospace;
+    font-size: 10pt; line-height: 1.9; margin: 3mm 0; white-space: pre-wrap;
+  }
+
+  .step-list { list-style: none; margin: 2mm 0; }
+  .step-list li {
+    padding: 10px 8px 10px 44px; position: relative;
+    border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: attr(data-step); position: absolute; left: 6px; top: 10px;
+    background: #c0392b; color: #fff; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10pt; font-weight: bold; line-height: 28px; text-align: center;
+  }
+
+  .point-list { list-style: none; margin: 2mm 0; }
+  .point-list li { padding: 4px 8px 4px 20px; position: relative; font-size: 10.5pt; }
+  .point-list li::before { content: "●"; position: absolute; left: 4px; color: #1c2e4a; font-size: 7pt; top: 8px; }
+
+  .warn { font-size: 10pt; color: #c0392b; padding: 8px 12px; background: #fdf2f2; border-left: 4px solid #e74c3c; border-radius: 0 4px 4px 0; margin: 3mm 0; }
+  .hint { font-size: 9.5pt; color: #2980b9; padding: 5px 10px; background: #eaf2fb; border-radius: 4px; margin: 2mm 0; }
+
+  .screenshot {
+    border: 2px solid #ddd; border-radius: 8px; padding: 14px 18px;
+    margin: 4mm 0; background: #2c2c2c; color: #e0e0e0;
+    font-family: "Courier New", monospace; font-size: 10pt; line-height: 2.0;
+    white-space: pre-wrap;
+  }
+  .screenshot .bot { color: #4fc3f7; }
+  .screenshot .user { color: #81c784; }
+  .screenshot .highlight { color: #ffeb3b; font-weight: bold; }
+
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 4mm 0; }
+  .compare-card {
+    border-radius: 8px; padding: 14px;
+  }
+  .compare-bad { background: #fdf2f2; border: 2px solid #e74c3c; }
+  .compare-good { background: #eafaf1; border: 2px solid #27ae60; }
+
+  .checklist { list-style: none; margin: 3mm 0; }
+  .checklist li {
+    padding: 8px 8px 8px 36px; position: relative;
+    border-bottom: 1px dashed #e0e0e0; font-size: 10.5pt;
+  }
+  .checklist li::before {
+    content: "☐"; position: absolute; left: 8px; top: 8px;
+    font-size: 14pt; color: #1c2e4a;
+  }
+
+  .page-break { page-break-before: always; }
+
+  @media print {
+    body { font-size: 10pt; }
+    .page { padding: 10mm 14mm; }
+    .cover { page-break-after: always; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ===== 表紙 ===== -->
+<div class="cover">
+  <div class="logo">🔄</div>
+  <h1>まとめ判定 やり直し作業指示書</h1>
+  <div class="subtitle">TakeBack事業部　2026年3月20日</div>
+  <div style="margin: 6mm 0;">
+    <span class="badge">やり直し作業</span>
+    <span class="badge">分荷判定チャンネル</span>
+  </div>
+  <div style="margin-top: 6mm; font-size: 10pt; color: #777;">
+    対象：3月19日に「ヤフオクまとめ」「eBayまとめ」で誤って管理番号を個別発行してしまった商品
+  </div>
+</div>
+
+
+<!-- ===== 何が起きたか ===== -->
+<div style="border: 3px solid #c0392b; border-radius: 10px; padding: 16px 20px; margin-bottom: 8mm; background: #fdf2f2;">
+  <div style="font-size: 15pt; font-weight: bold; color: #c0392b; margin-bottom: 8px;">
+    ⚠️ まず読んでください：何が起きたか
+  </div>
+  <p style="font-size: 10.5pt; margin-bottom: 6px;">
+    3月19日の分荷判定作業で、<strong>「ヤフオクまとめ」「eBayまとめ」</strong>と判定された商品に対して、<br>
+    まとめ選択画面で <code>1</code>（管理番号を発行して確定）を選んでしまいました。
+  </p>
+  <p style="font-size: 10.5pt; margin-bottom: 6px;">
+    本来は <code>2</code>（まとめ保管・管理番号なし）を選ぶべきでした。
+  </p>
+  <p style="font-size: 10.5pt;">
+    この指示書に従って、<strong>誤って発行された管理番号をキャンセルし、正しい状態に戻す</strong>作業を行います。
+  </p>
+</div>
+
+
+<!-- ===== 作業概要 ===== -->
+<h1 class="section">1. 作業の全体像</h1>
+
+<div class="box box-navy">
+  <strong>やること（1商品あたり2ステップ）：</strong>
+  <ol style="margin: 6px 0 0 20px; font-size: 10.5pt;">
+    <li>誤って確定したスレッドで <code>削除</code> と入力 → 管理番号をキャンセル</li>
+    <li>同じスレッドで <code>再判定</code> → もう一度判定 → 確定 → 今度は <code>1</code>（まとめ保管）を選択</li>
+  </ol>
+</div>
+
+<div class="hint">
+  💡 作業時間の目安：1商品あたり約1〜2分です。
+</div>
+
+
+<!-- ===== 対象商品の特定方法 ===== -->
+<h1 class="section">2. 対象商品の特定方法</h1>
+
+<p>分荷判定チャンネル（北大路魯山人）で、<strong>3月19日</strong>の投稿を上からさかのぼって確認してください。</p>
+
+<div class="box box-yellow">
+  <strong>対象の見分け方：</strong>
+  <ul class="point-list">
+    <li>確定チャンネルが <strong>「ヤフオクまとめ」または「eBayまとめ」</strong> である</li>
+    <li><strong>管理番号（2603-XXXX）が発行されている</strong></li>
+    <li>桃井さんが確定操作を行ったスレッド</li>
+  </ul>
+</div>
+
+<div class="warn">
+  ⚠️ 同日に「ヤフオクまとめ」「eBayまとめ」で<strong>正しくまとめ保管（管理番号なし）</strong>で確定されたものもある可能性があります。<br>
+  <strong>管理番号が発行されているスレッドだけ</strong>が対象です。管理番号がないものは正常なので触らないでください。
+</div>
+
+
+<!-- ===== 作業手順 ===== -->
+<div class="page-break"></div>
+<h1 class="section">3. 作業手順（1商品ずつ繰り返す）</h1>
+
+<h2 class="subsection">ステップ① キャンセルする</h2>
+
+<p>対象のスレッドを開いて、以下を入力します。</p>
+
+<div class="screenshot">
+<span class="user">あなた：</span> <span class="highlight">削除</span>
+</div>
+
+<p>Botが以下のように返信します：</p>
+
+<div class="screenshot">
+<span class="bot">🤖 北大路魯山人：</span>
+━━━━━━━━━━━━━━━━
+❌ キャンセルしました
+━━━━━━━━━━━━━━━━
+
+管理番号 <span class="highlight">2603-XXXX</span> をキャンセルしました。
+</div>
+
+<div class="box box-green">
+  <strong>✅ この時点で以下が自動処理されます：</strong>
+  <ul class="point-list">
+    <li>スプレッドシートにキャンセル行が追記される</li>
+    <li>Monday.comのステータスが「キャンセル」に更新される</li>
+  </ul>
+</div>
+
+<h2 class="subsection">ステップ② 再判定して正しく確定する</h2>
+
+<p>同じスレッド内で、以下を入力します。</p>
+
+<div class="screenshot">
+<span class="user">あなた：</span> <span class="highlight">再判定</span>
+</div>
+
+<p>Botが再度、分荷判定の結果を表示します。</p>
+
+<div class="screenshot">
+<span class="bot">🤖 北大路魯山人：</span>
+（判定結果が表示される）
+
+第一候補：ヤフオクまとめ
+第二候補：...
+
+<span class="highlight">第一</span> / <span class="highlight">第二</span> / <span class="highlight">確定/チャンネル名</span> で確定
+</div>
+
+<p><code>第一</code> と入力して、ヤフオクまとめを選択します。</p>
+
+<div class="screenshot">
+<span class="user">あなた：</span> <span class="highlight">第一</span>
+</div>
+
+<h2 class="subsection">ステップ③ まとめ選択画面で「1」を選ぶ</h2>
+
+<div class="warn">
+  ⚠️ <strong>ここが一番大事です！</strong> 前回ここで間違えました。
+</div>
+
+<p>Botが以下の選択画面を表示します（※システム更新後の新しい画面です）：</p>
+
+<div class="screenshot">
+<span class="bot">🤖 北大路魯山人：</span>
+━━━━━━━━━━━━━━━━
+📦 <strong>ヤフオクまとめ</strong>（まとめ売り）が選択されました
+━━━━━━━━━━━━━━━━
+
+どちらで進めますか？
+
+1️⃣  まとめ保管する（管理番号なし）← <strong>ほとんどの場合はこちら</strong>
+
+2️⃣  個別に管理番号を発行して確定する
+
+3️⃣  保留にして浅野に相談する
+
+`1` `2` `3` のいずれかを返信してください。
+</div>
+
+<div style="border: 3px solid #27ae60; border-radius: 10px; padding: 14px 18px; margin: 4mm 0; background: #eafaf1;">
+  <div style="font-size: 14pt; font-weight: bold; color: #27ae60; margin-bottom: 6px;">
+    👉 <code>1</code> を入力してください
+  </div>
+  <p style="font-size: 10.5pt;">
+    <code>1</code> = まとめ保管（管理番号なし）です。これが正しい選択です。
+  </p>
+</div>
+
+<div class="screenshot">
+<span class="user">あなた：</span> <span class="highlight">1</span>
+</div>
+
+<div class="screenshot">
+<span class="bot">🤖 北大路魯山人：</span>
+━━━━━━━━━━━━━━━━
+📦 <strong>まとめ保管として記録しました</strong>
+━━━━━━━━━━━━━━━━
+
+同カテゴリのまとめ対象商品と一緒に保管してください。
+まとめ販売が決まった時点で改めて管理番号を発行します。
+</div>
+
+<div class="box box-green">
+  <strong>✅ これで1商品のやり直し完了です。</strong>次の対象スレッドに移ってください。
+</div>
+
+
+<!-- ===== 間違えたときの対処 ===== -->
+<div class="page-break"></div>
+<h1 class="section">4. 間違えたときの対処</h1>
+
+<div class="box box-red">
+  <strong>もし再度「2」を押してしまった場合：</strong><br>
+  <code>2</code> は「個別に管理番号を発行して確定」なので、また同じ間違いが起きます。<br>
+  その場合はもう一度 <code>削除</code> → <code>再判定</code> → <code>第一</code> → <code>1</code> の手順をやり直してください。
+</div>
+
+
+<!-- ===== 新旧対照表 ===== -->
+<h1 class="section-dark">5. 選択肢の変更点（参考）</h1>
+
+<p>今回の事故を受けて、選択画面の番号を入れ替えました。</p>
+
+<div class="compare-grid">
+  <div class="compare-card compare-bad">
+    <div style="font-weight: bold; color: #c0392b; margin-bottom: 6px; font-size: 11pt;">❌ 旧画面（3/19時点）</div>
+    <div style="font-size: 9.5pt; line-height: 1.8;">
+      1️⃣ 管理番号を発行して確定<br>
+      2️⃣ まとめ保管（管理番号なし）<br>
+      3️⃣ 保留・浅野に相談<br>
+      <br>
+      <span style="color: #c0392b;">→ 1が「発行」だったため誤選択しやすかった</span>
+    </div>
+  </div>
+  <div class="compare-card compare-good">
+    <div style="font-weight: bold; color: #27ae60; margin-bottom: 6px; font-size: 11pt;">✅ 新画面（3/20以降）</div>
+    <div style="font-size: 9.5pt; line-height: 1.8;">
+      1️⃣ まとめ保管（管理番号なし）← ほとんどの場合こちら<br>
+      2️⃣ 個別に管理番号を発行して確定<br>
+      3️⃣ 保留・浅野に相談<br>
+      <br>
+      <span style="color: #27ae60;">→ 1が「まとめ保管」に変更。迷ったら1で正解</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== チェックリスト ===== -->
+<h1 class="section-dark">6. 完了チェックリスト</h1>
+
+<p>全商品のやり直しが終わったら、以下を確認してください。</p>
+
+<ul class="checklist">
+  <li>対象スレッドを全て処理した（キャンセル → 再判定 → まとめ保管）</li>
+  <li>Monday.comで、キャンセルされた管理番号のステータスが全て「キャンセル」になっている</li>
+  <li>作業完了を浅野に報告した（Slack DM または 分荷判定チャンネルで報告）</li>
+</ul>
+
+<div class="box box-navy" style="margin-top: 8mm;">
+  <strong>報告テンプレート：</strong>
+  <div class="code-block">まとめ判定やり直し作業が完了しました。
+対象：○件（管理番号：2603-XXXX, 2603-XXXX, ...）
+全てキャンセル→まとめ保管で再登録済みです。</div>
+</div>
+
+
+<!-- ===== 困ったときは ===== -->
+<h1 class="section">7. 困ったときは</h1>
+
+<table>
+  <tr><th style="width: 40%;">状況</th><th>対処法</th></tr>
+  <tr>
+    <td>「削除」を入力したのに反応がない</td>
+    <td>スレッド内で入力しているか確認してください。新規投稿ではなくスレッド返信です。</td>
+  </tr>
+  <tr>
+    <td>「再判定」の結果が前回と違う</td>
+    <td>正常です。AIは毎回判定するため結果が多少変わることがあります。<br>ヤフオクまとめが候補に出ていれば問題ありません。</td>
+  </tr>
+  <tr>
+    <td>候補にヤフオクまとめが出てこない</td>
+    <td><code>確定/ヤフオクまとめ</code> と入力すれば直接指定できます。</td>
+  </tr>
+  <tr>
+    <td>どのスレッドが対象かわからない</td>
+    <td>浅野に確認してください。Monday.comで3/19登録のヤフオクまとめを検索できます。</td>
+  </tr>
+  <tr>
+    <td>その他不明点</td>
+    <td>浅野にSlack DMで相談してください。自己判断で進めないこと。</td>
+  </tr>
+</table>
+
+<div style="margin-top: 12mm; text-align: center; color: #999; font-size: 9pt;">
+  まとめ判定 やり直し作業指示書 — TakeBack事業部 — 2026年3月20日作成
+</div>
+
+</div><!-- /.page -->
+</body>
+</html>

@@ -1692,11 +1692,7 @@ def _handle_matome_choice(choice: str, kakutei_channel: str, channel_id: str,
     judgment = get_judgment_from_thread(channel_id, thread_ts)
 
     if choice == '1':
-        # 管理番号を発行して通常確定
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=True)
-
-    elif choice == '2':
-        # 管理番号なし・まとめ保管として記録（確定メッセージは出さずまとめ用メッセージを表示）
+        # まとめ保管（管理番号なし）← デフォルト選択肢
         _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=False, send_reply=False)
         post_to_slack(channel_id, thread_ts,
             "━━━━━━━━━━━━━━━━\n"
@@ -1706,6 +1702,10 @@ def _handle_matome_choice(choice: str, kakutei_channel: str, channel_id: str,
             "まとめ販売が決まった時点で改めて管理番号を発行します。",
             mention_user=user_id
         )
+
+    elif choice == '2':
+        # 個別に管理番号を発行して通常確定
+        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=True)
 
     elif choice == '3':
         # 保留・浅野に相談
@@ -1752,11 +1752,11 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
         if kakutei_channel in MATOME_CHANNELS:
             post_to_slack(channel_id, thread_ts,
                 "━━━━━━━━━━━━━━━━\n"
-                f"📦 *{kakutei_channel}* が選択されました\n"
+                f"📦 *{kakutei_channel}*（まとめ売り）が選択されました\n"
                 "━━━━━━━━━━━━━━━━\n\n"
                 "どちらで進めますか？\n\n"
-                "1️⃣  このまま管理番号を発行して確定する\n\n"
-                "2️⃣  他のまとめ対象商品と合わせて保管する（管理番号なし）\n\n"
+                "1️⃣  まとめ保管する（管理番号なし）← *ほとんどの場合はこちら*\n\n"
+                "2️⃣  個別に管理番号を発行して確定する\n\n"
                 "3️⃣  保留にして浅野に相談する\n\n"
                 f"`1` `2` `3` のいずれかを返信してください。\n\n"
                 f"_[まとめ選択待ち:{kakutei_channel}]_",
