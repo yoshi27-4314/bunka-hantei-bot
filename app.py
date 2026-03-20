@@ -6,6 +6,7 @@ Slack Events API → Claude API → Slack返信
 import os
 import json
 import base64
+import re
 import threading
 import httpx
 from datetime import datetime
