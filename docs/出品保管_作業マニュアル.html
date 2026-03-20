@@ -131,13 +131,12 @@
   <h1>出品保管 作業マニュアル</h1>
   <div class="subtitle">出品保管チャンネル（岩崎弥太郎）　操作ガイド</div>
   <div style="margin: 6mm 0;">
-    <span class="badge">アスカラ</span>
     <span class="badge">株式会社テイクバック</span>
-    <span class="badge">2026年3月版</span>
+    <span class="badge">V2　2026年3月版</span>
   </div>
   <div class="welcome">
-    このチャンネルで出品データを作成し、保管場所を登録します。<br>
-    AIが出品タイトル・説明文・価格を自動生成します。<br>
+    このチャンネルで出品データの作成・画像の確認・保管場所の登録を行います。<br>
+    AIがタイトル・説明文・価格を自動生成します。<br>
     <b>ロケーション番号の入力が出品登録完了のトリガーです。</b>
   </div>
 </div>
@@ -148,12 +147,13 @@
 <div class="box">
   <table>
     <tr><td style="width:30px; color:#888; font-weight:bold;">1</td><td><b>このチャンネルの役割</b>　─ 出品保管が事業全体に与える影響</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">2</td><td><b>作業の流れ（5ステップ）</b>　─ 管理番号の投稿から出品登録完了まで</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">2</td><td><b>作業の流れ（6ステップ）</b>　─ 管理番号の投稿から出品登録完了まで</td></tr>
     <tr><td style="color:#888; font-weight:bold;">3</td><td><b>出品データの確認・修正方法</b>　─ タイトル・価格・説明文の修正コマンド</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>ロケーション番号について</b>　─ 保管場所の入力ルール</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>コマンド一覧</b>　─ 修正・キャンセル・削除・在庫検索</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
-    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">4</td><td><b>画像の確認・管理</b>　─ 画像の追加・削除・入替・撮り直し</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">5</td><td><b>ロケーション番号について</b>　─ 倉庫コードと保管場所の入力ルール</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">6</td><td><b>コマンド一覧</b>　─ 修正・画像管理・キャンセル・削除・在庫検索</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">7</td><td><b>よくある操作例</b>　─ 実際のやりとりのイメージ</td></tr>
+    <tr><td style="color:#888; font-weight:bold;">8</td><td><b>困ったときは</b>　─ よくある質問と連絡先</td></tr>
   </table>
 </div>
 
@@ -164,7 +164,7 @@
 
 <h2 class="subsection">出品保管チャンネルとは</h2>
 <div class="box box-navy">
-  撮影が完了した商品に対して、<b>ヤフオク・eBayの出品データ（タイトル・説明文・価格）をAIが自動生成</b>し、<b>保管ロケーション番号を登録</b>するチャンネルです。<br><br>
+  撮影が完了した商品に対して、<b>出品データ（タイトル・説明文・価格）をAIが自動生成</b>し、<b>画像を確認</b>し、<b>保管ロケーション番号を登録</b>するチャンネルです。<br><br>
   ロケーション番号を入力した瞬間に出品登録が完了し、Monday.comのステータスが「出品待ち」に自動更新されます。
 </div>
 
@@ -177,64 +177,71 @@
   <div class="flow-step"><span class="step-num"></span>落札・入金</div>
   <div class="flow-step"><span class="step-num"></span>梱包出荷</div>
 </div>
-<div class="note" style="margin-top:3mm;">
-  撮影チャンネルで「完了」を入力した後、この出品保管チャンネルへ進みます。
-</div>
 
 <h2 class="subsection">担当AI：岩崎弥太郎</h2>
 <div class="box box-gray">
   このチャンネルのAIは <b>「岩崎弥太郎」</b> として返答します。<br>
-  三菱グループの創業者。商才と情熱の塊で、豪快で前向きな語り口が特徴です。<br>
-  「〜じゃ！」「ようやった！」「どんどん稼いでいこう！」など、熱い返答が特徴です。
+  三菱グループの創業者。商才と情熱の塊で、豪快で前向きな語り口が特徴です。
 </div>
 
-<div class="warn" style="margin-top:5mm;">
-  重要：ロケーション番号を入力すると出品登録が完了します。<br>
-  入力前に必ず出品データ（タイトル・価格・説明文）を確認・修正してください。
+<h2 class="subsection">担当マーク</h2>
+<div class="box">
+  出品タイトルの先頭に担当者のマークが自動で付きます。誰が出品した商品か一目でわかります。<br>
+  <table style="margin-top:4px;">
+    <tr><th>担当者</th><th>マーク</th></tr>
+    <tr><td>林</td><td>〇</td></tr>
+    <tr><td>横山</td><td>▽</td></tr>
+    <tr><td>奥村</td><td>☆</td></tr>
+    <tr><td>桃井</td><td>◎</td></tr>
+  </table>
 </div>
 
 
 <!-- 2. 作業の流れ -->
 <div class="page-break"></div>
-<h1 class="section">2　作業の流れ（5ステップ）</h1>
+<h1 class="section">2　作業の流れ（6ステップ）</h1>
 
 <div class="box box-navy" style="margin-bottom:5mm;">
   <b>作業場所：出品保管チャンネル（岩崎弥太郎）</b><br>
-  管理番号を投稿してセッションを開始し、出品データを確認・修正してからロケーション番号を入力します。
+  管理番号を投稿 → 出品データ確認 → 画像確認 → ヤフオクページ作成 → ロケーション入力
 </div>
 
 <ul class="step-list">
   <li data-step="1">
-    <b>管理番号を投稿する</b>　─ テプラ写真 または 管理番号テキストを<b>新規メッセージとして</b>投稿する<br>
+    <b>管理番号を投稿する</b><br>
+    テプラ写真 または 管理番号テキストを<b>新規メッセージとして</b>投稿する<br>
     <span style="font-size:9.5pt; color:#555;">例：<code>2603-0001</code> とそのまま入力、またはテプラの写真を送る</span><br>
-    <span style="font-size:9.5pt; color:#555;">→ AIがMonday.comから商品データを取得し、出品データを自動生成します</span>
+    <span style="font-size:9.5pt; color:#555;">→ AIが出品データを自動生成し、商品画像一覧が表示されます</span>
   </li>
   <li data-step="2">
-    <b>出品データを確認する</b>　─ AIが生成したタイトル・説明文・価格・梱包サイズを読む<br>
-    <span style="font-size:9.5pt; color:#555;">→ 問題なければそのままでOK。修正が必要な場合は次のステップへ</span>
+    <b>出品データを確認・修正する</b><br>
+    AIが生成したタイトル・説明文・価格・サイズを確認する<br>
+    <span style="font-size:9.5pt; color:#555;">→ 修正が必要なら修正コマンドを入力（3章参照）</span>
   </li>
   <li data-step="3">
-    <b>必要があれば修正する</b>　─ コマンドで修正内容を入力する（詳しくは3章）<br>
-    <div class="code-block" style="margin-top:4px; font-size:9pt;">タイトル：修正後のタイトル
-開始価格：5000
-説明文：修正後の説明文
-サイズ：120</div>
-    <span style="font-size:9.5pt; color:#555;">→ 修正するたびに確認画面が再表示されます。何度でも修正できます</span>
+    <b>画像を確認・管理する</b><br>
+    商品画像の一覧を確認。追加・削除・入替・撮り直しができます<br>
+    <span style="font-size:9.5pt; color:#555;">→ 画像が足りなければこのスレッドで追加撮影も可能（4章参照）</span>
   </li>
   <li data-step="4">
-    <b>商品を保管棚に置く</b>　─ 実際に商品を棚に置いて保管場所を決める<br>
-    <span style="font-size:9.5pt; color:#555;">→ ロケーション番号（例：A-12）を控えておく</span>
+    <b>ヤフオクのページを作成する</b><br>
+    ヤフオクの出品画面で、タイトル・説明文・画像をコピペして出品ページを作成<br>
+    <span style="font-size:9.5pt; color:#555;">→ 作成したらスレッドに <code>ページ作成完了</code> と入力</span>
   </li>
-  <li data-step="5" style="border-bottom:none;">
-    <b>ロケーション番号を入力する</b>　─ 保管場所の番号をスレッドに入力する<br>
-    <span style="font-size:9.5pt; color:#555;">例：<code>A-12</code></span><br>
-    <span style="font-size:9.5pt; color:#c0392b; font-weight:bold;">→ この入力が出品登録完了のトリガーです。Monday.comが「出品待ち」に自動更新されます</span>
+  <li data-step="5">
+    <b>商品を保管棚に置く</b><br>
+    実際に商品を棚に置いて保管場所を決める
+  </li>
+  <li data-step="6" style="border-bottom:none;">
+    <b>ロケーション番号を入力する</b><br>
+    <span style="font-size:9.5pt; color:#555;">例：<code>A23</code>（厚見倉庫の23番棚）</span><br>
+    <span style="font-size:9.5pt; color:#c0392b; font-weight:bold;">→ この入力が出品登録完了です。Monday.comが「出品待ち」に自動更新されます</span>
   </li>
 </ul>
 
 <div class="warn" style="margin-top:5mm;">
-  ステップ5のロケーション番号入力 = 出品登録完了です。<br>
-  データの確認・修正は必ずステップ3までに済ませてください。
+  ステップ6のロケーション番号入力 = 出品登録完了です。<br>
+  データの確認・修正・画像の管理は必ずその前に済ませてください。
 </div>
 
 
@@ -244,236 +251,258 @@
 
 <h2 class="subsection">AIが自動生成する出品データ</h2>
 <div class="box box-navy">
-  AIは分荷判定時の情報をもとに以下を自動生成します：<br>
+  AIは商品情報をもとに以下を自動生成します：<br>
   <ul class="point-list" style="margin-top:6px;">
-    <li>出品タイトル（40文字以内）</li>
-    <li>商品説明文（200〜400文字）</li>
-    <li>開始価格（分荷判定時の推奨スタート価格）</li>
+    <li>出品タイトル（65文字以内・担当マーク付き）</li>
+    <li>商品説明文（600〜1000文字）</li>
+    <li>開始価格（値ごろ感のある価格）</li>
     <li>梱包サイズ（内部キーワードから推定）</li>
   </ul>
 </div>
 
-<h2 class="subsection">修正コマンド一覧</h2>
+<h2 class="subsection">修正コマンド</h2>
 <table>
+  <tr><th>修正したい項目</th><th>入力形式</th><th>例</th></tr>
+  <tr><td>タイトル</td><td><code>タイトル：新しいタイトル</code></td><td>タイトル：南部鉄器 岩鋳 鉄瓶◇在銘｜茶道具</td></tr>
+  <tr><td>開始価格</td><td><code>開始価格：数字</code></td><td>開始価格：5000</td></tr>
+  <tr><td>説明文</td><td><code>説明文：新しい説明文</code></td><td>説明文：南部鉄器の鉄瓶です。在銘あり...</td></tr>
+  <tr><td>梱包サイズ</td><td><code>サイズ：数字</code></td><td>サイズ：120</td></tr>
+</table>
+<div class="hint">修正するたびに確認画面が再表示されます。何度でも修正できます。</div>
+
+
+<!-- 4. 画像管理 -->
+<div class="page-break"></div>
+<h1 class="section">4　画像の確認・管理</h1>
+
+<h2 class="subsection">画像の自動表示</h2>
+<div class="box box-navy">
+  管理番号を投稿すると、Google Driveに保存されている商品画像が自動で一覧表示されます。<br>
+  <b>テプラの画像は自動的に除外されます</b>（出品には不要なため）。
+</div>
+
+<h2 class="subsection">画像コマンド一覧</h2>
+<table>
+  <tr><th>やりたいこと</th><th>操作</th></tr>
   <tr>
-    <th>修正したい項目</th>
-    <th>入力形式</th>
-    <th>例</th>
+    <td><b>画像を追加する</b></td>
+    <td>スレッドに写真を投稿するだけ（コマンド不要）<br>
+    <span style="font-size:9pt; color:#555;">→ Google Driveに自動保存されます</span></td>
   </tr>
   <tr>
-    <td>タイトル</td>
-    <td><code>タイトル：新しいタイトル</code></td>
-    <td>タイトル：パナソニック 冷蔵庫 NR-B17AW</td>
+    <td><b>画像を削除する</b></td>
+    <td><code>画像削除 3</code>　→ 3枚目を削除</td>
   </tr>
   <tr>
-    <td>開始価格</td>
-    <td><code>開始価格：数字</code></td>
-    <td>開始価格：3000</td>
+    <td><b>画像の順番を入れ替える</b></td>
+    <td><code>順番入替 2 4</code>　→ 2枚目と4枚目を入替<br>
+    <span style="font-size:9pt; color:#555;">※ 1枚目がヤフオクのサムネイル画像になります</span></td>
   </tr>
   <tr>
-    <td>説明文</td>
-    <td><code>説明文：新しい説明文</code></td>
-    <td>説明文：動作確認済みです。外観に小傷あり...</td>
+    <td><b>画像を撮り直す</b></td>
+    <td><code>撮り直し 2</code> ＋ 新しい写真を一緒に投稿<br>
+    <span style="font-size:9pt; color:#555;">→ 2枚目が新しい写真に差し替わります</span></td>
   </tr>
   <tr>
-    <td>梱包サイズ</td>
-    <td><code>サイズ：サイズ数字</code></td>
-    <td>サイズ：120</td>
+    <td><b>画像一覧を再表示する</b></td>
+    <td><code>画像</code></td>
   </tr>
 </table>
 
-<div class="hint">修正コマンドを入力するたびに確認画面が再表示されます。何度でも修正できます。</div>
+<div class="hint">
+  このチャンネルで追加した画像は <code>sp01_出品追加.jpg</code> のようなファイル名でDriveに保存されます。<br>
+  撮影チャンネルで撮った画像（<code>02_商品.jpg</code> 等）と区別されます。
+</div>
 
-<h2 class="subsection">修正後の確認画面イメージ</h2>
-<div class="code-block">━━━━━━━━━━━━━━━━
-  出品データ確認
-━━━━━━━━━━━━━━━━
-
-  管理番号
-    2603-0001
-
-  タイトル
-    パナソニック 冷蔵庫 NR-B17AW 動作確認済み
-
-  状態
-    B（中古美品）
-
-  開始価格
-    ¥3,000
-
-  梱包サイズ
-    120サイズ
-
-  説明文
-  動作確認済みです。外観に小傷ありますが...
-
-─────────────────────
-修正する場合はコマンドで入力：
-
-  「タイトル：新しいタイトル」
-  「開始価格：5000」
-  「説明文：新しい説明文」
-  「サイズ：120」
-
-─────────────────────
-準備ができたら
-  保管ロケーション番号 を入力してください
-  例：A-12</div>
+<div class="warn" style="margin-top:4mm;">
+  1枚目の画像がヤフオクのサムネイル（一覧で表示される画像）になります。<br>
+  一番見映えの良い画像を1枚目にしてください。必要に応じて <code>順番入替 1 3</code> で調整できます。
+</div>
 
 
-<!-- 4. ロケーション番号 -->
+<!-- 5. ロケーション番号 -->
 <div class="page-break"></div>
-<h1 class="section">4　ロケーション番号について</h1>
+<h1 class="section">5　ロケーション番号について</h1>
 
 <h2 class="subsection">ロケーション番号とは</h2>
 <div class="box box-navy">
-  商品を保管している棚・場所を示す番号です。<br>
-  梱包出荷のスタッフが商品を探すときに使います。<br><br>
-  <b>例：A-12（Aエリアの12番棚）、B-03（Bエリアの3番棚）</b>
+  商品を保管している<b>倉庫と棚の場所</b>を示す番号です。<br>
+  梱包出荷のスタッフが商品を探すときに使います。
+</div>
+
+<h2 class="subsection">倉庫コード（先頭1文字・必須）</h2>
+<div class="box box-orange">
+  <b>ロケーション番号は必ず倉庫コードから始めてください。</b><br><br>
+  <table>
+    <tr><th>コード</th><th>倉庫名</th></tr>
+    <tr><td><b style="font-size:14pt;">A</b></td><td>厚見倉庫（通販業務の拠点）</td></tr>
+    <tr><td><b style="font-size:14pt;">H</b></td><td>本荘倉庫（本社）</td></tr>
+    <tr><td><b style="font-size:14pt;">Y</b></td><td>柳津倉庫</td></tr>
+  </table>
+</div>
+
+<h2 class="subsection">入力例</h2>
+<div class="two-col">
+  <div class="box box-green">
+    <b>正しい入力</b><br>
+    <code>A23</code>　厚見の23番棚<br>
+    <code>A25横</code>　厚見の25番棚の横<br>
+    <code>H5</code>　本荘の5番棚<br>
+    <code>Y12</code>　柳津の12番棚<br>
+    <code>A2階</code>　厚見の2階<br>
+    <code>H倉庫外</code>　本荘の倉庫外
+  </div>
+  <div class="box box-red">
+    <b>エラーになる入力</b><br>
+    <code>23</code>　← 倉庫コードがない<br>
+    <code>2階</code>　← 倉庫コードがない<br>
+    <code>倉庫外</code>　← 倉庫コードがない<br><br>
+    どの倉庫か分からないと<br>
+    商品を探せません。
+  </div>
+</div>
+
+<div class="hint" style="margin-top:3mm;">
+  棚番号や補足（横・奥・階段など）は自由に入力できます。<br>
+  先頭の倉庫コード（A・H・Y）だけ忘れないようにしてください。
 </div>
 
 <h2 class="subsection">入力タイミングの注意</h2>
 <div class="box box-orange">
   <b>ロケーション番号の入力 = 出品登録完了</b><br><br>
-  ロケーション番号を入力した瞬間に以下が実行されます：<br>
+  入力した瞬間に以下が実行されます：<br>
   <ul class="point-list" style="margin-top:6px;">
     <li>スプレッドシートに出品データが記録される</li>
     <li>Monday.comのステータスが「出品待ち」に更新される</li>
     <li>担当者・出品日・保管場所が自動記録される</li>
   </ul>
   <br>
-  <b>タイトル・価格・説明文の修正はロケーション番号を入力する前に必ず済ませてください。</b>
-</div>
-
-<h2 class="subsection">ロケーション番号の入力例</h2>
-<div class="two-col">
-  <div class="box box-green">
-    <b>OK の例</b><br>
-    <code>A-12</code><br>
-    <code>B-03</code><br>
-    <code>C-7</code><br>
-    <code>棚1-左</code>
-  </div>
-  <div class="box box-red">
-    <b>注意</b><br>
-    修正コマンド（タイトル：など）以外の<br>
-    テキストを入力するとロケーション番号として<br>
-    認識され出品登録が完了します。<br>
-    入力前にデータ確認を忘れずに。
-  </div>
+  <b>タイトル・価格・説明文・画像の確認は必ず先に済ませてください。</b>
 </div>
 
 
-<!-- 5. コマンド一覧 -->
+<!-- 6. コマンド一覧 -->
 <div class="page-break"></div>
-<h1 class="section">5　コマンド一覧</h1>
+<h1 class="section">6　コマンド一覧</h1>
 
+<h2 class="subsection">出品データ修正</h2>
 <table>
-  <tr>
-    <th>コマンド</th>
-    <th>使いどころ</th>
-    <th>動作</th>
-  </tr>
-  <tr>
-    <td><code>タイトル：〜</code></td>
-    <td>タイトルを修正したいとき</td>
-    <td>タイトルを更新して確認画面を再表示</td>
-  </tr>
-  <tr>
-    <td><code>開始価格：数字</code></td>
-    <td>価格を変更したいとき</td>
-    <td>開始価格を更新して確認画面を再表示</td>
-  </tr>
-  <tr>
-    <td><code>説明文：〜</code></td>
-    <td>説明文を修正したいとき</td>
-    <td>説明文を更新して確認画面を再表示</td>
-  </tr>
-  <tr>
-    <td><code>サイズ：数字</code></td>
-    <td>梱包サイズを変更したいとき</td>
-    <td>サイズを更新して確認画面を再表示</td>
-  </tr>
-  <tr>
-    <td><code>キャンセル</code></td>
-    <td>作業を中断したいとき</td>
-    <td>セッションを終了（記録なし）</td>
-  </tr>
-  <tr>
-    <td><code>削除</code></td>
-    <td>Monday.comのステータスを戻したいとき</td>
-    <td>管理番号入力後にステータスを「確認／相談」に変更</td>
-  </tr>
-  <tr>
-    <td><code>在庫検索 キーワード</code></td>
-    <td>在庫を探したいとき</td>
-    <td>Monday.comをキーワードで検索</td>
-  </tr>
+  <tr><th>コマンド</th><th>動作</th></tr>
+  <tr><td><code>タイトル：〜</code></td><td>タイトルを更新して確認画面を再表示</td></tr>
+  <tr><td><code>開始価格：数字</code></td><td>開始価格を更新して確認画面を再表示</td></tr>
+  <tr><td><code>説明文：〜</code></td><td>説明文を更新して確認画面を再表示</td></tr>
+  <tr><td><code>サイズ：数字</code></td><td>梱包サイズを更新して確認画面を再表示</td></tr>
 </table>
 
-<div class="hint" style="margin-top:4mm;">
-  「キャンセル」はセッションを終了するだけで記録は残りません。<br>
-  「削除」はMonday.comのステータスを「確認／相談」に戻します。浅野さんへの相談が必要な場合に使います。
-</div>
+<h2 class="subsection">画像管理</h2>
+<table>
+  <tr><th>コマンド</th><th>動作</th></tr>
+  <tr><td><code>画像</code></td><td>画像一覧を再表示</td></tr>
+  <tr><td><code>画像削除 番号</code></td><td>指定した番号の画像を削除</td></tr>
+  <tr><td><code>順番入替 番号 番号</code></td><td>2つの画像の順番を入れ替え</td></tr>
+  <tr><td><code>撮り直し 番号</code> ＋ 写真</td><td>指定した番号の画像を差し替え</td></tr>
+  <tr><td>写真を投稿（テキストなし）</td><td>画像を追加</td></tr>
+</table>
+
+<h2 class="subsection">その他</h2>
+<table>
+  <tr><th>コマンド</th><th>動作</th></tr>
+  <tr><td><code>ページ作成完了</code></td><td>ヤフオクの出品ページ作成を記録</td></tr>
+  <tr><td><code>キャンセル</code></td><td>セッションを終了（記録なし）</td></tr>
+  <tr><td><code>削除</code></td><td>Monday.comのステータスを「確認／相談」に変更</td></tr>
+  <tr><td><code>在庫検索 キーワード</code></td><td>Monday.comをキーワードで検索</td></tr>
+</table>
 
 
-<!-- 6. よくある操作例 -->
+<!-- 7. よくある操作例 -->
 <div class="page-break"></div>
-<h1 class="section">6　よくある操作例</h1>
+<h1 class="section">7　よくある操作例</h1>
 
-<h2 class="subsection">通常の流れ（タイトルを修正するケース）</h2>
+<h2 class="subsection">例1：通常の流れ</h2>
 <div class="code-block">【スタッフ】（新規メッセージ）
-2603-0001
+2603-0032
 
 【岩崎弥太郎】
 ⏳ 出品データを生成中...
 
 【岩崎弥太郎】
 ━━━━━━━━━━━━━━━━
-  出品データ確認
+📦 出品データ確認
 ━━━━━━━━━━━━━━━━
-  管理番号：2603-0001
-  タイトル：電子レンジ 中古 動作品
-  開始価格：¥2,000
-  梱包サイズ：80サイズ
-  ...
-  準備ができたら保管ロケーション番号を入力
-
-【スタッフ】（スレッド返信）
-タイトル：パナソニック 電子レンジ NE-FL100 動作確認済み
+🔖 管理番号：2603-0032
+📋 タイトル：〇 古伊万里 染付 鉢◇骨董｜和食器｜古道具と器のライノトリ
+💰 開始価格：¥3,500
+📐 梱包サイズ：100サイズ
+📝 説明文：（省略）
 
 【岩崎弥太郎】
-（確認画面が再表示される）
+━━━━━━━━━━━━━━━━
+📷 出品画像（3枚）
+━━━━━━━━━━━━━━━━
+　[1] 02_商品.jpg
+　[2] 03_商品.jpg
+　[3] 04_商品.jpg
 
 【スタッフ】（スレッド返信）
-A-05
+ページ作成完了
+
+【スタッフ】（スレッド返信）
+A23
 
 【岩崎弥太郎】
 ✅ 出品登録完了
-  管理番号：2603-0001
-  保管場所：A-05
-  タイトル：パナソニック 電子レンジ NE-FL100 動作確認済み
-  開始価格：¥2,000
-  ようやった！どんどん稼いでいこう！</div>
+　管理番号：2603-0032
+　保管場所：A23（厚見倉庫）</div>
 
-<h2 class="subsection">管理番号が見つからないケース</h2>
-<div class="box box-yellow">
-  <b>「该当なし」と表示されたとき</b><br>
-  分荷判定が完了していない可能性があります。<br>
-  分荷判定チャンネルで管理番号が発行されているか確認してください。<br>
-  旧形式の管理番号（例：2603V0001）も入力可能です。
-</div>
+<h2 class="subsection">例2：画像を追加してから出品する</h2>
+<div class="code-block">（出品データ・画像一覧が表示された後）
+
+【スタッフ】（スレッドに写真を投稿）
+（追加の商品写真）
+
+【岩崎弥太郎】
+📷 1枚を追加しました。
+━━━━━━━━━━━━━━━━
+📷 出品画像（4枚）
+━━━━━━━━━━━━━━━━
+　[1] 02_商品.jpg
+　[2] 03_商品.jpg
+　[3] 04_商品.jpg
+　[4] sp01_出品追加.jpg
+
+【スタッフ】（スレッド返信）
+順番入替 1 4
+
+【岩崎弥太郎】
+🔄 1枚目と4枚目を入れ替えました。
+
+【スタッフ】（スレッド返信）
+ページ作成完了
+
+【スタッフ】（スレッド返信）
+A25横</div>
+
+<h2 class="subsection">例3：本荘倉庫の商品を出品する</h2>
+<div class="code-block">（出品データ確認後）
+
+【スタッフ】（スレッド返信）
+ページ作成完了
+
+【スタッフ】（スレッド返信）
+H5
+
+【岩崎弥太郎】
+✅ 出品登録完了
+　管理番号：2603-0045
+　保管場所：H5（本荘倉庫）</div>
 
 
-<!-- 7. 困ったときは -->
+<!-- 8. 困ったときは -->
 <div class="page-break"></div>
-<h1 class="section">7　困ったときは</h1>
+<h1 class="section">8　困ったときは</h1>
 
 <table>
-  <tr>
-    <th>困りごと</th>
-    <th>対処法</th>
-  </tr>
+  <tr><th>困りごと</th><th>対処法</th></tr>
   <tr>
     <td>管理番号を入力したが「該当なし」と出る</td>
     <td>分荷判定が完了しているか確認。旧形式番号（2603V0001など）も試す</td>
@@ -483,12 +512,24 @@ A-05
     <td>しばらく待つ。30秒以上かかる場合は管理番号を再投稿する</td>
   </tr>
   <tr>
+    <td>ロケーション番号がエラーになる</td>
+    <td>先頭に倉庫コード（A・H・Y）を付けているか確認</td>
+  </tr>
+  <tr>
     <td>ロケーション番号を間違えて入力した</td>
     <td><code>削除</code>コマンドでステータスを戻し、管理番号から再スタート</td>
   </tr>
   <tr>
-    <td>出品データを修正後に間違えて別のものを入力した</td>
-    <td>ロケーション番号として登録されている場合は浅野さんに相談</td>
+    <td>画像が表示されない</td>
+    <td>撮影チャンネルで撮影が完了しているか確認</td>
+  </tr>
+  <tr>
+    <td>画像の順番を間違えた</td>
+    <td><code>順番入替 番号 番号</code> で入替。何度でもやり直しできます</td>
+  </tr>
+  <tr>
+    <td>画像を追加したい</td>
+    <td>スレッドに写真を投稿するだけで追加されます</td>
   </tr>
   <tr>
     <td>セッションが途中で止まった</td>
@@ -496,18 +537,12 @@ A-05
   </tr>
   <tr>
     <td>わからないことがある</td>
-    <td>ステータス確認チャンネル（ステータス松本）で管理番号を入力して状態確認、または浅野さんに相談</td>
+    <td>浅野さんに相談</td>
   </tr>
 </table>
 
-<div class="box box-navy" style="margin-top:8mm; text-align:center;">
-  <b>このチャンネルは「出品準備完了」の登録が目的です。</b><br>
-  実際のヤフオク・eBayへの出品はMonday.comのステータスが「出品待ち」になった後、<br>
-  別途手動で行います。
-</div>
-
 <div style="margin-top:12mm; padding-top:5mm; border-top:1px solid #ddd; text-align:center; font-size:8.5pt; color:#999;">
-  株式会社テイクバック　TakeBack事業部　出品保管 作業マニュアル　ver.1.1　2026年3月20日更新
+  株式会社テイクバック　TakeBack事業部　出品保管 作業マニュアル　V2　2026年3月21日更新
 </div>
 
 </div>
