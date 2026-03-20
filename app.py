@@ -2439,11 +2439,17 @@ LISTING_COMMANDS = {
 }
 
 # ロケーション番号のバリデーションパターン
+# 倉庫コード（先頭1文字必須）: A=厚見倉庫, H=本荘倉庫, Y=柳津倉庫
+WAREHOUSE_CODES = {"A": "厚見倉庫", "H": "本荘倉庫", "Y": "柳津倉庫"}
+
 LOCATION_PATTERN = re.compile(
-    r'^('
-    r'[A-Za-z]-?\d{1,3}(\s?[A-Za-z横奥])?'   # A-12, A12, B2 x, A2横
-    r'|倉庫[外奥]?'                              # 倉庫, 倉庫外, 倉庫奥
-    r'|\d{1,2}[階F]'                             # 2階, 1F
+    r'^[AHY]'                   # 倉庫コード（必須）
+    r'('
+    r'-?\d{1,3}'                # 棚番号（A23, A-12）
+    r'(\s?[A-Za-z横奥])?'       # 補足（A25横, A2奥）
+    r'|倉庫[外奥]?'              # A倉庫外, H倉庫奥
+    r'|\d{1,2}[階F]'            # A2階, H1F
+    r'|.+'                      # その他自由記載（A階段横 等）
     r')$',
     re.IGNORECASE
 )
@@ -3109,9 +3115,13 @@ def handle_shuppinon_channel(event: dict) -> None:
             del listing_sessions[thread_ts]
         else:
             post_to_slack(channel_id, thread_ts,
-                "⚠️ ロケーション番号の形式を確認してください。\n\n"
+                "⚠️ 先頭に倉庫コードを付けてください。\n\n"
+                "倉庫コード：\n"
+                "　*A* = 厚見倉庫\n"
+                "　*H* = 本荘倉庫\n"
+                "　*Y* = 柳津倉庫\n\n"
                 "入力例：\n"
-                "　`A-12`　`B3`　`倉庫外`　`2階`\n\n"
+                "　`A23`　`A25横`　`H5`　`Y12`　`A2階`\n\n"
                 "修正コマンド：\n"
                 "　`タイトル：` `開始価格：` `説明文：` `サイズ：`",
                 bot_role="shuppinon")
