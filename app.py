@@ -1971,6 +1971,142 @@ def upload_images_to_drive(management_number: str, image_urls: list, is_tepura: 
     return f"https://drive.google.com/drive/folders/{item_id}"
 
 
+def get_drive_folder_id(management_number: str):
+    """管理番号からDriveフォルダIDを取得する。存在しない場合はNone"""
+    service = get_drive_service()
+    root_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+    if not service or not root_folder_id:
+        return None, None
+    yymm = management_number[:4]
+    try:
+        # YYMMフォルダを検索
+        query = f"name='{yymm}' and '{root_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = service.files().list(q=query, fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        yymm_files = results.get("files", [])
+        if not yymm_files:
+            return None, service
+        # 管理番号フォルダを検索
+        query = f"name='{management_number}' and '{yymm_files[0]['id']}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = service.files().list(q=query, fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        item_files = results.get("files", [])
+        if not item_files:
+            return None, service
+        return item_files[0]["id"], service
+    except Exception as e:
+        print(f"[Drive] フォルダ検索エラー: {e}")
+        return None, service
+
+
+def list_drive_images(management_number: str, exclude_tepura: bool = True) -> list:
+    """管理番号のDriveフォルダ内の画像一覧を返す。テプラ除外オプション付き"""
+    folder_id, service = get_drive_folder_id(management_number)
+    if not folder_id or not service:
+        return []
+    try:
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false and mimeType contains 'image/'",
+            fields="files(id, name, webViewLink, webContentLink)",
+            orderBy="name",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        files = results.get("files", [])
+        if exclude_tepura:
+            files = [f for f in files if "テプラ" not in f.get("name", "")]
+        return files
+    except Exception as e:
+        print(f"[Drive] 画像一覧取得エラー: {e}")
+        return []
+
+
+def delete_drive_file(file_id: str) -> bool:
+    """DriveファイルをゴミboxUnknownに移動（削除）"""
+    service = get_drive_service()
+    if not service:
+        return False
+    try:
+        service.files().update(fileId=file_id, body={"trashed": True}, supportsAllDrives=True).execute()
+        return True
+    except Exception as e:
+        print(f"[Drive] ファイル削除エラー: {e}")
+        return False
+
+
+def upload_shuppinon_image(management_number: str, image_urls: list) -> list:
+    """出品チャンネルから追加撮影した画像をDriveにアップロード（sp01_出品追加.jpg形式）"""
+    import io
+    from googleapiclient.http import MediaIoBaseUpload
+
+    folder_id, service = get_drive_folder_id(management_number)
+    if not folder_id or not service:
+        return []
+
+    # 既存のsp付きファイル数を取得して採番
+    try:
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false and name contains 'sp'",
+            fields="files(name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        existing_sp = [f for f in results.get("files", []) if re.match(r'^sp\d+_', f["name"])]
+        next_num = len(existing_sp) + 1
+    except Exception:
+        next_num = 1
+
+    token = get_slack_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
+    uploaded = []
+
+    for i, url in enumerate(image_urls):
+        try:
+            resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
+            resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+            ext = ext_map.get(content_type, "jpg")
+            filename = f"sp{next_num + i:02d}_出品追加.{ext}"
+            media = MediaIoBaseUpload(io.BytesIO(resp.content), mimetype=content_type)
+            result = service.files().create(
+                body={"name": filename, "parents": [folder_id]},
+                media_body=media, fields="id,name",
+                supportsAllDrives=True
+            ).execute()
+            uploaded.append(result)
+            print(f"[Drive] {filename} 出品追加アップロード完了")
+        except Exception as e:
+            print(f"[Drive] 出品追加アップロードエラー: {e}")
+
+    return uploaded
+
+
+def replace_drive_file(file_id: str, image_url: str) -> bool:
+    """既存のDriveファイルを新画像で上書き"""
+    import io
+    from googleapiclient.http import MediaIoBaseUpload
+
+    service = get_drive_service()
+    if not service:
+        return False
+
+    token = get_slack_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    try:
+        resp = httpx.get(image_url, headers=headers, timeout=30, follow_redirects=True)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
+        media = MediaIoBaseUpload(io.BytesIO(resp.content), mimetype=content_type)
+        service.files().update(
+            fileId=file_id, media_body=media,
+            supportsAllDrives=True
+        ).execute()
+        return True
+    except Exception as e:
+        print(f"[Drive] ファイル上書きエラー: {e}")
+        return False
+
+
 def extract_management_number_from_image(image_url: str) -> str:
     """テプラ画像からClaude Visionで管理番号を読み取る"""
     import re
@@ -2567,6 +2703,39 @@ def generate_listing_content(management_number: str, item_data: dict, max_title_
     return {}
 
 
+def _post_image_list(channel_id: str, thread_ts: str, management_number: str) -> None:
+    """出品用の商品画像一覧をSlackスレッドに表示する（テプラ除外）"""
+    images = list_drive_images(management_number, exclude_tepura=True)
+    if not images:
+        post_to_slack(channel_id, thread_ts,
+            "📷 商品画像がありません。\n\n"
+            "このスレッドに写真を投稿すると追加できます。",
+            bot_role="shuppinon")
+        return
+
+    lines = [
+        "━━━━━━━━━━━━━━━━",
+        f"📷 *出品画像（{len(images)}枚）*",
+        "━━━━━━━━━━━━━━━━",
+        "",
+    ]
+    for i, img in enumerate(images, 1):
+        name = img.get("name", "")
+        link = img.get("webViewLink", "")
+        lines.append(f"　[{i}] {name}" + (f"  <{link}|表示>" if link else ""))
+    lines.extend([
+        "",
+        "─────────────────────",
+        "*画像コマンド：*",
+        "　写真を投稿 → 追加撮影",
+        "　`画像削除 3` → 3枚目を削除",
+        "　`順番入替 2 4` → 2枚目と4枚目を入替",
+        "　`撮り直し 2` + 写真 → 2枚目を差替",
+        "　`画像` → 一覧を再表示",
+    ])
+    post_to_slack(channel_id, thread_ts, "\n".join(lines), bot_role="shuppinon")
+
+
 def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention_user: str = "") -> None:
     """出品データをSlackに整形して表示する"""
     mn = session["management_number"]
@@ -2751,6 +2920,9 @@ def handle_shuppinon_channel(event: dict) -> None:
         }
         listing_sessions[current_ts] = session
         post_listing_summary(channel_id, current_ts, session, mention_user=user_id)
+
+        # 商品画像をDriveから取得して表示
+        _post_image_list(channel_id, current_ts, management_number)
         return
 
     # ── スレッド内（修正コマンド or ロケーション番号）──
@@ -2768,6 +2940,93 @@ def handle_shuppinon_channel(event: dict) -> None:
         return
 
     management_number = session["management_number"]
+
+    # ── 画像管理コマンド ──
+    # 画像一覧表示
+    if text == "画像":
+        _post_image_list(channel_id, thread_ts, management_number)
+        return
+
+    # 画像削除（例: 画像削除 3）
+    m_del = re.match(r'^画像削除\s*(\d+)$', text)
+    if m_del:
+        idx = int(m_del.group(1))
+        images = list_drive_images(management_number)
+        if 1 <= idx <= len(images):
+            target = images[idx - 1]
+            if delete_drive_file(target["id"]):
+                post_to_slack(channel_id, thread_ts,
+                    f"🗑️ {idx}枚目（{target['name']}）を削除しました。",
+                    bot_role="shuppinon")
+                _post_image_list(channel_id, thread_ts, management_number)
+            else:
+                post_to_slack(channel_id, thread_ts, "⚠️ 削除に失敗しました。", bot_role="shuppinon")
+        else:
+            post_to_slack(channel_id, thread_ts, f"⚠️ {idx}枚目は存在しません。", bot_role="shuppinon")
+        return
+
+    # 順番入替（例: 順番入替 2 4）
+    m_swap = re.match(r'^順番入替\s*(\d+)\s+(\d+)$', text)
+    if m_swap:
+        a, b = int(m_swap.group(1)), int(m_swap.group(2))
+        images = list_drive_images(management_number)
+        if 1 <= a <= len(images) and 1 <= b <= len(images) and a != b:
+            service = get_drive_service()
+            if service:
+                try:
+                    name_a = images[a - 1]["name"]
+                    name_b = images[b - 1]["name"]
+                    service.files().update(fileId=images[a - 1]["id"], body={"name": name_b}, supportsAllDrives=True).execute()
+                    service.files().update(fileId=images[b - 1]["id"], body={"name": name_a}, supportsAllDrives=True).execute()
+                    post_to_slack(channel_id, thread_ts,
+                        f"🔄 {a}枚目と{b}枚目を入れ替えました。",
+                        bot_role="shuppinon")
+                    _post_image_list(channel_id, thread_ts, management_number)
+                except Exception as e:
+                    print(f"[出品CH] 順番入替エラー: {e}")
+                    post_to_slack(channel_id, thread_ts, "⚠️ 入れ替えに失敗しました。", bot_role="shuppinon")
+        else:
+            post_to_slack(channel_id, thread_ts, "⚠️ 番号が正しくありません。", bot_role="shuppinon")
+        return
+
+    # 撮り直し（例: 撮り直し 2 + 写真投稿）
+    m_replace = re.match(r'^撮り直し\s*(\d+)$', text)
+    if m_replace and image_urls:
+        idx = int(m_replace.group(1))
+        images = list_drive_images(management_number)
+        if 1 <= idx <= len(images):
+            if replace_drive_file(images[idx - 1]["id"], image_urls[0]):
+                post_to_slack(channel_id, thread_ts,
+                    f"📷 {idx}枚目を差し替えました。",
+                    bot_role="shuppinon")
+                _post_image_list(channel_id, thread_ts, management_number)
+            else:
+                post_to_slack(channel_id, thread_ts, "⚠️ 差し替えに失敗しました。", bot_role="shuppinon")
+        else:
+            post_to_slack(channel_id, thread_ts, f"⚠️ {idx}枚目は存在しません。", bot_role="shuppinon")
+        return
+
+    # 撮影（追加撮影。「撮影」+ 写真投稿）
+    if text == "撮影" and image_urls:
+        uploaded = upload_shuppinon_image(management_number, image_urls)
+        if uploaded:
+            post_to_slack(channel_id, thread_ts,
+                f"📷 {len(uploaded)}枚を追加しました。",
+                bot_role="shuppinon")
+            _post_image_list(channel_id, thread_ts, management_number)
+        else:
+            post_to_slack(channel_id, thread_ts, "⚠️ アップロードに失敗しました。", bot_role="shuppinon")
+        return
+
+    # スレッド内で写真だけ投稿（テキストなし）→ 追加撮影として扱う
+    if not text and image_urls:
+        uploaded = upload_shuppinon_image(management_number, image_urls)
+        if uploaded:
+            post_to_slack(channel_id, thread_ts,
+                f"📷 {len(uploaded)}枚を追加しました。",
+                bot_role="shuppinon")
+            _post_image_list(channel_id, thread_ts, management_number)
+        return
 
     # キャンセル・中断
     if text in CANCEL_WORDS:
