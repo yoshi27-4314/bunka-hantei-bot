@@ -27,6 +27,9 @@ const DB_SS_ID = '1CWG9MVrsw9gJwp31lCrUs9KB0a1zptZY1cPO47ZNmVU';
 // Claude Code 作業ログ スプレッドシートID
 const CLAUDE_LOG_SS_ID = '1-jspSk-pi9Epm0Z5GoyppVfCw8mXSLhJ3B-yBPoRy8U';
 
+// システム仕様書 スプレッドシートID
+const SPEC_SS_ID = '1Sty7dE9tOsYOLoCJmXtoFnj4S0cQmbgG_WogxxSthHg';
+
 // 分荷判定DB のシート名
 const DB_SH = {
   BUNIKA_LOG:  '分荷確定ログ',
@@ -56,6 +59,103 @@ const TSUHAN_MAP = {
   'ヤフオク現行':           'G',
   'ヤフオクまとめ':         'M',
 };
+
+// ============================================================
+// GET エントリポイント（スプレッドシート読み取り）
+// ============================================================
+// 使い方:
+//   GET ?type=spec          → システム仕様書の全シート名+各シートデータ
+//   GET ?type=spec&sheet=シート名  → 指定シートのみ
+//   GET ?type=claude_log    → Claude作業ログ
+//   GET ?type=staff         → スタッフマスタ（既存互換）
+//   GET ?type=sheets        → 分荷判定DBの全シート名一覧
+// ============================================================
+function doGet(e) {
+  try {
+    const type = String((e && e.parameter && e.parameter.type) || '');
+    const sheetName = (e && e.parameter && e.parameter.sheet) || '';
+
+    let result;
+    switch (type) {
+      case 'spec':
+        result = _readSpreadsheet(SPEC_SS_ID, sheetName);
+        break;
+      case 'claude_log':
+        result = _readSpreadsheet(CLAUDE_LOG_SS_ID, sheetName);
+        break;
+      case 'db':
+        result = _readSpreadsheet(DB_SS_ID, sheetName);
+        break;
+      case 'sheets':
+        result = _listSheets(DB_SS_ID);
+        break;
+      case 'staff':
+        result = _readStaffMaster();
+        break;
+      default:
+        result = { ok: false, error: 'type パラメータが必要です (spec / claude_log / db / sheets / staff)' };
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/** スプレッドシートの全シートまたは指定シートを読み取る */
+function _readSpreadsheet(ssId, sheetName) {
+  const ss = SpreadsheetApp.openById(ssId);
+  if (sheetName) {
+    const sh = ss.getSheetByName(sheetName);
+    if (!sh) return { ok: false, error: 'シート「' + sheetName + '」が見つかりません' };
+    return { ok: true, sheets: [_sheetToJson(sh)] };
+  }
+  // 全シート
+  const allSheets = ss.getSheets();
+  return {
+    ok: true,
+    sheets: allSheets.map(function(sh) { return _sheetToJson(sh); }),
+  };
+}
+
+/** シートをJSON形式に変換 */
+function _sheetToJson(sh) {
+  const data = sh.getDataRange().getValues();
+  if (data.length === 0) return { name: sh.getName(), headers: [], rows: [] };
+  return {
+    name: sh.getName(),
+    headers: data[0].map(String),
+    rows: data.slice(1).map(function(row) {
+      return row.map(function(cell) {
+        if (cell instanceof Date) return Utilities.formatDate(cell, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm');
+        return String(cell);
+      });
+    }),
+  };
+}
+
+/** シート名一覧を返す */
+function _listSheets(ssId) {
+  var ss = SpreadsheetApp.openById(ssId);
+  return { ok: true, sheets: ss.getSheets().map(function(sh) { return sh.getName(); }) };
+}
+
+/** スタッフマスタ読み取り（既存互換） */
+function _readStaffMaster() {
+  try {
+    var ss = SpreadsheetApp.openById(DB_SS_ID);
+    var sh = ss.getSheetByName('スタッフマスタ');
+    if (!sh) return { ok: true, staff: [] };
+    return { ok: true, staff: _sheetToJson(sh) };
+  } catch (err) {
+    return { ok: true, staff: [], error: err.toString() };
+  }
+}
 
 // ============================================================
 // メインエントリポイント
