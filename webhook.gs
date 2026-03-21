@@ -186,6 +186,7 @@ function doPost(e) {
         case 'genba_satei':       result = _handleGenbaSatei(payload);      break;
         case 'genba_memo':        result = _handleGenbaMemo(payload);       break;
         case 'claude_session_log': result = _handleClaudeSessionLog(payload); break;
+        case 'update_spec_sheet':  result = _handleUpdateSpecSheet(payload); break;
         default:                  result = { ok: true, skipped: action };   break;
       }
     }
@@ -583,4 +584,39 @@ function _handleGenbaMemo(payload) {
     payload.message  || '',
   ]);
   return { ok: true };
+}
+
+// ============================================================
+// ⑭ システム仕様書の更新（シート単位で上書き）
+// ============================================================
+// payload: { action: "update_spec_sheet", sheet_name: "シート名", headers: [...], rows: [[...], ...] }
+function _handleUpdateSpecSheet(payload) {
+  const ss = SpreadsheetApp.openById(SPEC_SS_ID);
+  const sheetName = String(payload.sheet_name || '');
+  if (!sheetName) return { ok: false, error: 'sheet_name が必要です' };
+
+  let sh = ss.getSheetByName(sheetName);
+  if (!sh) {
+    sh = ss.insertSheet(sheetName);
+  } else {
+    sh.clear();
+  }
+
+  var headers = payload.headers || [];
+  var rows    = payload.rows    || [];
+
+  if (headers.length > 0) {
+    sh.appendRow(headers);
+    sh.getRange(1, 1, 1, headers.length)
+      .setBackground('#1a3a2a')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+
+  for (var i = 0; i < rows.length; i++) {
+    sh.appendRow(rows[i]);
+  }
+
+  return { ok: true, msg: 'シート「' + sheetName + '」を更新しました（' + rows.length + '行）' };
 }
