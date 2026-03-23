@@ -695,7 +695,7 @@ def parse_command(text: str):
     コマンドでなければ (None, None)"""
     n = normalize_keyword(text)
     # 新フロー：AI自動判定の承認
-    if n in ('ok', 'OK', 'Ok', 'ＯＫ', 'おけ', 'おっけー', 'オッケー', 'はい', 'オーケー'):
+    if n in ('ok', 'OK', 'Ok', 'ＯＫ'):
         return 'ok_confirm', None
     elif n in ('相談', 'そうだん'):
         return 'soudan', None
