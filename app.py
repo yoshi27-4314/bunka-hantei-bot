@@ -343,7 +343,10 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
 
 
 # 重複処理防止（同じメッセージを2回処理しない）
-processed_events = set()
+# 古い順に自動で消える仕組み（最大1000件保持）
+from collections import OrderedDict
+_processed_events_dict = OrderedDict()
+PROCESSED_EVENTS_MAX = 1000
 
 SYSTEM_PROMPT = """あなたはテイクバック（中古品買取・転売会社）の分荷判定AIです。
 キャラクターは「北大路魯山人」。目利きの職人。
@@ -1454,7 +1457,7 @@ def process_slack_message(event: dict) -> None:
                     "━━━━━━━━━━━━━━━━\n"
                     "⚠️ *在庫検索エラー*\n"
                     "━━━━━━━━━━━━━━━━\n\n"
-                    f"{e}")
+                    "検索中にエラーが発生しました。もう一度お試しください。")
             return
 
     # ── チャンネルルーティング ────────────────────────────
@@ -1527,7 +1530,7 @@ def process_slack_message(event: dict) -> None:
                     "━━━━━━━━━━━━━━━━\n"
                     "⚠️ *コマンド処理エラー*\n"
                     "━━━━━━━━━━━━━━━━\n\n"
-                    f"{e}")
+                    "処理中にエラーが発生しました。もう一度お試しください。")
             return  # コマンドならAI判定はしない
 
         # ── チェックリスト応答判定 ─────────────────────────
@@ -1551,7 +1554,7 @@ def process_slack_message(event: dict) -> None:
                             "━━━━━━━━━━━━━━━━\n"
                             "⚠️ *チェックリスト処理エラー*\n"
                             "━━━━━━━━━━━━━━━━\n\n"
-                            f"{e}")
+                            "処理中にエラーが発生しました。もう一度お試しください。")
                     return
                 elif image_only_post:
                     # 番号なしで写真だけ送ってきた場合 → 番号入力を促す
@@ -1588,7 +1591,7 @@ def process_slack_message(event: dict) -> None:
                 "━━━━━━━━━━━━━━━━\n"
                 "⚠️ *エラーが発生しました*\n"
                 "━━━━━━━━━━━━━━━━\n\n"
-                f"{e}")
+                "処理中にエラーが発生しました。もう一度お試しください。")
         except Exception as e2:
             print(f"[Slack送信エラー] {e2}")
 
@@ -3578,11 +3581,9 @@ kaitori_sessions = {}
 def _extract_id_info(image_url: str) -> dict:
     """身分証の写真からClaudeで情報を抽出する（古物台帳記載用）"""
     img_data, img_type = fetch_image_as_base64(image_url)
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    import anthropic as _anthropic
-    import json as _json
-    import re as _re
-    client = _anthropic.Anthropic(api_key=anthropic_key)
+    client = get_anthropic_client()
+    if not client:
+        return {}
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=512,
@@ -3737,10 +3738,10 @@ def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
                     "「古物台帳」シートをご確認ください。",
                     mention_user=user_id, bot_role="genba")
             except Exception as e:
+                print(f"[古物台帳登録エラー] {e}")
                 post_to_slack(channel_id, current_ts,
-                    f"⚠️ 記録に失敗いたしました。\n\n"
-                    f"もう一度 `登録` と送信してください。\n"
-                    f"エラー：{e}",
+                    "⚠️ 記録に失敗いたしました。\n\n"
+                    "もう一度 `登録` と送信してください。",
                     mention_user=user_id, bot_role="genba")
             return True
 
@@ -3921,11 +3922,9 @@ def handle_genba_channel(event: dict) -> None:
         else:
             messages.append({"role": "user", "content": text})
 
-        anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not anthropic_key:
+        client = get_anthropic_client()
+        if not client:
             raise RuntimeError("ANTHROPIC_API_KEY が設定されていません")
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=anthropic_key)
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1024,
@@ -4374,15 +4373,15 @@ def slack_events():
     # ボット自身の発言・重複イベントを無視
     # file_shareサブタイプは画像投稿なので許可する
     subtype = event.get("subtype", "")
-    if event.get("bot_id") or event.get("bot_profile") or event_id in processed_events:
+    if event.get("bot_id") or event.get("bot_profile") or event_id in _processed_events_dict:
         return jsonify({"ok": True})
     if subtype and subtype != "file_share":
         return jsonify({"ok": True})
 
-    processed_events.add(event_id)
-    # メモリ節約のため古いイベントIDを削除
-    if len(processed_events) > 1000:
-        processed_events.clear()
+    _processed_events_dict[event_id] = True
+    # 古い順に削除して最大件数を維持（全消しはしない）
+    while len(_processed_events_dict) > PROCESSED_EVENTS_MAX:
+        _processed_events_dict.popitem(last=False)
 
     # メッセージイベントのみ処理
     if event.get("type") == "message":
@@ -4447,16 +4446,16 @@ def webhook():
         return jsonify({"ok": True, "judgment": judgment}), 200
 
     except Exception as e:
-        error_msg = f"判定処理でエラーが発生しました: {e}"
+        print(f"[Webhook判定エラー] {e}")
         try:
             post_to_slack(channel_id, thread_ts,
                 "━━━━━━━━━━━━━━━━\n"
                 "⚠️ *処理エラー*\n"
                 "━━━━━━━━━━━━━━━━\n\n"
-                f"{error_msg}")
+                "判定処理中にエラーが発生しました。もう一度お試しください。")
         except Exception:
             pass
-        return jsonify({"ok": False, "error": error_msg}), 500
+        return jsonify({"ok": False, "error": "internal error"}), 500
 
 
 @app.route("/health", methods=["GET"])
