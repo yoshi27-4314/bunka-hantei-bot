@@ -81,10 +81,17 @@ def get_monday_token():
     )
 
 
+# ── 定数 ──────────────────────────────────
 MONDAY_BOARD_ID = "18404143384"
 MONDAY_OLD_BOARD_IDS = ["8199048609", "8199056494"]  # 旧ボード（手作業登録・現在出品中の商品）
 TSUHAN_COMMUNITY_CHANNEL_ID = "C0AN99GAG2C"  # 通販業務_共有コミュニティ
 MONDAY_API_URL = "https://api.monday.com/v2"
+MONDAY_PAGE_LIMIT = 500            # Monday.com 1回のクエリで取得する最大件数
+MONDAY_ITEM_NAME_MAX_LEN = 50     # Monday.com アイテム名の最大文字数
+HIGH_VALUE_THRESHOLD = 30000       # この金額以上で高額案件メンション
+PROCESSED_EVENTS_MAX = 1000        # 重複処理防止で保持するイベントIDの最大数
+MANAGEMENT_NUMBER_PATTERN = re.compile(r'\d{4}(?:[VGME]\d{4}|-\d{4})')  # 管理番号の正規表現
+
 _monday_setup_log: list = []
 GAS_URL = os.environ.get("GAS_URL", "")
 if not GAS_URL:
@@ -208,7 +215,6 @@ def generate_management_number() -> str:
 
 def extract_judgment(response_text: str) -> dict:
     """Claude応答から判定結果を抽出する"""
-    import re
     result = {
         "first_channel": "",
         "first_confidence": "",
@@ -286,14 +292,13 @@ def extract_judgment(response_text: str) -> dict:
 
 def register_to_monday(management_number: str, item_name: str, judgment: dict, user_id: str, sakugyou_jikan: int = 0, kakutei_channel: str = "") -> None:
     """monday.comにアイテムを登録する"""
-    import re as _re
     # 予想販売価格から数値を抽出（例: "¥5,000〜¥8,000" → "5000"）
     price_str = judgment.get("predicted_price", "")
     price_num = ""
     if price_str:
-        m = _re.search(r'[\d,]+', price_str.replace("¥", "").replace(",", ""))
+        m = re.search(r'[\d,]+', price_str.replace("¥", "").replace(",", ""))
         if m:
-            price_num = _re.sub(r'[^\d]', '', m.group(0))
+            price_num = re.sub(r'[^\d]', '', m.group(0))
 
     col = {
         "kanri_bango": management_number,
@@ -343,10 +348,9 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
 
 
 # 重複処理防止（同じメッセージを2回処理しない）
-# 古い順に自動で消える仕組み（最大1000件保持）
+# 古い順に自動で消える仕組み（最大件数はPROCESSED_EVENTS_MAXで定義）
 from collections import OrderedDict
 _processed_events_dict = OrderedDict()
-PROCESSED_EVENTS_MAX = 1000
 
 SYSTEM_PROMPT = """あなたはテイクバック（中古品買取・転売会社）の分荷判定AIです。
 キャラクターは「北大路魯山人」。目利きの職人。
@@ -663,7 +667,6 @@ def normalize_channel(channel: str) -> str:
 
 def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
     """スレッド内のBot判定メッセージから判定データを抽出する"""
-    import re
     token = get_slack_token()
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
@@ -745,7 +748,6 @@ def get_confirmation_from_thread(channel_id: str, thread_ts: str) -> dict:
     管理番号なしの確定（社内利用・スクラップ・廃棄・ロット販売）も検出する。
     戻り値: {"kanri_bango": str, "kakutei_channel": str}
     """
-    import re
     token = get_slack_token()
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
@@ -936,7 +938,6 @@ def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
     戻り値: {"management_number": str, "is_completed": bool}
     チェックリストがなければ {}
     """
-    import re
     token = get_slack_token()
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
@@ -1640,7 +1641,6 @@ MATOME_CHANNELS = {"eBayまとめ", "ヤフオクまとめ", "ロット販売"}
 
 def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
     """スレッド内にまとめ売り選択待ちメッセージがあればチャンネル名を返す"""
-    import re as _re
     token = get_slack_token()
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
@@ -1654,7 +1654,7 @@ def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
     for msg in data.get("messages", []):
         if not (msg.get("bot_id") or msg.get("bot_profile")):
             continue
-        m = _re.search(r'\[まとめ選択待ち:([^\]]+)\]', msg.get("text", ""))
+        m = re.search(r'\[まとめ選択待ち:([^\]]+)\]', msg.get("text", ""))
         if m:
             return m.group(1)
     return None
@@ -1935,7 +1935,6 @@ def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts
 
 def get_drive_service():
     """Google Drive APIサービスを返す。認証情報未設定の場合はNone"""
-    import base64
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
@@ -2159,7 +2158,6 @@ def replace_drive_file(file_id: str, image_url: str) -> bool:
 
 def extract_management_number_from_image(image_url: str) -> str:
     """テプラ画像からClaude Visionで管理番号を読み取る"""
-    import re
     try:
         image_data, media_type = fetch_image_as_base64(image_url)
         client = get_anthropic_client()
@@ -2188,7 +2186,6 @@ def extract_management_number_from_image(image_url: str) -> str:
 
 def get_management_number_from_satsuei_thread(channel_id: str, thread_ts: str) -> str:
     """撮影スレッド内のBot確認メッセージから管理番号を取得する"""
-    import re
     token = get_slack_token()
     response = httpx.get(
         "https://slack.com/api/conversations.replies",
@@ -2217,9 +2214,8 @@ def handle_satsuei_channel(event: dict) -> None:
 
     # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
     if is_new_post:
-        import re as _re
         # テキストで管理番号が直接入力された場合
-        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
+        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
             print(f"[撮影CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
@@ -2447,11 +2443,10 @@ def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_n
 
 def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str) -> bool:
     """削除確認：管理番号が一致したら削除を実行。処理した場合Trueを返す"""
-    import re as _re
     pending = delete_confirm_sessions.get(thread_ts)
     if not pending:
         return False
-    mn_m = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
+    mn_m = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
     if not mn_m:
         return False
     management_number = mn_m.group(0)
@@ -2688,7 +2683,6 @@ LISTING_RULES_DEFAULT = {
 
 def generate_listing_content(management_number: str, item_data: dict, max_title_len: int = 65) -> dict:
     """Claudeでヤフオク出品タイトル・説明文・価格を生成する"""
-    import re
     client = get_anthropic_client()
     if not client:
         return {}
@@ -2831,7 +2825,6 @@ def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention
 
 def execute_listing(session: dict, location: str, channel_id: str, thread_ts: str, user_id: str) -> None:
     """出品を実行する（スプレッドシート記録 + Monday.com更新）"""
-    import re
     management_number = session["management_number"]
 
     # ページ作成時間を計算（ページ作成完了〜ロケーション入力までの分数）
@@ -2897,7 +2890,6 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
 
 def handle_shuppinon_channel(event: dict) -> None:
     """出品チャンネルのイベントを処理する"""
-    import re
     channel_id = event.get("channel")
     current_ts = event.get("ts", "")
     thread_ts = event.get("thread_ts") or current_ts
@@ -2909,8 +2901,7 @@ def handle_shuppinon_channel(event: dict) -> None:
 
     # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
     if is_new_post:
-        import re as _re
-        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
+        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
         if not image_urls and not text_mn:
             print(f"[出品CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
@@ -3328,7 +3319,6 @@ def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier,
 
 def handle_konpo_channel(event: dict) -> None:
     """梱包出荷チャンネルのイベントを処理する"""
-    import re as _re
     channel_id = event.get("channel")
     current_ts = event.get("ts", "")
     thread_ts = event.get("thread_ts") or current_ts
@@ -3341,7 +3331,7 @@ def handle_konpo_channel(event: dict) -> None:
     # ── 新規投稿 ──────────────────────────────────────────
     if is_new_post:
         # 後日発送の送り状後入力: 「管理番号 運送会社 追跡番号」
-        delayed_m = _re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
+        delayed_m = re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
         if delayed_m:
             mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
             carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
@@ -3353,7 +3343,7 @@ def handle_konpo_channel(event: dict) -> None:
             return
 
         # 通常の梱包開始
-        text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3})', text)
+        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3})', text)
         if not text_mn and not image_urls:
             print(f"[梱包CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
             return
@@ -3384,7 +3374,7 @@ def handle_konpo_channel(event: dict) -> None:
             return
 
         kw = item_data.get("internal_keyword", "")
-        size_m = _re.search(r'/[A-Z]+(\d+)/', kw)
+        size_m = re.search(r'/[A-Z]+(\d+)/', kw)
         size = size_m.group(1) if size_m else "不明"
         is_old_board = item_data.get("is_old_board", False)
 
@@ -3408,8 +3398,7 @@ def handle_konpo_channel(event: dict) -> None:
                     continue
                 if col_val == management_number:
                     continue
-                import re as _re
-                if _re.match(r'^([A-Z][A-Za-z\d\s横奥]*|\d{1,2}[階F]?|倉庫[外奥]?)$', col_val.strip()):
+                if re.match(r'^([A-Z][A-Za-z\d\s横奥]*|\d{1,2}[階F]?|倉庫[外奥]?)$', col_val.strip()):
                     shelf = col_val
                     break
             shelf_line = f"📍 棚番\n　{shelf}\n\n" if shelf else ""
@@ -3607,10 +3596,10 @@ def _extract_id_info(image_url: str) -> dict:
         }],
     )
     text = response.content[0].text
-    m = _re.search(r'\{.*\}', text, _re.DOTALL)
+    m = re.search(r'\{.*\}', text, re.DOTALL)
     if m:
         try:
-            return _json.loads(m.group(0))
+            return json.loads(m.group(0))
         except Exception:
             pass
     return {}
@@ -3620,11 +3609,10 @@ def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
                          user_id: str, text: str, image_urls: list) -> bool:
     """古物台帳フロー（買取確定〜身分証確認〜台帳登録）を処理する。
     フロー処理した場合はTrueを返す。"""
-    import re as _re
     session_key = f"{channel_id}_{user_id}"
 
     # ── Step 0: 「買取確定 ¥3000」でフロー開始 ──
-    m = _re.search(r'買取確定\s*[¥￥]?\s*([\d,]+)', text or "")
+    m = re.search(r'買取確定\s*[¥￥]?\s*([\d,]+)', text or "")
     if m:
         price = int(m.group(1).replace(",", ""))
         kaitori_sessions[session_key] = {
@@ -3746,8 +3734,7 @@ def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
             return True
 
         # 修正コマンド処理
-        import re as _re2
-        fix = _re2.match(r'修正\s+(.+?)[:：](.+)', text or "")
+        fix = re.match(r'修正\s+(.+?)[:：](.+)', text or "")
         if fix:
             field_name = fix.group(1).strip()
             new_value = fix.group(2).strip()
@@ -3958,7 +3945,6 @@ def handle_genba_channel(event: dict) -> None:
 
 def handle_status_channel(event: dict) -> None:
     """ステータス確認チャンネルのイベントを処理する"""
-    import re as _re
     from datetime import date
     channel_id = event.get("channel")
     current_ts = event.get("ts", "")
@@ -3968,7 +3954,7 @@ def handle_status_channel(event: dict) -> None:
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
     text = normalize_keyword(event.get("text", ""))
 
-    text_mn = _re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
+    text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
     if not text_mn and not image_urls:
         print(f"[ステータスCH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
         return
@@ -4051,7 +4037,6 @@ def get_staff_break_minutes(staff_id: str) -> int:
 
 def handle_attendance_channel(event: dict) -> None:
     """出退勤チャンネル - 9:00~16:00 形式で自己申告"""
-    import re as _re
     channel_id = event.get("channel")
     current_ts = event.get("ts", "")
     user_id = event.get("user", "")
@@ -4064,8 +4049,8 @@ def handle_attendance_channel(event: dict) -> None:
     proxy_name = None
     proxy_match = None
     for name in DAIHITSU_STAFF:
-        pm = _re.match(
-            rf'{_re.escape(name)}\s+(\d{{1,2}}):(\d{{2}})[~\-～](\d{{1,2}}):(\d{{2}})',
+        pm = re.match(
+            rf'{re.escape(name)}\s+(\d{{1,2}}):(\d{{2}})[~\-～](\d{{1,2}}):(\d{{2}})',
             text
         )
         if pm:
@@ -4118,7 +4103,7 @@ def handle_attendance_channel(event: dict) -> None:
     staff_id = get_staff_code(user_id)
 
     # "9:00~16:00" / "9:00-16:00" / "9:00～16:00" のパース
-    m = _re.match(r'(\d{1,2}):(\d{2})[~\-～](\d{1,2}):(\d{2})', text)
+    m = re.match(r'(\d{1,2}):(\d{2})[~\-～](\d{1,2}):(\d{2})', text)
     if not m:
         post_to_slack(channel_id, current_ts,
             "入力形式：`9:00~16:00`\n（開始時刻〜終了時刻）\n小さな記録の積み重ねが、大きな実りとなります。",
@@ -4396,7 +4381,6 @@ def slack_events():
 @app.route("/test-drive", methods=["GET"])
 def test_drive():
     """Google Drive接続テスト"""
-    import base64
     result = {"GOOGLE_SERVICE_ACCOUNT_JSON": "未設定", "GOOGLE_DRIVE_FOLDER_ID": "未設定", "drive_service": "NG", "folder_access": "NG", "error": ""}
     json_b64 = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
