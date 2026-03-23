@@ -586,15 +586,17 @@ AIの判定理由（市場分析・コスト計算）は書かない。スタッ
 🏷️ 推定内部KW：/[発送コード][サイズ]/[価格コード]/[期待値]
 
 ━━━━━━━━━━━━━━━━
-【浅野承認条件に該当しない場合】
-→ `確定` / `相談`
+【浅野承認条件に該当しない場合 → スタッフが操作する】
+`確定` を入力 → 確定します
+`相談` を入力 → 浅野に確認を依頼します
 
-【浅野承認条件に該当する場合 → 以下を追加表示】
-⚠️ *承認が必要です*
-該当理由：[①〜⑦のどれに該当するか簡潔に記載]
-@浅野 確認をお願いします。
-承認：`確定` / 変更指示をこのスレッドに記入
-━━━━━━━━━━━━━━━━"""
+【浅野承認条件に該当する場合 → スタッフへの指示だけ表示】
+⏳ この商品は浅野の確認待ちです。
+しばらくお待ちください。次の商品に進んでください。
+━━━━━━━━━━━━━━━━
+
+★重要：承認待ちの場合、浅野への通知（@浅野メンション・承認理由・確定/変更指示の案内）は
+このメッセージには含めない。Botのコード側で別メッセージとして送信する。"""
 
 
 def fetch_image_as_base64(image_url: str) -> tuple[str, str]:
@@ -1676,6 +1678,23 @@ def process_slack_message(event: dict) -> None:
         user_id = event.get("user", "")
         post_to_slack(channel_id, thread_ts, judgment_text, mention_user=user_id)
         print("[Slack返信完了]")
+
+        # 承認待ちの場合、浅野さんへの通知を別メッセージで送信
+        if '承認' in judgment_text and '確認待ち' in judgment_text:
+            # 判定結果からアイテム名とチャンネルを取得
+            item_match = re.search(r'アイテム名：(.+)', judgment_text)
+            channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
+            price_match = re.search(r'予想販売価格：(.+)', judgment_text)
+            item_name = item_match.group(1).strip() if item_match else "不明"
+            auto_channel = channel_match.group(1).strip() if channel_match else "不明"
+            price_info = price_match.group(1).strip() if price_match else "不明"
+            post_to_slack(channel_id, thread_ts,
+                f"<@{ASANO_USER_ID}>\n"
+                f"商品：{item_name}\n"
+                f"判定：{auto_channel}\n"
+                f"価格：{price_info}\n"
+                f"担当：<@{user_id}>\n\n"
+                "`確定` または変更指示をこのスレッドに記入してください。")
     except Exception as e:
         print(f"[エラー] {e}")
         try:
@@ -1986,6 +2005,16 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             history = []
         judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=history)
         post_to_slack(channel_id, thread_ts, judgment_text)
+        # 再判定でも承認待ちなら浅野通知
+        if '承認' in judgment_text and '確認待ち' in judgment_text:
+            item_match = re.search(r'アイテム名：(.+)', judgment_text)
+            channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
+            item_name = item_match.group(1).strip() if item_match else "不明"
+            auto_channel = channel_match.group(1).strip() if channel_match else "不明"
+            post_to_slack(channel_id, thread_ts,
+                f"<@{ASANO_USER_ID}> 再判定で承認が必要です。\n"
+                f"商品：{item_name} / 判定：{auto_channel}\n"
+                "`確定` または変更指示をお願いします。")
 
     elif cmd_type == 'horyuu':
         persona = BOT_PERSONA["bunika"]
