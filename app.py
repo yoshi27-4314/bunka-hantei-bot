@@ -1485,6 +1485,31 @@ BOT_PERSONA = {
 }
 
 
+def send_dm(user_id: str, text: str) -> bool:
+    """指定ユーザーにDMを送信する"""
+    token = get_slack_token()
+    if not token:
+        return False
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
+    # DMチャンネルを開く
+    open_resp = httpx.post("https://slack.com/api/conversations.open",
+        headers=headers, json={"users": user_id}, timeout=10)
+    open_data = open_resp.json()
+    if not open_data.get("ok"):
+        print(f"[DM] conversations.open失敗: {open_data.get('error')}")
+        return False
+    dm_channel = open_data["channel"]["id"]
+    # DMを送信
+    msg_resp = httpx.post("https://slack.com/api/chat.postMessage",
+        headers=headers, json={"channel": dm_channel, "text": text}, timeout=10)
+    msg_data = msg_resp.json()
+    if not msg_data.get("ok"):
+        print(f"[DM] chat.postMessage失敗: {msg_data.get('error')}")
+        return False
+    print(f"[DM] {user_id} に送信完了")
+    return True
+
+
 def post_to_slack(channel_id: str, thread_ts: str, text: str, mention_user: str = "", bot_role: str = "bunika") -> None:
     """Slackの指定スレッドにメッセージを返信する"""
     if mention_user:
@@ -1709,22 +1734,31 @@ def process_slack_message(event: dict) -> None:
         post_to_slack(channel_id, thread_ts, judgment_text, mention_user=user_id)
         print("[Slack返信完了]")
 
-        # 承認待ちの場合、浅野さんへの通知を別メッセージで送信
-        if '承認' in judgment_text and '確認待ち' in judgment_text:
-            # 判定結果からアイテム名とチャンネルを取得
+        # 承認待ちの場合、浅野さんにDMで通知
+        if '確認待ち' in judgment_text or '承認' in judgment_text:
             item_match = re.search(r'アイテム名：(.+)', judgment_text)
             channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
             price_match = re.search(r'予想販売価格：(.+)', judgment_text)
             item_name = item_match.group(1).strip() if item_match else "不明"
             auto_channel = channel_match.group(1).strip() if channel_match else "不明"
             price_info = price_match.group(1).strip() if price_match else "不明"
-            post_to_slack(channel_id, thread_ts,
-                f"<@{ASANO_USER_ID}>\n"
+            # スレッドのリンクを作成
+            thread_link = f"https://app.slack.com/client/{channel_id}/{thread_ts}"
+            dm_sent = send_dm(ASANO_USER_ID,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *承認待ち*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
                 f"商品：{item_name}\n"
                 f"判定：{auto_channel}\n"
                 f"価格：{price_info}\n"
                 f"担当：<@{user_id}>\n\n"
-                "`確定` または変更指示をこのスレッドに記入してください。")
+                f"該当スレッドで `確定` または変更指示をお願いします。")
+            if not dm_sent:
+                # DM失敗時はスレッドにメンション（フォールバック）
+                post_to_slack(channel_id, thread_ts,
+                    f"<@{ASANO_USER_ID}> 承認が必要です。\n"
+                    f"商品：{item_name} / 判定：{auto_channel}\n"
+                    "`確定` または変更指示をお願いします。")
     except Exception as e:
         print(f"[エラー] {e}")
         try:
@@ -2035,16 +2069,24 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             history = []
         judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=history)
         post_to_slack(channel_id, thread_ts, judgment_text)
-        # 再判定でも承認待ちなら浅野通知
-        if '承認' in judgment_text and '確認待ち' in judgment_text:
+        # 再判定でも承認待ちなら浅野にDM通知
+        if '確認待ち' in judgment_text or '承認' in judgment_text:
             item_match = re.search(r'アイテム名：(.+)', judgment_text)
             channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
             item_name = item_match.group(1).strip() if item_match else "不明"
             auto_channel = channel_match.group(1).strip() if channel_match else "不明"
-            post_to_slack(channel_id, thread_ts,
-                f"<@{ASANO_USER_ID}> 再判定で承認が必要です。\n"
-                f"商品：{item_name} / 判定：{auto_channel}\n"
-                "`確定` または変更指示をお願いします。")
+            dm_sent = send_dm(ASANO_USER_ID,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚠️ *再判定：承認待ち*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"商品：{item_name}\n"
+                f"判定：{auto_channel}\n\n"
+                "該当スレッドで `確定` または変更指示をお願いします。")
+            if not dm_sent:
+                post_to_slack(channel_id, thread_ts,
+                    f"<@{ASANO_USER_ID}> 再判定で承認が必要です。\n"
+                    f"商品：{item_name} / 判定：{auto_channel}\n"
+                    "`確定` または変更指示をお願いします。")
 
     elif cmd_type == 'horyuu':
         persona = BOT_PERSONA["bunika"]
