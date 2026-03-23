@@ -17,6 +17,23 @@ from flask import Flask, request, jsonify
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+# 分割モジュールからインポート
+from config import (
+    get_anthropic_client, get_slack_token, get_monday_token,
+    MONDAY_BOARD_ID, MONDAY_OLD_BOARD_IDS, TSUHAN_COMMUNITY_CHANNEL_ID,
+    MONDAY_API_URL, MONDAY_PAGE_LIMIT, MONDAY_ITEM_NAME_MAX_LEN,
+    HIGH_VALUE_THRESHOLD, PROCESSED_EVENTS_MAX, MANAGEMENT_NUMBER_PATTERN,
+    GAS_URL, ASANO_USER_ID, ADMIN_USER_ID,
+    STAFF_MAP, STAFF_LISTING_MARKS, BOT_NAMES, BOT_PERSONA,
+    VALID_CHANNELS, MATOME_CHANNELS, TSUHAN_CHANNELS,
+    CONDITION_MAP, CARRIER_MAP, CARRIER_MENU,
+    CHANNEL_NAMES, CANCEL_WORDS,
+    WAREHOUSE_CODES, LOCATION_PATTERN,
+    MIN_LISTING_PRICE, LISTING_RULES, LISTING_RULES_DEFAULT,
+    get_staff_code, get_min_listing_price,
+)
+from prompts import SYSTEM_PROMPT, GENBA_SYSTEM_PROMPT
+
 load_dotenv()
 print(f"[起動時ENV一覧] {[k for k in os.environ.keys() if 'ANTHROPIC' in k or 'SLACK' in k]}")
 
