@@ -14,41 +14,41 @@ import time
 import httpx
 from datetime import datetime
 from flask import Flask, request, jsonify
-from anthropic import Anthropic
 from dotenv import load_dotenv
+from collections import OrderedDict
 
-# 分割モジュールからインポート
+# 設定・定数
 from config import (
-    get_anthropic_client, get_slack_token, get_monday_token,
-    MONDAY_BOARD_ID, MONDAY_OLD_BOARD_IDS, TSUHAN_COMMUNITY_CHANNEL_ID,
-    MONDAY_API_URL, MONDAY_PAGE_LIMIT, MONDAY_ITEM_NAME_MAX_LEN,
-    HIGH_VALUE_THRESHOLD, PROCESSED_EVENTS_MAX, MANAGEMENT_NUMBER_PATTERN,
-    GAS_URL, ASANO_USER_ID, ADMIN_USER_ID,
-    STAFF_MAP, STAFF_LISTING_MARKS, BOT_NAMES, BOT_PERSONA,
-    VALID_CHANNELS, MATOME_CHANNELS, TSUHAN_CHANNELS,
-    CONDITION_MAP, CARRIER_MAP, CARRIER_MENU,
-    CHANNEL_NAMES, CANCEL_WORDS,
-    WAREHOUSE_CODES, LOCATION_PATTERN,
-    MIN_LISTING_PRICE, LISTING_RULES, LISTING_RULES_DEFAULT,
-    get_staff_code, get_min_listing_price,
+    get_slack_token, MONDAY_BOARD_ID, PROCESSED_EVENTS_MAX,
+    ASANO_USER_ID, ADMIN_USER_ID, CONDITION_MAP,
 )
-from prompts import SYSTEM_PROMPT, GENBA_SYSTEM_PROMPT
 
-# サービスレイヤーからインポート
+# サービスレイヤー（app.py で直接使うもののみ）
 from services.slack import send_dm, post_to_slack, get_bot_role_for_channel
-from services.claude import fetch_image_as_base64, call_claude
-from services.monday import (
-    monday_graphql, get_monthly_sequence, generate_management_number,
-    extract_judgment, register_to_monday, cancel_monday_item,
-    _find_monday_item_id, update_monday_columns, update_monday_item_status,
-    search_inventory, get_item_from_monday, get_item_from_old_boards,
+from services.claude import call_claude
+from services.monday import monday_graphql
+from services.google_drive import get_drive_service
+
+# ユーティリティ
+from utils.commands import normalize_keyword, parse_command
+from utils.slack_thread import fetch_thread_messages, get_matome_pending_from_thread
+from utils.checklist import get_checklist_state
+from utils.work_activity import daily_stats
+
+# ハンドラーからインポート
+from handlers.bunika import (
+    _handle_zaiko_search, _complete_kakutei, _handle_matome_choice,
+    _handle_command, _handle_checklist,
 )
-from services.google_drive import (
-    get_drive_service, get_or_create_drive_folder, upload_images_to_drive,
-    get_drive_folder_id, list_drive_images, delete_drive_file,
-    upload_shuppinon_image, replace_drive_file,
+from handlers.satsuei import (
+    extract_management_number_from_image, handle_satsuei_channel,
 )
-from services.spreadsheet import send_to_spreadsheet
+from handlers.shuppinon import handle_shuppinon_channel
+from handlers.konpo import handle_konpo_channel
+from handlers.genba import handle_genba_channel
+from handlers.status import handle_status_channel
+from handlers.attendance import handle_attendance_channel, get_staff_break_minutes
+from handlers.kintai import handle_kintai_channel
 
 load_dotenv()
 print(f"[起動時ENV一覧] {[k for k in os.environ.keys() if 'ANTHROPIC' in k or 'SLACK' in k]}")
@@ -60,7 +60,6 @@ def verify_admin_token(req):
     """管理用エンドポイントのアクセスを合言葉（トークン）で制限する"""
     admin_token = os.environ.get("ADMIN_API_TOKEN", "")
     if not admin_token:
-        # トークン未設定なら本番環境ではアクセス拒否
         return False
     provided = req.args.get("token", "") or req.headers.get("Authorization", "").replace("Bearer ", "")
     return hmac.compare_digest(provided, admin_token)
@@ -71,7 +70,7 @@ def verify_slack_signature(req):
     signing_secret = os.environ.get("SLACK_SIGNING_SECRET", "")
     if not signing_secret:
         print("[警告] SLACK_SIGNING_SECRET が未設定です。署名検証をスキップします")
-        return True  # 未設定時はスキップ（設定後に強制に変更する）
+        return True
 
     timestamp = req.headers.get("X-Slack-Request-Timestamp", "")
     signature = req.headers.get("X-Slack-Signature", "")
@@ -80,7 +79,6 @@ def verify_slack_signature(req):
         print("[署名検証] タイムスタンプまたは署名ヘッダーがありません")
         return False
 
-    # 5分以上前のリクエストは拒否（リプレイ攻撃の防止）
     if abs(time.time() - int(timestamp)) > 300:
         print("[署名検証] タイムスタンプが古すぎます")
         return False
@@ -100,274 +98,11 @@ def verify_slack_signature(req):
 
 _monday_setup_log: list = []
 
-
 # 相談モードのスレッド管理（@浅野+「相談」でトリガー → そのスレッドでボットが無反応になる）
 _consultation_threads: set[str] = set()
 
-
 # 重複処理防止（同じメッセージを2回処理しない）
-# 古い順に自動で消える仕組み（最大件数はPROCESSED_EVENTS_MAXで定義）
-from collections import OrderedDict
 _processed_events_dict = OrderedDict()
-
-
-def fetch_thread_messages(channel_id: str, thread_ts: str, current_ts: str) -> list[dict]:
-    """Slackスレッドの会話履歴を取得してClaude用のmessagesリストに変換する"""
-    token = get_slack_token()
-    if not token:
-        return []
-    url = "https://slack.com/api/conversations.replies"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {"channel": channel_id, "ts": thread_ts}
-    response = httpx.get(url, headers=headers, params=params, timeout=20)
-    data = response.json()
-    if not data.get("ok"):
-        print(f"[スレッド履歴取得エラー] {data.get('error')}")
-        return []
-
-    messages = []
-    for msg in data.get("messages", []):
-        # 現在処理中のメッセージは除外（後で追加する）
-        if msg.get("ts") == current_ts:
-            continue
-        text = msg.get("text", "").strip()
-        if not text:
-            continue
-        role = "assistant" if (msg.get("bot_id") or msg.get("bot_profile")) else "user"
-        # 直前と同じroleの場合はテキストを結合（Claudeは交互要求のため）
-        if messages and messages[-1]["role"] == role:
-            messages[-1]["content"] += f"\n{text}"
-        else:
-            messages.append({"role": role, "content": text})
-
-    # userから始まらないと Claude APIがエラーになるので調整
-    while messages and messages[0]["role"] != "user":
-        messages.pop(0)
-
-    return messages
-
-
-def normalize_keyword(text: str) -> str:
-    """全角→半角・漢数字→数字に正規化してコマンド判定しやすくする"""
-    text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
-    text = text.replace('／', '/').replace('　', ' ')
-    return text.strip()
-
-
-def parse_command(text: str):
-    """テキストがコマンドかどうか判定し (command_type, option) を返す。
-    コマンドでなければ (None, None)"""
-    n = normalize_keyword(text)
-    # 新フロー：AI自動判定の承認
-    if n in ('確定', 'ok', 'OK', 'ＯＫ'):
-        return 'ok_confirm', None
-    elif n in ('相談', 'そうだん'):
-        return 'soudan', None
-    # 旧フロー互換：第一/第二での確定も引き続き対応
-    elif n in ('第一', '第1'):
-        return 'kakutei', '1'
-    elif n in ('第二', '第2'):
-        return 'kakutei', '2'
-    elif n.startswith('確定/') and len(n) > 3:
-        return 'kakutei', n[3:].strip()
-    # チャンネル名をそのまま入力した場合も確定として認識
-    elif normalize_channel(n) in VALID_CHANNELS:
-        return 'kakutei', normalize_channel(n)
-    elif n == '再判定':
-        return 'saihantei', None
-    elif n == '保留':
-        return 'horyuu', None
-    elif n in ('削除', 'テスト', 'キャンセル', '取消', '取り消し'):
-        return 'cancel', None
-    # 在庫検索（スレッド外・どのチャンネルでも）
-    elif n.startswith('在庫検索 ') and len(n) > 5:
-        return 'zaiko_search', n[5:].strip()
-    elif n.startswith('検索 ') and len(n) > 3:
-        return 'zaiko_search', n[3:].strip()
-    return None, None
-
-
-def normalize_channel(channel: str) -> str:
-    """チャンネル名の表記ゆれを統一する"""
-    aliases = {
-        '自社使用': '社内利用',
-        '自社利用': '社内利用',
-    }
-    return aliases.get(channel.strip(), channel.strip())
-
-
-def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
-    """スレッド内のBot判定メッセージから判定データを抽出する"""
-    token = get_slack_token()
-    url = "https://slack.com/api/conversations.replies"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {"channel": channel_id, "ts": thread_ts}
-    response = httpx.get(url, headers=headers, params=params, timeout=20)
-    data = response.json()
-
-    result = {}
-    for msg in data.get("messages", []):
-        if not (msg.get("bot_id") or msg.get("bot_profile")):
-            continue
-        text = msg.get("text", "")
-        if "分荷判定結果" not in text:
-            continue
-        mn = re.search(r'管理番号\n　\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', text)
-        if mn:
-            result["kanri_bango"] = mn.group(1)
-        kw = re.search(r'推定内部KW：(/\S+)', text)
-        if kw:
-            result["internal_keyword"] = kw.group(1)
-        # 新フォーマット：AI自動判定チャンネル
-        auto_ch = re.search(r'▶\s*判定：(.+)', text)
-        if auto_ch:
-            result["auto_channel"] = auto_ch.group(1).strip()
-        # 浅野承認待ちフラグ
-        if '承認待ち' in text or '承認が必要' in text:
-            result["needs_approval"] = True
-        # 旧フォーマット互換：第一候補/第二候補
-        ch1 = re.search(r'【第一候補】(.+)', text)
-        if ch1:
-            result["first_channel"] = ch1.group(1).strip()
-        ch2 = re.search(r'【第二候補】(.+)', text)
-        if ch2:
-            result["second_channel"] = ch2.group(1).strip()
-        # スコア（最初に出てくるもの）
-        score = re.search(r'総合スコア：(\d+)点', text)
-        if score:
-            result["first_score"] = score.group(1)
-        # 予想価格
-        price = re.search(r'予想販売価格：(¥[\d,]+〜¥[\d,]+)', text)
-        if price:
-            result["predicted_price"] = price.group(1)
-        # 在庫期間（新フォーマット対応）
-        period = re.search(r'予測在庫期間：(.+)', text)
-        if period:
-            result["inventory_period"] = period.group(1).strip()
-        # 商品情報（絵文字なしで安定マッチ）
-        item = re.search(r'アイテム名：(.+)', text)
-        if item:
-            result["item_name"] = item.group(1).strip()
-        maker = re.search(r'メーカー/ブランド：(.+)', text)
-        if maker:
-            result["maker"] = maker.group(1).strip()
-        model = re.search(r'品番/型式：(.+)', text)
-        if model:
-            result["model_number"] = model.group(1).strip()
-        cond = re.search(r'状態ランク：([SABCD])（(.+?)）', text)
-        if cond:
-            result["condition"] = f"{cond.group(1)}（{cond.group(2)}）"
-        # 新フィールド
-        sp = re.search(r'推奨スタート価格：¥([\d,]+)', text)
-        if sp:
-            result["start_price"] = sp.group(1).replace(",", "")
-        tp = re.search(r'推奨目標価格：¥([\d,]+)', text)
-        if tp:
-            result["target_price"] = tp.group(1).replace(",", "")
-        deadline = re.search(r'推奨在庫期限：(.+)', text)
-        if deadline:
-            result["inventory_deadline"] = deadline.group(1).strip()
-        sc = re.search(r'保管コスト概算：¥([\d,]+)', text)
-        if sc:
-            result["storage_cost"] = sc.group(1).replace(",", "")
-        pc = re.search(r'梱包・発送コスト概算：¥([\d,]+)', text)
-        if pc:
-            result["packing_cost"] = pc.group(1).replace(",", "")
-        roi = re.search(r'期待ROI：約([\d.]+)%', text)
-        if roi:
-            result["expected_roi"] = roi.group(1)
-        # breakしない → 全メッセージを走査し、最新の判定（再判定含む）で上書きされる
-    return result
-
-
-def get_confirmation_from_thread(channel_id: str, thread_ts: str) -> dict:
-    """スレッド内のBot確定メッセージから管理番号と確定チャンネルを取得する。
-    管理番号なしの確定（社内利用・スクラップ・廃棄・ロット販売）も検出する。
-    戻り値: {"kanri_bango": str, "kakutei_channel": str}
-    """
-    token = get_slack_token()
-    url = "https://slack.com/api/conversations.replies"
-    headers = {"Authorization": f"Bearer {token}"}
-    response = httpx.get(url, headers=headers, params={"channel": channel_id, "ts": thread_ts}, timeout=10)
-    for msg in response.json().get("messages", []):
-        if not (msg.get("bot_id") or msg.get("bot_profile")):
-            continue
-        text = msg.get("text", "")
-        # 確定メッセージかどうか判定（管理番号あり・なし両方）
-        if "確定完了" not in text:
-            continue
-        kanri_bango = ""
-        kakutei_channel = ""
-        m_kanri = re.search(r'管理番号\n　\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', text)
-        if m_kanri:
-            kanri_bango = m_kanri.group(1)
-        m_channel = re.search(r'確定チャンネル\n　\*?(.+?)\*?(?:\n|$)', text)
-        if m_channel:
-            kakutei_channel = m_channel.group(1).strip()
-        if kakutei_channel:
-            return {"kanri_bango": kanri_bango, "kakutei_channel": kakutei_channel}
-    return {"kanri_bango": "", "kakutei_channel": ""}
-
-
-def get_confirmed_kanri_bango(channel_id: str, thread_ts: str) -> str:
-    """後方互換用。get_confirmation_from_thread に委譲する"""
-    return get_confirmation_from_thread(channel_id, thread_ts)["kanri_bango"]
-
-
-# ── 動作確認チェックリスト ────────────────────────────────
-
-
-def post_checklist(channel_id: str, thread_ts: str, management_number: str) -> None:
-    """動作確認・現状確認チェックリストをスレッドに投稿する"""
-    text = (
-        f"ふむ、 *{management_number}* の現状確認を頼む。\n"
-        "良い品を世に出すには、目利きの確認が欠かせぬ。\n\n"
-        "*【確認項目】*\n"
-        "• 電源を入れて動作確認\n"
-        "• ドア・引き出し・蓋など開閉確認\n"
-        "• 外観・傷・汚れの確認\n"
-        "• パーツ・付属品の欠品確認\n\n"
-        "*【状態ランクを知らせよ】*\n"
-        "🅢 S：新品・未使用（タグ／箱あり）\n"
-        "🅐 A：未使用に近い（使用感ほぼなし）\n"
-        "🅑 B：中古美品（使用感あり・目立つ傷なし）\n"
-        "🅒 C：中古（使用感・傷・汚れあり）\n"
-        "🅓 D：ジャンク（動作不良・部品取り）\n\n"
-        "ランクのアルファベット＋一言コメントを返してくれ\n"
-        "例：`B 電源OK、外観に小傷あり、パーツ全部揃ってます`\n"
-        "※音声入力でも構わぬ"
-    )
-    post_to_slack(channel_id, thread_ts, text)
-
-
-def get_checklist_state(channel_id: str, thread_ts: str) -> dict:
-    """スレッド内のチェックリスト状態を返す。
-    戻り値: {"management_number": str, "is_completed": bool}
-    チェックリストがなければ {}
-    """
-    token = get_slack_token()
-    url = "https://slack.com/api/conversations.replies"
-    headers = {"Authorization": f"Bearer {token}"}
-    response = httpx.get(url, headers=headers, params={"channel": channel_id, "ts": thread_ts}, timeout=10)
-    data = response.json()
-
-    management_number = None
-    is_completed = False
-
-    for msg in data.get("messages", []):
-        text = msg.get("text", "")
-        is_bot = bool(msg.get("bot_id") or msg.get("bot_profile"))
-        if is_bot:
-            m = re.search(r'\*([\w-]+)\* の現状確認を頼む', text)
-            if m:
-                management_number = m.group(1)
-            if "動作確認完了" in text:
-                is_completed = True
-
-    if not management_number:
-        return {}
-    return {"management_number": management_number, "is_completed": is_completed}
-
 
 
 def process_slack_message(event: dict) -> None:
@@ -386,7 +121,6 @@ def process_slack_message(event: dict) -> None:
     # ── 管理者（浅野）専用処理 ───────────────────────────────
     bot_role = get_bot_role_for_channel(channel_id)
     if user_id == ADMIN_USER_ID:
-        # 「浅野です」で始まるメッセージ → スタッフへのお知らせとしてボットが整形して再送
         if user_message and user_message.strip().startswith("浅野です"):
             announcement = user_message.strip()[len("浅野です"):].strip()
             if announcement:
@@ -414,7 +148,6 @@ def process_slack_message(event: dict) -> None:
             bot_role=bot_role)
         return
 
-    # 相談モード中のスレッドはボットが無反応
     if thread_ts in _consultation_threads:
         return
 
@@ -472,15 +205,12 @@ def process_slack_message(event: dict) -> None:
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-
-    # 画像のみ投稿かどうかを記録（後のチェックリストガードで使用）
     image_only_post = bool(image_urls) and not user_message.strip()
 
-    # テキストなしで画像のみの場合はデフォルトメッセージを使用
     if not user_message and image_urls:
         user_message = "添付画像の商品を分荷判定してください。"
 
-    # ── まとめ売り選択待ちの確認（1/2/3 をコマンドより優先してキャッチ） ──
+    # ── まとめ売り選択待ちの確認（1/2/3 をコマンドより優先してキャッチ）──
     if event.get("thread_ts") and user_message and user_message.strip() in ('1', '2', '3'):
         try:
             matome_channel = get_matome_pending_from_thread(channel_id, thread_ts)
@@ -490,10 +220,9 @@ def process_slack_message(event: dict) -> None:
         except Exception as e:
             print(f"[まとめ選択処理エラー] {e}")
 
-    # ── コマンド判定（確定・再判定・保留・キャンセルはスレッド内のみ） ──
+    # ── コマンド判定（確定・再判定・保留・キャンセルはスレッド内のみ）──
     if user_message:
         cmd_type, cmd_option = parse_command(user_message)
-        # 確定・再判定・保留・キャンセルはスレッド内のみ
         if event.get("thread_ts") and cmd_type:
             try:
                 _handle_command(cmd_type, cmd_option, channel_id, thread_ts, event)
@@ -504,19 +233,16 @@ def process_slack_message(event: dict) -> None:
                     "⚠️ *コマンド処理エラー*\n"
                     "━━━━━━━━━━━━━━━━\n\n"
                     "処理中にエラーが発生しました。もう一度お試しください。")
-            return  # コマンドならAI判定はしない
+            return
 
         # ── チェックリスト応答判定 ─────────────────────────
         checklist = get_checklist_state(channel_id, thread_ts)
         if checklist:
             if checklist["is_completed"]:
-                # チェックリスト完了済みスレッド：画像のみ投稿は無視（再判定しない）
                 if image_only_post:
                     return
             else:
-                # チェックリスト未完了
                 n = normalize_keyword(user_message)
-                # 先頭がS/A/B/C/D → 状態ランク＋コメントの回答とみなす
                 is_checklist_input = n and n[0].upper() in CONDITION_MAP
                 if is_checklist_input:
                     try:
@@ -530,7 +256,6 @@ def process_slack_message(event: dict) -> None:
                             "処理中にエラーが発生しました。もう一度お試しください。")
                     return
                 elif image_only_post:
-                    # 番号なしで写真だけ送ってきた場合 → 番号入力を促す
                     post_to_slack(channel_id, thread_ts,
                         "写真を受け取りました。\n\n"
                         "状態ランク（S/A/B/C/D）を一言添えて返信してください。\n"
@@ -539,7 +264,6 @@ def process_slack_message(event: dict) -> None:
                     return
 
     # ── 通常のAI判定フロー ────────────────────────────────
-    # スレッド内の返信であれば会話履歴を取得
     history = []
     if event.get("thread_ts"):
         try:
@@ -553,12 +277,10 @@ def process_slack_message(event: dict) -> None:
         judgment_text = call_claude(user_message, image_urls, history)
         print(f"[Claude応答] {judgment_text[:50]}")
 
-        # 管理番号は確定時に発行するため、ここでは判定結果のみ返信
         user_id = event.get("user", "")
         post_to_slack(channel_id, thread_ts, judgment_text, mention_user=user_id)
         print("[Slack返信完了]")
 
-        # 承認待ちの場合、浅野さんにDMで通知
         if '確認待ち' in judgment_text or '承認' in judgment_text:
             item_match = re.search(r'アイテム名：(.+)', judgment_text)
             channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
@@ -566,7 +288,6 @@ def process_slack_message(event: dict) -> None:
             item_name = item_match.group(1).strip() if item_match else "不明"
             auto_channel = channel_match.group(1).strip() if channel_match else "不明"
             price_info = price_match.group(1).strip() if price_match else "不明"
-            # スレッドのリンクを作成
             thread_link = f"https://app.slack.com/client/{channel_id}/{thread_ts}"
             dm_sent = send_dm(ASANO_USER_ID,
                 "━━━━━━━━━━━━━━━━\n"
@@ -578,7 +299,6 @@ def process_slack_message(event: dict) -> None:
                 f"担当：<@{user_id}>\n\n"
                 f"該当スレッドで `確定` または変更指示をお願いします。")
             if not dm_sent:
-                # DM失敗時はスレッドにメンション（フォールバック）
                 post_to_slack(channel_id, thread_ts,
                     f"<@{ASANO_USER_ID}> 承認が必要です。\n"
                     f"商品：{item_name} / 判定：{auto_channel}\n"
@@ -595,2151 +315,7 @@ def process_slack_message(event: dict) -> None:
             print(f"[Slack送信エラー] {e2}")
 
 
-def _handle_zaiko_search(keyword: str, channel_id: str, thread_ts: str, event: dict) -> None:
-    """在庫検索コマンドを処理する"""
-    user_id = event.get("user", "")
-    results = search_inventory(keyword)
-    persona = BOT_PERSONA["status"]
-    if not results:
-        msg = persona["search_none"].format(keyword=keyword)
-        post_to_slack(channel_id, thread_ts, f"🔍 {msg}", mention_user=user_id, bot_role="status")
-        return
-
-    header = persona["search_found"].format(keyword=keyword, count=len(results))
-    monday_url = f"https://monday.com/boards/{MONDAY_BOARD_ID}"
-    lines = [
-        f"{header}",
-        "━━━━━━━━━━━━━━━━",
-    ]
-    for i, r in enumerate(results[:10], 1):
-        kanri = r["kanri_bango"] or "番号なし"
-        status = r["status"] or "不明"
-        zaiko = r["zaiko_kikan"] or "─"
-        channel = r["channel"] or "─"
-        line = (
-            f"*{i}. {r['name']}*\n\n"
-            f"　🔖 管理番号　：`{kanri}`\n\n"
-            f"　📺 チャンネル：{channel}\n\n"
-            f"　📊 ステータス：{status}\n\n"
-            f"　📅 在庫期間　：{zaiko}\n\n"
-            f"　<{monday_url}|📷 Monday.comで詳細・画像を確認>\n\n"
-            "─────────────────"
-        )
-        lines.append(line)
-
-    if len(results) > 10:
-        lines.append(f"_他 {len(results) - 10} 件はMonday.comで確認できます。_")
-
-    post_to_slack(channel_id, thread_ts, "\n".join(lines), mention_user=user_id, bot_role="status")
-
-
-def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
-    """スレッド内にまとめ売り選択待ちメッセージがあればチャンネル名を返す"""
-    token = get_slack_token()
-    url = "https://slack.com/api/conversations.replies"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {"channel": channel_id, "ts": thread_ts}
-    try:
-        response = httpx.get(url, headers=headers, params=params, timeout=20)
-        data = response.json()
-    except Exception as e:
-        print(f"[まとめ選択待ち確認エラー] {e}")
-        return None
-    for msg in data.get("messages", []):
-        if not (msg.get("bot_id") or msg.get("bot_profile")):
-            continue
-        m = re.search(r'\[まとめ選択待ち:([^\]]+)\]', msg.get("text", ""))
-        if m:
-            return m.group(1)
-    return None
-
-
-def _complete_kakutei(kakutei_channel: str, judgment: dict, user_id: str,
-                      channel_id: str, thread_ts: str, event: dict,
-                      with_management_number: bool = True,
-                      send_reply: bool = True) -> None:
-    """分荷確定の共通処理（管理番号発行・スプレッドシート転記・Slack返信）"""
-    # 管理番号発行（通販チャンネル かつ with_management_number=True の場合のみ）
-    management_number = ""
-    if with_management_number and kakutei_channel in TSUHAN_CHANNELS:
-        management_number = generate_management_number()
-        print(f"[管理番号発行] {management_number} (チャンネル:{kakutei_channel})")
-
-    # 分荷作業時間を計算
-    sakugyou_jikan = 0
-    try:
-        post_ts = float(thread_ts)
-        confirm_ts = float(event.get("ts", thread_ts))
-        sakugyou_jikan = max(0, int((confirm_ts - post_ts) / 60))
-        print(f"[作業時間] {sakugyou_jikan}分")
-    except Exception as e:
-        print(f"[作業時間計算エラー] {e}")
-
-    # スプレッドシートに転記
-    payload = {
-        "kanri_bango":         management_number,
-        "kakutei_channel":     kakutei_channel,
-        "first_channel":       judgment.get("first_channel", ""),
-        "second_channel":      judgment.get("second_channel", ""),
-        "item_name":           judgment.get("item_name", ""),
-        "maker":               judgment.get("maker", ""),
-        "model_number":        judgment.get("model_number", ""),
-        "condition":           judgment.get("condition", ""),
-        "predicted_price":     judgment.get("predicted_price", ""),
-        "start_price":         judgment.get("start_price", ""),
-        "target_price":        judgment.get("target_price", ""),
-        "inventory_period":    judgment.get("inventory_period", ""),
-        "inventory_deadline":  judgment.get("inventory_deadline", ""),
-        "score":               judgment.get("first_score", ""),
-        "storage_cost":        judgment.get("storage_cost", ""),
-        "packing_cost":        judgment.get("packing_cost", ""),
-        "expected_roi":        judgment.get("expected_roi", ""),
-        "internal_keyword":    judgment.get("internal_keyword", ""),
-        "staff_id":            get_staff_code(user_id),
-        "sakugyou_jikan":      sakugyou_jikan,
-        "timestamp":           datetime.now().strftime("%Y/%m/%d %H:%M"),
-    }
-    send_to_spreadsheet(payload)
-
-    # 通販チャンネル かつ 管理番号あり → Monday.com登録
-    if management_number:
-        try:
-            item_name = judgment.get("item_name") or kakutei_channel
-            register_to_monday(management_number, item_name, judgment, user_id, sakugyou_jikan, kakutei_channel=kakutei_channel)
-            print("[Monday.com登録完了]")
-        except Exception as me:
-            print(f"[Monday.com登録エラー] {me}")
-
-    # Slack確定返信（send_reply=Falseの場合は呼び出し元が返信を担当）
-    if send_reply:
-        persona = BOT_PERSONA["bunika"]
-        if management_number:
-            reply = persona["confirm"].format(channel=kakutei_channel, kanri=management_number)
-        else:
-            reply = persona["confirm_only"].format(channel=kakutei_channel)
-        post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
-
-    # 高額案件メンション（目標価格30,000円以上）
-    try:
-        target_price_val = int(str(judgment.get("target_price", "0")).replace(",", ""))
-    except (ValueError, TypeError):
-        target_price_val = 0
-    if target_price_val >= 30000:
-        post_to_slack(channel_id, thread_ts,
-            f"<@{ASANO_USER_ID}> 高額案件の確定が入りました。\n"
-            f"予想販売価格：¥{target_price_val:,}\n"
-            f"チャンネル：{kakutei_channel}\n"
-            f"担当：<@{user_id}>"
-        )
-
-
-def _handle_matome_choice(choice: str, kakutei_channel: str, channel_id: str,
-                          thread_ts: str, event: dict) -> None:
-    """まとめ売り選択（1/2/3）を処理する"""
-    user_id = event.get("user", "")
-    judgment = get_judgment_from_thread(channel_id, thread_ts)
-
-    if choice == '1':
-        # まとめ保管（管理番号なし）← デフォルト選択肢
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=False, send_reply=False)
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "📦 *まとめ保管として記録しました*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            "同カテゴリのまとめ対象商品と一緒に保管してください。\n"
-            "まとめ販売が決まった時点で改めて管理番号を発行します。",
-            mention_user=user_id
-        )
-
-    elif choice == '2':
-        # 個別に管理番号を発行して通常確定
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event, with_management_number=True)
-
-    elif choice == '3':
-        # 保留・浅野に相談
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "⏸️ *保留にしました*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"<@{ASANO_USER_ID}> 確定方法について相談があります。\n"
-            f"担当：<@{user_id}>"
-        )
-
-
-def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: str, event: dict) -> None:
-    """コマンド（OK確定/相談/確定/再判定/保留）を処理する"""
-    user_id = event.get("user", "不明")
-
-    # ── 新フロー：「OK」でAI自動判定を確定 ──
-    if cmd_type == 'ok_confirm':
-        judgment = get_judgment_from_thread(channel_id, thread_ts)
-        # 新フォーマット（auto_channel）を優先、なければ旧フォーマット（first_channel）
-        kakutei_channel = judgment.get("auto_channel") or judgment.get("first_channel", "")
-        if not kakutei_channel:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *判定データなし*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "判定データが見つかりませんでした。\n先に分荷判定を実行してください。")
-            return
-        kakutei_channel = normalize_channel(kakutei_channel)
-
-        # 承認待ちの場合、スタッフのOKは受け付けない（浅野さんのみ）
-        if judgment.get("needs_approval") and user_id != ASANO_USER_ID:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⏳ *承認待ちです*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "この商品は浅野の承認が必要です。\nしばらくお待ちください。",
-                mention_user=user_id)
-            return
-
-        # まとめ売り系チャンネルは選択肢を表示
-        MATOME_CHANNELS_LOCAL = {"eBayまとめ", "ヤフオクまとめ", "ロット販売"}
-        if kakutei_channel in MATOME_CHANNELS_LOCAL:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                f"📦 *{kakutei_channel}*（まとめ売り）で判定されました\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "どちらで進めますか？\n\n"
-                "1️⃣  まとめ保管する（管理番号なし）← *ほとんどの場合はこちら*\n\n"
-                "2️⃣  個別に管理番号を発行して確定する\n\n"
-                "3️⃣  保留にして浅野に相談する\n\n"
-                f"`1` `2` `3` のいずれかを返信してください。\n\n"
-                f"_[まとめ選択待ち:{kakutei_channel}]_",
-                mention_user=user_id)
-            return
-
-        # 通常確定
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event)
-        return
-
-    # ── 新フロー：「相談」で浅野さんに通知 ──
-    if cmd_type == 'soudan':
-        judgment = get_judgment_from_thread(channel_id, thread_ts)
-        item_name = judgment.get("item_name", "不明な商品")
-        auto_channel = judgment.get("auto_channel") or judgment.get("first_channel", "不明")
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "💬 *相談リクエスト*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"<@{ASANO_USER_ID}> スタッフから判定について相談があります。\n\n"
-            f"商品：{item_name}\n"
-            f"AI判定：{auto_channel}\n"
-            f"担当：<@{user_id}>\n\n"
-            "確認後、このスレッドで `OK` または変更指示をお願いします。")
-        return
-
-    # 通販対象チャンネル（管理番号・monday.com登録対象）は TSUHAN_CHANNELS（config.py）を使用
-
-    if cmd_type == 'kakutei':
-        judgment = get_judgment_from_thread(channel_id, thread_ts)
-        if not judgment.get("first_channel"):
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *判定データなし*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "判定データが見つかりませんでした。\n\n"
-                "先に分荷判定を実行してください。")
-            return
-
-        # 確定チャンネルを決定（表記ゆれを正規化）
-        if cmd_option == '1':
-            kakutei_channel = normalize_channel(judgment.get("first_channel", ""))
-        elif cmd_option == '2':
-            kakutei_channel = normalize_channel(judgment.get("second_channel", ""))
-        else:
-            kakutei_channel = normalize_channel(cmd_option)  # 確定/○○ の場合
-
-        # まとめ売り系チャンネルは選択肢を表示して一旦止める
-        if kakutei_channel in MATOME_CHANNELS:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                f"📦 *{kakutei_channel}*（まとめ売り）が選択されました\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "どちらで進めますか？\n\n"
-                "1️⃣  まとめ保管する（管理番号なし）← *ほとんどの場合はこちら*\n\n"
-                "2️⃣  個別に管理番号を発行して確定する\n\n"
-                "3️⃣  保留にして浅野に相談する\n\n"
-                f"`1` `2` `3` のいずれかを返信してください。\n\n"
-                f"_[まとめ選択待ち:{kakutei_channel}]_",
-                mention_user=user_id
-            )
-            return
-
-        # まとめ以外 → 通常確定処理
-        _complete_kakutei(kakutei_channel, judgment, user_id, channel_id, thread_ts, event)
-
-    elif cmd_type == 'saihantei':
-        persona = BOT_PERSONA["bunika"]
-        post_to_slack(channel_id, thread_ts, persona["saihantei"])
-        try:
-            history = fetch_thread_messages(channel_id, thread_ts, event.get("ts", ""))
-        except Exception:
-            history = []
-        judgment_text = call_claude("添付の情報をもとに改めて分荷判定してください。", history=history)
-        post_to_slack(channel_id, thread_ts, judgment_text)
-        # 再判定でも承認待ちなら浅野にDM通知
-        if '確認待ち' in judgment_text or '承認' in judgment_text:
-            item_match = re.search(r'アイテム名：(.+)', judgment_text)
-            channel_match = re.search(r'▶\s*判定：(.+)', judgment_text)
-            item_name = item_match.group(1).strip() if item_match else "不明"
-            auto_channel = channel_match.group(1).strip() if channel_match else "不明"
-            dm_sent = send_dm(ASANO_USER_ID,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *再判定：承認待ち*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"商品：{item_name}\n"
-                f"判定：{auto_channel}\n\n"
-                "該当スレッドで `確定` または変更指示をお願いします。")
-            if not dm_sent:
-                post_to_slack(channel_id, thread_ts,
-                    f"<@{ASANO_USER_ID}> 再判定で承認が必要です。\n"
-                    f"商品：{item_name} / 判定：{auto_channel}\n"
-                    "`確定` または変更指示をお願いします。")
-
-    elif cmd_type == 'horyuu':
-        persona = BOT_PERSONA["bunika"]
-        post_to_slack(channel_id, thread_ts, persona["horyuu"])
-
-    elif cmd_type == 'cancel':
-        confirmation = get_confirmation_from_thread(channel_id, thread_ts)
-        kanri_bango = confirmation["kanri_bango"]
-        confirmed_channel = confirmation["kakutei_channel"]
-
-        if confirmed_channel:
-            # 確定済み（管理番号あり・なし両方）→ スプレッドシートにキャンセル行追記
-            cancel_payload = {
-                # 管理番号なしの場合は「---」を記入してキャンセル行と識別できるようにする
-                "kanri_bango":      kanri_bango if kanri_bango else "---",
-                "kakutei_channel":  f"キャンセル（{confirmed_channel}）",
-                "first_channel":    "",
-                "second_channel":   "",
-                "predicted_price":  "",
-                "inventory_period": "",
-                "score":            "",
-                "internal_keyword": "",
-                "staff_id":         user_id,
-                "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
-            }
-            send_to_spreadsheet(cancel_payload)
-
-            # 管理番号ありの場合のみMonday.comも更新
-            persona = BOT_PERSONA["bunika"]
-            if kanri_bango:
-                try:
-                    cancel_monday_item(kanri_bango)
-                except Exception as e:
-                    print(f"[Monday.comキャンセルエラー] {e}")
-                post_to_slack(channel_id, thread_ts,
-                    persona["cancel_kanri"].format(kanri=kanri_bango),
-                    mention_user=user_id)
-            else:
-                post_to_slack(channel_id, thread_ts,
-                    persona["cancel_only"].format(channel=confirmed_channel),
-                    mention_user=user_id)
-        else:
-            # 確定前キャンセル → 記録なし
-            persona = BOT_PERSONA["bunika"]
-            post_to_slack(channel_id, thread_ts, persona["cancel_none"], mention_user=user_id)
-
-
-def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts: str, event: dict) -> None:
-    """チェックリスト応答（状態番号＋フリーコメント）を処理する"""
-    user_id = event.get("user", "")
-    management_number = checklist["management_number"]
-
-    # 先頭のアルファベット（S/A/B/C/D）を状態ランクとして取得、残りをコメントとして扱う
-    n = normalize_keyword(raw_text)
-    condition_key = n[0].upper() if n else ""
-    condition_label = CONDITION_MAP.get(condition_key, "")
-    comment = n[1:].strip() if len(n) > 1 else ""
-
-    reply = (
-        "━━━━━━━━━━━━━━━━\n"
-        "✅ *動作確認完了*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{management_number}*\n\n"
-        f"📊 状態\n"
-        f"　*{condition_label}*"
-    )
-    if comment:
-        reply += f"\n\n💬 コメント\n　{comment}"
-    reply += "\n━━━━━━━━━━━━━━━━"
-
-    post_to_slack(channel_id, thread_ts, reply, mention_user=user_id)
-
-    # Monday.comのステータス・状態を更新
-    try:
-        update_monday_columns(management_number, {
-            "status": {"label": "動作確認済み"},
-            "condition": condition_label,
-        })
-    except Exception as e:
-        print(f"[Monday.com動作確認更新エラー] {e}")
-
-    # スプレッドシートに動作確認結果を記録
-    try:
-        send_to_spreadsheet({
-            "action":           "checklist_update",
-            "kanri_bango":      management_number,
-            "condition":        condition_label,
-            "checklist_comment": comment,
-            "staff_id":         get_staff_code(user_id),
-            "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
-        })
-    except Exception as e:
-        print(f"[スプレッドシート動作確認更新エラー] {e}")
-
-
-# ── 撮影確認チャンネル ────────────────────────────────
-
-def extract_management_number_from_image(image_url: str) -> str:
-    """テプラ画像からClaude Visionで管理番号を読み取る"""
-    try:
-        image_data, media_type = fetch_image_as_base64(image_url)
-        client = get_anthropic_client()
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=50,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
-                    {"type": "text", "text": (
-                        "この画像のテプラ（ラベル）に書かれた管理番号を読み取ってください。"
-                        "管理番号は「2603-0001」または「2603G0001」のような形式です（年月4桁＋ハイフン＋4桁 または 年月4桁＋英字1文字＋4桁）。"
-                        "管理番号だけを返してください。見つからない場合は「不明」と返してください。"
-                    )}
-                ]
-            }]
-        )
-        text = response.content[0].text.strip()
-        m = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
-        return m.group(0) if m else ""
-    except Exception as e:
-        print(f"[管理番号読取エラー] {e}")
-        return ""
-
-
-def get_management_number_from_satsuei_thread(channel_id: str, thread_ts: str) -> str:
-    """撮影スレッド内のBot確認メッセージから管理番号を取得する"""
-    token = get_slack_token()
-    response = httpx.get(
-        "https://slack.com/api/conversations.replies",
-        headers={"Authorization": f"Bearer {token}"},
-        params={"channel": channel_id, "ts": thread_ts}, timeout=10
-    )
-    for msg in response.json().get("messages", []):
-        if not (msg.get("bot_id") or msg.get("bot_profile")):
-            continue
-        m = re.search(r'管理番号\s*\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', msg.get("text", ""))
-        if m:
-            return m.group(1)
-    return ""
-
-
-def handle_satsuei_channel(event: dict) -> None:
-    """撮影確認チャンネルのイベントを処理する"""
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    thread_ts = event.get("thread_ts") or current_ts
-    user_id = event.get("user", "")
-    files = event.get("files", [])
-    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-    text = normalize_keyword(event.get("text", ""))
-    is_new_post = not event.get("thread_ts")
-
-    # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
-    if is_new_post:
-        # テキストで管理番号が直接入力された場合
-        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
-        if not image_urls and not text_mn:
-            print(f"[撮影CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
-            return
-        if text_mn and not image_urls:
-            management_number = text_mn.group(0)
-        elif image_urls:
-            management_number = extract_management_number_from_image(image_urls[0])
-            if not management_number:
-                post_to_slack(channel_id, current_ts,
-                    "⚠️ *読み取りエラー*\n"
-                    "━━━━━━━━━━━━━━━━\n\n"
-                    "テプラの管理番号を\n"
-                    "読み取れませんでした。\n\n"
-                    "📌 *対処方法*\n"
-                    "　① テプラをもう一度撮影して送る\n"
-                    "　② または管理番号をテキストで入力\n"
-                    "　　例） *2603-0001*",
-                    bot_role="satsuei")
-                return
-            # テプラ画像をDriveに保存
-            upload_images_to_drive(management_number, [image_urls[0]], is_tepura=True)
-        else:
-            return
-        post_to_slack(channel_id, current_ts,
-            "📸 *撮影セッション開始*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号　*{management_number}*\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📌 *作業手順*\n\n"
-            "　① このスレッドに商品写真を投稿\n"
-            "　　（複数枚まとめてOK）\n\n"
-            "　② Botの確認メッセージが届いたら\n"
-            "　　写真をチェックする\n\n"
-            "　③ 問題なければ `完了` と送信\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "💡 *使えるコマンド*\n\n"
-            "　`完了` ／ 撮影完了・Driveに保存\n"
-            "　`やり直し` ／ 写真を全削除して1枚目から撮り直す\n"
-            "　`キャンセル` ／ 作業を中断する",
-            bot_role="satsuei")
-        return
-
-    # ── スレッド内（商品写真 or 完了 or キャンセル/削除）──
-    # 削除確認待ちの処理
-    if handle_delete_step2(channel_id, thread_ts, user_id, text):
-        return
-
-    management_number = get_management_number_from_satsuei_thread(channel_id, thread_ts)
-    if not management_number:
-        # 削除コマンド（セッションなし）
-        if text == "削除":
-            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["satsuei"], "satsuei")
-        else:
-            print(f"[撮影CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
-        return
-
-    # キャンセル・中断
-    if text in CANCEL_WORDS:
-        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "キャンセル")
-        post_to_slack(channel_id, thread_ts,
-            "⏹️ *撮影作業を中断しました*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号　*{management_number}*\n\n"
-            "作業を再開するときは\n"
-            "もう一度管理番号を投稿してください。",
-            mention_user=user_id, bot_role="satsuei")
-        return
-
-    # やり直しコマンド
-    if text == "やり直し":
-        deleted_count = 0
-        try:
-            svc = get_drive_service()
-            root_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
-            if svc and root_folder_id:
-                yymm_id = get_or_create_drive_folder(svc, root_folder_id, management_number[:4])
-                item_id = get_or_create_drive_folder(svc, yymm_id, management_number)
-                files = svc.files().list(
-                    q=f"'{item_id}' in parents and trashed=false and not name contains '01_'",
-                    fields="files(id,name)",
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True
-                ).execute().get("files", [])
-                for f in files:
-                    svc.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
-                    deleted_count += 1
-        except Exception as e:
-            print(f"[Drive やり直しエラー] {e}")
-        post_to_slack(channel_id, thread_ts,
-            "🔄 *写真をやり直します*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🗑️ 削除した写真　*{deleted_count}枚*\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📌 *1枚目から撮り直してください*\n\n"
-            "このスレッドに\n"
-            "新しい写真を投稿してください。\n\n"
-            "　• テプラ画像は残してあります\n"
-            "　• 商品写真のみ全て削除しました",
-            mention_user=user_id, bot_role="satsuei")
-        return
-
-    # 削除コマンド
-    if text == "削除":
-        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["satsuei"], "satsuei")
-        return
-
-    # 商品写真をDriveに保存
-    folder_url = ""
-    if image_urls:
-        folder_url = upload_images_to_drive(management_number, image_urls, is_tepura=False)
-        post_to_slack(channel_id, thread_ts,
-            f"📷 *{len(image_urls)}枚* を受け取りました\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            "🔍 *投稿した写真を確認してください*\n\n"
-            "　□ ピントが合っているか\n"
-            "　□ 明るさは適切か\n"
-            "　□ 角度・アングルは揃っているか\n"
-            "　□ 枚数は足りているか\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "✅ 問題なければ `完了` と送信\n"
-            "📷 追加写真があればそのまま投稿\n"
-            "🔄 撮り直す場合は `やり直し` と送信",
-            mention_user=user_id, bot_role="satsuei")
-
-    # 完了コマンド
-    if text == "完了":
-        post_to_slack(channel_id, thread_ts,
-            "✅ *撮影完了！お疲れ様でした*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号　*{management_number}*\n\n"
-            "写真をDriveに保存しました。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📌 *次の作業*\n\n"
-            "　このトークの元メッセージを削除して\n"
-            "　次の商品に進んでください。",
-            mention_user=user_id, bot_role="satsuei")
-        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
-        try:
-            update_monday_columns(management_number, {
-                "status": {"label": "撮影完了"},
-                "satsuei_tantosha": get_staff_code(user_id),
-                "satsuei_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-                "drive_url": folder_url,
-            })
-        except Exception as e:
-            print(f"[Monday.com撮影完了更新エラー] {e}")
-        # 完了メッセージと写真投稿が別メッセージの場合、folder_urlが空になるため取得し直す
-        if not folder_url:
-            try:
-                _svc = get_drive_service()
-                _root = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
-                if _svc and _root:
-                    _yymm_id = get_or_create_drive_folder(_svc, _root, management_number[:4])
-                    _item_id = get_or_create_drive_folder(_svc, _yymm_id, management_number)
-                    folder_url = f"https://drive.google.com/drive/folders/{_item_id}"
-            except Exception as e:
-                print(f"[DriveフォルダURL取得エラー] {e}")
-        try:
-            send_to_spreadsheet({
-                "action":           "satsuei_update",
-                "kanri_bango":      management_number,
-                "drive_folder_url": folder_url,
-                "staff_id":         get_staff_code(user_id),
-                "timestamp":        datetime.now().strftime("%Y/%m/%d %H:%M"),
-            })
-        except Exception as e:
-            print(f"[スプレッドシート撮影完了更新エラー] {e}")
-
-
-# ── 共通：キャンセル・削除・作業ログ ──────────────────────
-
-delete_confirm_sessions = {}  # {thread_ts: {"channel_id":..,"management_number":..,"channel_name":..,"staff_id":..}}
-daily_stats = {}              # {staff_id: {"完了": 0, "キャンセル": 0, "削除": 0}}
-
-def log_work_activity(channel_name: str, management_number: str, staff_id: str,
-                      operation: str, start_time=None) -> None:
-    """作業ログをスプレッドシートに送り、日次カウントを更新する"""
-    now = datetime.now()
-    duration = int((now - start_time).total_seconds()) if start_time else 0
-    if staff_id not in daily_stats:
-        daily_stats[staff_id] = {"完了": 0, "キャンセル": 0, "削除": 0}
-    if operation in daily_stats[staff_id]:
-        daily_stats[staff_id][operation] += 1
-    try:
-        send_to_spreadsheet({
-            "action":           "work_activity",
-            "channel":          channel_name,
-            "kanri_bango":      management_number,
-            "staff_id":         staff_id,
-            "operation":        operation,
-            "duration_seconds": str(duration),
-            "timestamp":        now.strftime("%Y/%m/%d %H:%M"),
-        })
-    except Exception as e:
-        print(f"[作業ログ送信エラー] {e}")
-
-
-def handle_delete_step1(channel_id: str, thread_ts: str, user_id: str, channel_name: str, bot_role: str) -> None:
-    """削除コマンド受付：管理番号の入力を求める"""
-    delete_confirm_sessions[thread_ts] = {
-        "channel_id":   channel_id,
-        "channel_name": channel_name,
-        "staff_id":     get_staff_code(user_id),
-        "bot_role":     bot_role,
-    }
-    post_to_slack(channel_id, thread_ts,
-        "━━━━━━━━━━━━━━━━\n"
-        "🗑️ *削除確認*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        "削除する管理番号を入力してください。\n\n"
-        "　例：`2603-0001`\n\n"
-        "⚠️ 削除するとMonday.comのステータスが\n"
-        "　「確認／相談」に戻ります。",
-        mention_user=user_id, bot_role=bot_role)
-
-
-def handle_delete_step2(channel_id: str, thread_ts: str, user_id: str, text: str) -> bool:
-    """削除確認：管理番号が一致したら削除を実行。処理した場合Trueを返す"""
-    pending = delete_confirm_sessions.get(thread_ts)
-    if not pending:
-        return False
-    mn_m = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
-    if not mn_m:
-        return False
-    management_number = mn_m.group(0)
-    channel_name = pending["channel_name"]
-    bot_role = pending["bot_role"]
-    staff_id = pending["staff_id"]
-    del delete_confirm_sessions[thread_ts]
-    try:
-        update_monday_item_status(management_number, "確認／相談")
-    except Exception as e:
-        print(f"[Monday.com削除更新エラー] {e}")
-    log_work_activity(channel_name, management_number, staff_id, "削除")
-    post_to_slack(channel_id, thread_ts,
-        "━━━━━━━━━━━━━━━━\n"
-        "🗑️ *削除完了*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{management_number}*\n\n"
-        "Monday.comのステータスを\n"
-        "「確認／相談」に戻しました。",
-        mention_user=user_id, bot_role=bot_role)
-    return True
-
-
-# ── 出品チャンネル ────────────────────────────────
-
-# 出品データの一時保管（スレッドTS → 出品セッション）
-listing_sessions = {}
-
-LISTING_COMMANDS = {
-    "タイトル":  "title",
-    "開始価格":  "start_price",
-    "説明文":    "description",
-    "サイズ":    "size",
-}
-
-def parse_listing_command(text: str):
-    """出品データ修正コマンドを解析して (field, value) を返す"""
-    n = normalize_keyword(text)
-    for jp, field in LISTING_COMMANDS.items():
-        for sep in ("：", ":"):
-            prefix = f"{jp}{sep}"
-            if n.startswith(prefix):
-                return field, n[len(prefix):].strip()
-    return None, None
-
-
-def generate_listing_content(management_number: str, item_data: dict, max_title_len: int = 65) -> dict:
-    """Claudeでヤフオク出品タイトル・説明文・価格を生成する"""
-    client = get_anthropic_client()
-    if not client:
-        return {}
-
-    item_name = item_data.get("item_name", "") or item_data.get("monday_name", "")
-    maker = item_data.get("maker", "")
-    model_number = item_data.get("model_number", "")
-    condition = item_data.get("condition", "")
-    channel = item_data.get("hantei_channel", "")
-    price = item_data.get("yosou_kakaku", "")
-    period = item_data.get("zaiko_kikan", "")
-    kw = item_data.get("internal_keyword", "")
-
-    # アカウント別ルールを取得
-    rules = LISTING_RULES.get(channel, LISTING_RULES_DEFAULT)
-    brand_tag = rules["brand_tag"]
-
-    # ブランドタグ分の文字数を確保
-    if brand_tag:
-        tag_suffix = f"｜{brand_tag}"
-        effective_title_len = max_title_len - len(tag_suffix)
-    else:
-        tag_suffix = ""
-        effective_title_len = max_title_len
-
-    prompt = (
-        f"あなたはヤフオク出品のプロです。以下の商品情報をもとに出品データを作成してください。\n\n"
-        f"【商品情報】\n"
-        f"アイテム名：{item_name}\n"
-        f"メーカー/ブランド：{maker}\n"
-        f"品番/型式：{model_number}\n"
-        f"商品状態：{condition}\n"
-        f"販売チャンネル：{channel}\n"
-        f"予想販売価格：{price}\n"
-        f"内部KW：{kw}\n\n"
-        f"【タイトルのルール】\n"
-        f"{rules['title_style']}\n"
-        f"・タイトル本文は{effective_title_len}文字以内（末尾にシステムが自動付与するタグがあるため）\n"
-        f"・区切り記号は ◇（本文と詳細の間）と ｜（全角パイプ、詳細タグ間）のみ使用\n"
-        f"・/（スラッシュ）や_（アンダーバー）は使わない\n\n"
-        f"【説明文のルール】\n"
-        f"{rules['desc_style']}\n"
-        f"・600〜1000文字程度\n"
-        f"・サイズは「未計測」と記載\n\n"
-        f"【価格のルール】\n"
-        f"{rules['price_style']}\n\n"
-        f"以下のJSON形式のみで返してください（前置き不要）：\n"
-        f'{{"title":"タイトル本文（{effective_title_len}文字以内）",'
-        f'"description":"商品説明文",'
-        f'"start_price":開始価格の数字}}'
-    )
-    try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1200,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        text = response.content[0].text.strip()
-        m = re.search(r'\{.*\}', text, re.DOTALL)
-        if m:
-            result = json.loads(m.group(0))
-            # ブランドタグを自動付与
-            if brand_tag and result.get("title"):
-                result["title"] = result["title"][:effective_title_len] + tag_suffix
-            return result
-    except Exception as e:
-        print(f"[出品コンテンツ生成エラー] {e}")
-    return {}
-
-
-def _post_image_list(channel_id: str, thread_ts: str, management_number: str) -> None:
-    """出品用の商品画像一覧をSlackスレッドに表示する（テプラ除外）"""
-    images = list_drive_images(management_number, exclude_tepura=True)
-    if not images:
-        post_to_slack(channel_id, thread_ts,
-            "📷 商品画像がありません。\n\n"
-            "このスレッドに写真を投稿すると追加できます。",
-            bot_role="shuppinon")
-        return
-
-    lines = [
-        "━━━━━━━━━━━━━━━━",
-        f"📷 *出品画像（{len(images)}枚）*",
-        "━━━━━━━━━━━━━━━━",
-        "",
-    ]
-    for i, img in enumerate(images, 1):
-        name = img.get("name", "")
-        link = img.get("webViewLink", "")
-        lines.append(f"　[{i}] {name}" + (f"  <{link}|表示>" if link else ""))
-    lines.extend([
-        "",
-        "─────────────────────",
-        "*画像コマンド：*",
-        "　写真を投稿 → 追加撮影",
-        "　`画像削除 3` → 3枚目を削除",
-        "　`順番入替 2 4` → 2枚目と4枚目を入替",
-        "　`撮り直し 2` + 写真 → 2枚目を差替",
-        "　`画像` → 一覧を再表示",
-    ])
-    post_to_slack(channel_id, thread_ts, "\n".join(lines), bot_role="shuppinon")
-
-
-def post_listing_summary(channel_id: str, thread_ts: str, session: dict, mention_user: str = "") -> None:
-    """出品データをSlackに整形して表示する"""
-    mn = session["management_number"]
-    start = session.get("start_price", 0)
-    size = session.get("size", "")
-    text = (
-        "━━━━━━━━━━━━━━━━\n"
-        "📦 *出品データ確認*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{mn}*\n\n"
-        f"📋 タイトル\n"
-        f"　{session.get('title', '（未設定）')}\n\n"
-        f"📊 状態\n"
-        f"　{session.get('condition', '（未確認）')}\n\n"
-        f"💰 開始価格\n"
-        f"　¥{start:,}\n\n"
-        f"📐 梱包サイズ\n"
-        f"　{size + 'サイズ' if size else '（推定中）'}\n\n"
-        f"📝 説明文\n"
-        f"{session.get('description', '（未生成）')}\n\n"
-        "─────────────────────\n"
-        "*修正する場合はコマンドで入力：*\n\n"
-        "　`タイトル：新しいタイトル`\n"
-        "　`開始価格：5000`\n"
-        "　`説明文：新しい説明文`\n"
-        "　`サイズ：120`\n\n"
-        "─────────────────────\n"
-        "✅ *次のステップ*\n\n"
-        "　*Step 1:* ヤフオク/eBayのページを作成したら\n"
-        "　　→ `ページ作成完了` と入力\n\n"
-        "　*Step 2:* 棚に収納したら\n"
-        "　　→ ロケーション番号を入力（例：`A-12`）"
-    )
-    post_to_slack(channel_id, thread_ts, text, mention_user=mention_user, bot_role="shuppinon")
-
-
-def execute_listing(session: dict, location: str, channel_id: str, thread_ts: str, user_id: str) -> None:
-    """出品を実行する（スプレッドシート記録 + Monday.com更新）"""
-    management_number = session["management_number"]
-
-    # ページ作成時間を計算（ページ作成完了〜ロケーション入力までの分数）
-    page_creation_minutes = 0
-    if session.get("page_created_time"):
-        page_creation_minutes = max(0, int((datetime.now() - session["page_created_time"]).total_seconds() / 60))
-
-    # スプレッドシートに出品データを記録
-    try:
-        send_to_spreadsheet({
-            "action":                "shuppinon_listing",
-            "kanri_bango":           management_number,
-            "title":                 session.get("title", ""),
-            "description":           session.get("description", ""),
-            "condition":             session.get("condition", ""),
-            "start_price":           str(session.get("start_price", "")),
-            "buyout_price":          str(session.get("buyout_price", "")),
-            "size":                  session.get("size", ""),
-            "location":              location,
-            "staff_id":              get_staff_code(user_id),
-            "timestamp":             datetime.now().strftime("%Y/%m/%d %H:%M"),
-            "page_creation_minutes": page_creation_minutes,
-        })
-    except Exception as e:
-        print(f"[スプレッドシート出品記録エラー] {e}")
-
-    # Monday.comステータスを「出品中」に更新
-    try:
-        shuppinon_jikan = 0
-        if session.get("start_time"):
-            shuppinon_jikan = max(0, int((datetime.now() - session["start_time"]).total_seconds() / 60))
-        monday_cols = {
-            "status": {"label": "出品待ち"},
-            "shuppinon_tantosha": get_staff_code(user_id),
-            "shuppinon_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-            "location": location,
-        }
-        if session.get("start_price"):
-            monday_cols["kaishi_kakaku"] = session["start_price"]
-        if shuppinon_jikan > 0:
-            monday_cols["shuppinon_jikan"] = shuppinon_jikan
-        update_monday_columns(management_number, monday_cols)
-    except Exception as e:
-        print(f"[Monday.com出品中更新エラー] {e}")
-
-    # TODO: ヤフオク自動出品（オークタウンAPI確認後に実装予定）
-    start = session.get("start_price", 0)
-    post_to_slack(channel_id, thread_ts,
-        "━━━━━━━━━━━━━━━━\n"
-        "✅ *出品登録完了*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{management_number}*\n\n"
-        f"📍 保管場所\n"
-        f"　*{location}*\n\n"
-        f"📋 タイトル\n"
-        f"　{session.get('title', '')}\n\n"
-        f"💰 開始価格\n"
-        f"　¥{start:,}\n\n"
-        "🔜 ヤフオクAPI連携は4/1以降に追加予定です",
-        mention_user=user_id, bot_role="shuppinon")
-
-
-def handle_shuppinon_channel(event: dict) -> None:
-    """出品チャンネルのイベントを処理する"""
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    thread_ts = event.get("thread_ts") or current_ts
-    user_id = event.get("user", "")
-    files = event.get("files", [])
-    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-    text = normalize_keyword(event.get("text", ""))
-    is_new_post = not event.get("thread_ts")
-
-    # ── 新規投稿（テプラ写真 or テキストで管理番号）──────
-    if is_new_post:
-        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
-        if not image_urls and not text_mn:
-            print(f"[出品CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
-            return
-        if text_mn and not image_urls:
-            management_number = text_mn.group(0)
-        elif image_urls:
-            post_to_slack(channel_id, current_ts,
-                "🔍 管理番号を読み取り中...", mention_user=user_id, bot_role="shuppinon")
-            management_number = extract_management_number_from_image(image_urls[0])
-        if not management_number:
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *読み取りエラー*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "管理番号を確認できませんでした。\n\n"
-                "もう一度管理番号を送信してください。",
-                bot_role="shuppinon")
-            return
-
-        # Monday.comからデータ取得
-        item_data = get_item_from_monday(management_number)
-        if not item_data:
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *該当なし*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"*{management_number}* は確認できません。\n\n"
-                "管理番号を確認して再送信してください。",
-                bot_role="shuppinon")
-            return
-
-        # 担当マーク判定（タイトル先頭に付与）
-        staff_name = get_staff_code(user_id)
-        staff_mark = STAFF_LISTING_MARKS.get(staff_name, "")
-        mark_prefix = f"{staff_mark} " if staff_mark else ""
-        max_title_len = 65 - len(mark_prefix)
-
-        # Claudeで出品コンテンツ生成
-        post_to_slack(channel_id, current_ts, "⏳ 出品データを生成中...", bot_role="shuppinon")
-        listing = generate_listing_content(management_number, item_data, max_title_len=max_title_len)
-
-        # 梱包サイズを内部KWから推定（例: /S80/ → 80）
-        kw = item_data.get("internal_keyword", "")
-        size_m = re.search(r'/[A-Z]+(\d+)/', kw)
-        size = size_m.group(1) if size_m else ""
-
-        # タイトルにマークを付与
-        raw_title = listing.get("title", management_number)
-        title_with_mark = mark_prefix + raw_title[:max_title_len]
-
-        session = {
-            "management_number": management_number,
-            "title":       title_with_mark,
-            "description": listing.get("description", ""),
-            "condition":   item_data.get("condition", ""),
-            "start_price": listing.get("start_price", 0),
-            "buyout_price": listing.get("buyout_price", 0),
-            "size":        size,
-            "item_data":   item_data,
-            "start_time":  datetime.now(),
-            "page_created": False,
-            "page_created_time": None,
-        }
-        listing_sessions[current_ts] = session
-        post_listing_summary(channel_id, current_ts, session, mention_user=user_id)
-
-        # 商品画像をDriveから取得して表示
-        _post_image_list(channel_id, current_ts, management_number)
-        return
-
-    # ── スレッド内（修正コマンド or ロケーション番号）──
-    # 削除確認待ちの処理
-    if handle_delete_step2(channel_id, thread_ts, user_id, text):
-        return
-
-    session = listing_sessions.get(thread_ts)
-    if not session:
-        # 削除コマンド（セッションなし）
-        if text == "削除":
-            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
-        else:
-            print(f"[出品CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
-        return
-
-    management_number = session["management_number"]
-
-    # ── 画像管理コマンド ──
-    # 画像一覧表示
-    if text == "画像":
-        _post_image_list(channel_id, thread_ts, management_number)
-        return
-
-    # 画像削除（例: 画像削除 3）
-    m_del = re.match(r'^画像削除\s*(\d+)$', text)
-    if m_del:
-        idx = int(m_del.group(1))
-        images = list_drive_images(management_number)
-        if 1 <= idx <= len(images):
-            target = images[idx - 1]
-            if delete_drive_file(target["id"]):
-                post_to_slack(channel_id, thread_ts,
-                    f"🗑️ {idx}枚目（{target['name']}）を削除しました。",
-                    bot_role="shuppinon")
-                _post_image_list(channel_id, thread_ts, management_number)
-            else:
-                post_to_slack(channel_id, thread_ts, "⚠️ 削除に失敗しました。", bot_role="shuppinon")
-        else:
-            post_to_slack(channel_id, thread_ts, f"⚠️ {idx}枚目は存在しません。", bot_role="shuppinon")
-        return
-
-    # 順番入替（例: 順番入替 2 4）
-    m_swap = re.match(r'^順番入替\s*(\d+)\s+(\d+)$', text)
-    if m_swap:
-        a, b = int(m_swap.group(1)), int(m_swap.group(2))
-        images = list_drive_images(management_number)
-        if 1 <= a <= len(images) and 1 <= b <= len(images) and a != b:
-            service = get_drive_service()
-            if service:
-                try:
-                    name_a = images[a - 1]["name"]
-                    name_b = images[b - 1]["name"]
-                    service.files().update(fileId=images[a - 1]["id"], body={"name": name_b}, supportsAllDrives=True).execute()
-                    service.files().update(fileId=images[b - 1]["id"], body={"name": name_a}, supportsAllDrives=True).execute()
-                    post_to_slack(channel_id, thread_ts,
-                        f"🔄 {a}枚目と{b}枚目を入れ替えました。",
-                        bot_role="shuppinon")
-                    _post_image_list(channel_id, thread_ts, management_number)
-                except Exception as e:
-                    print(f"[出品CH] 順番入替エラー: {e}")
-                    post_to_slack(channel_id, thread_ts, "⚠️ 入れ替えに失敗しました。", bot_role="shuppinon")
-        else:
-            post_to_slack(channel_id, thread_ts, "⚠️ 番号が正しくありません。", bot_role="shuppinon")
-        return
-
-    # 撮り直し（例: 撮り直し 2 + 写真投稿）
-    m_replace = re.match(r'^撮り直し\s*(\d+)$', text)
-    if m_replace and image_urls:
-        idx = int(m_replace.group(1))
-        images = list_drive_images(management_number)
-        if 1 <= idx <= len(images):
-            if replace_drive_file(images[idx - 1]["id"], image_urls[0]):
-                post_to_slack(channel_id, thread_ts,
-                    f"📷 {idx}枚目を差し替えました。",
-                    bot_role="shuppinon")
-                _post_image_list(channel_id, thread_ts, management_number)
-            else:
-                post_to_slack(channel_id, thread_ts, "⚠️ 差し替えに失敗しました。", bot_role="shuppinon")
-        else:
-            post_to_slack(channel_id, thread_ts, f"⚠️ {idx}枚目は存在しません。", bot_role="shuppinon")
-        return
-
-    # 撮影（追加撮影。「撮影」+ 写真投稿）
-    if text == "撮影" and image_urls:
-        uploaded = upload_shuppinon_image(management_number, image_urls)
-        if uploaded:
-            post_to_slack(channel_id, thread_ts,
-                f"📷 {len(uploaded)}枚を追加しました。",
-                bot_role="shuppinon")
-            _post_image_list(channel_id, thread_ts, management_number)
-        else:
-            post_to_slack(channel_id, thread_ts, "⚠️ アップロードに失敗しました。", bot_role="shuppinon")
-        return
-
-    # スレッド内で写真だけ投稿（テキストなし）→ 追加撮影として扱う
-    if not text and image_urls:
-        uploaded = upload_shuppinon_image(management_number, image_urls)
-        if uploaded:
-            post_to_slack(channel_id, thread_ts,
-                f"📷 {len(uploaded)}枚を追加しました。",
-                bot_role="shuppinon")
-            _post_image_list(channel_id, thread_ts, management_number)
-        return
-
-    # キャンセル・中断
-    if text in CANCEL_WORDS:
-        log_work_activity(CHANNEL_NAMES["shuppinon"], management_number,
-                          get_staff_code(user_id), "キャンセル", session.get("start_time"))
-        del listing_sessions[thread_ts]
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "⏹️ *出品作業キャンセル*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "出品作業をキャンセルしました。",
-            mention_user=user_id, bot_role="shuppinon")
-        return
-
-    # 削除コマンド
-    if text == "削除":
-        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
-        return
-
-    # ページ作成完了コマンド
-    if text == "ページ作成完了":
-        session["page_created"] = True
-        session["page_created_time"] = datetime.now()
-        listing_sessions[thread_ts] = session
-        try:
-            update_monday_columns(management_number, {
-                "status": {"label": "ページ作成完了"},
-            })
-        except Exception as e:
-            print(f"[Monday.comページ作成完了更新エラー] {e}")
-        try:
-            send_to_spreadsheet({
-                "action":      "shuppinon_page_complete",
-                "kanri_bango": management_number,
-                "staff_id":    get_staff_code(user_id),
-                "timestamp":   datetime.now().strftime("%Y/%m/%d %H:%M"),
-            })
-        except Exception as e:
-            print(f"[スプレッドシートページ作成完了エラー] {e}")
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "🖥️ *ページ作成完了*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "ページ作成を記録しました！\n\n"
-            "次は商品を棚に収納して\n"
-            "ロケーション番号を入力してください。\n"
-            "例：`A-12`",
-            mention_user=user_id, bot_role="shuppinon")
-        return
-
-    # 修正コマンドの判定
-    field, value = parse_listing_command(text)
-    if field:
-        if field == "start_price":
-            try:
-                session["start_price"] = int(re.sub(r'[^\d]', '', value))
-            except Exception:
-                pass
-        elif field == "buyout_price":
-            try:
-                session["buyout_price"] = int(re.sub(r'[^\d]', '', value))
-            except Exception:
-                pass
-        else:
-            session[field] = value
-        listing_sessions[thread_ts] = session
-        post_listing_summary(channel_id, thread_ts, session, mention_user=user_id)
-        return
-
-    # ロケーション番号（バリデーション付き）→ 出品確定
-    if text:
-        if LOCATION_PATTERN.match(text):
-            execute_listing(session, text, channel_id, thread_ts, user_id)
-            log_work_activity(CHANNEL_NAMES["shuppinon"], session["management_number"],
-                              get_staff_code(user_id), "完了", session.get("start_time"))
-            del listing_sessions[thread_ts]
-        else:
-            post_to_slack(channel_id, thread_ts,
-                "⚠️ 先頭に倉庫コードを付けてください。\n\n"
-                "倉庫コード：\n"
-                "　*A* = 厚見倉庫\n"
-                "　*H* = 本荘倉庫\n"
-                "　*Y* = 柳津倉庫\n\n"
-                "入力例：\n"
-                "　`A23`　`A25横`　`H5`　`Y12`　`A2階`\n\n"
-                "修正コマンド：\n"
-                "　`タイトル：` `開始価格：` `説明文：` `サイズ：`",
-                bot_role="shuppinon")
-
-
-# ── 梱包出荷チャンネル（黒田官兵衛）────────────────────
-
-konpo_sessions = {}
-
-
-def extract_tracking_number_from_image(image_url: str, carrier: str) -> str:
-    """送り状ラベル写真から追跡番号をOCR抽出する"""
-    import httpx as _httpx, base64 as _b64
-    token = os.environ.get("SLACK_BOT_TOKEN", "")
-    try:
-        resp = _httpx.get(image_url, headers={"Authorization": f"Bearer {token}"}, timeout=15)
-        image_b64 = _b64.standard_b64encode(resp.content).decode()
-    except Exception as e:
-        print(f"[送り状画像取得エラー] {e}")
-        return ""
-    try:
-        _client = get_anthropic_client()
-        if not _client:
-            return ""
-        result = _client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=100,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
-                    {"type": "text", "text": (
-                        f"この{carrier}の送り状ラベルから追跡番号（伝票番号）のみを抽出してください。"
-                        "数字のみで答えてください。見つからない場合は「なし」と答えてください。"
-                    )},
-                ],
-            }],
-        )
-        answer = result.content[0].text.strip()
-        return "" if answer == "なし" else answer
-    except Exception as e:
-        print(f"[追跡番号OCRエラー] {e}")
-        return ""
-
-
-def _notify_tsuhan_community(management_number: str, item_name: str,
-                             carrier: str, tracking_number: str,
-                             monday_board_id: str) -> None:
-    """通販業務_共有コミュニティに出荷完了通知を投稿してピン留めする"""
-    token = get_slack_token()
-    if not token:
-        return
-    board_url = f"https://monday.com/boards/{monday_board_id}"
-    tracking_line = f"\n📮 追跡番号：*{tracking_number}*" if tracking_number else ""
-    text = (
-        "<!channel>\n\n"
-        "━━━━━━━━━━━━━━━━\n"
-        "🚚 *出荷手配が完了しました*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号：*{management_number}*\n"
-        f"📋 アイテム名：{item_name}\n"
-        f"🏢 運送会社：{carrier}"
-        f"{tracking_line}\n\n"
-        "━━━━━━━━━━━━━━━━\n"
-        "✅ *対応をお願いします*\n"
-        f"Monday.com のステータスを *「出荷待ち」* に変更してください。\n\n"
-        f"<{board_url}|📋 Monday.com ボードを開く>\n"
-        "━━━━━━━━━━━━━━━━"
-    )
-    try:
-        url = "https://slack.com/api/chat.postMessage"
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
-        resp = httpx.post(url, headers=headers, json={
-            "channel": TSUHAN_COMMUNITY_CHANNEL_ID,
-            "text": text,
-            "username": "黒田官兵衛",
-        }, timeout=10)
-        result = resp.json()
-        if not result.get("ok"):
-            print(f"[通販コミュニティ通知エラー] {result.get('error')}")
-            return
-        # ピン留め
-        msg_ts = result.get("ts")
-        if msg_ts:
-            httpx.post("https://slack.com/api/pins.add", headers=headers, json={
-                "channel": TSUHAN_COMMUNITY_CHANNEL_ID,
-                "timestamp": msg_ts,
-            }, timeout=10)
-            print(f"[通販コミュニティ通知] 投稿・ピン留め完了 ts={msg_ts}")
-    except Exception as e:
-        print(f"[通販コミュニティ通知例外] {e}")
-
-
-def _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number,
-                     is_old_board: bool = False, monday_board_id: str = "", item_name: str = ""):
-    """出荷手配完了の共通処理"""
-    tracking_line = f"\n📮 追跡番号\n　*{tracking_number}*" if tracking_number else ""
-    post_to_slack(channel_id, thread_ts,
-        "━━━━━━━━━━━━━━━━\n"
-        "🚚 *出荷手配完了*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{management_number}*\n\n"
-        f"🏢 運送会社\n"
-        f"　{carrier}"
-        f"{tracking_line}",
-        mention_user=user_id, bot_role="konpo")
-    if is_old_board:
-        # 旧ボード品はMonday.com列構造が異なるため更新をスキップ → 通販コミュニティに通知
-        print(f"[旧ボード品] Monday.com更新スキップ: {management_number}")
-        _notify_tsuhan_community(management_number, item_name, carrier, tracking_number,
-                                 monday_board_id or MONDAY_BOARD_ID)
-    else:
-        try:
-            monday_cols = {
-                "status": {"label": "出荷待ち"},
-                "carrier": carrier,
-                "shukka_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-            }
-            if tracking_number:
-                monday_cols["tracking_number"] = tracking_number
-            update_monday_columns(management_number, monday_cols)
-        except Exception as e:
-            print(f"[Monday.com出荷済み更新エラー] {e}")
-    try:
-        send_to_spreadsheet({
-            "action":          "shipping_update",
-            "kanri_bango":     management_number,
-            "carrier":         carrier,
-            "tracking_number": tracking_number,
-            "staff_id":        get_staff_code(user_id),
-            "timestamp":       datetime.now().strftime("%Y/%m/%d %H:%M"),
-        })
-    except Exception as e:
-        print(f"[スプレッドシート出荷更新エラー] {e}")
-
-
-def handle_konpo_channel(event: dict) -> None:
-    """梱包出荷チャンネルのイベントを処理する"""
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    thread_ts = event.get("thread_ts") or current_ts
-    user_id = event.get("user", "")
-    files = event.get("files", [])
-    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-    text = normalize_keyword(event.get("text", ""))
-    is_new_post = not event.get("thread_ts")
-
-    # ── 新規投稿 ──────────────────────────────────────────
-    if is_new_post:
-        # 後日発送の送り状後入力: 「管理番号 運送会社 追跡番号」
-        delayed_m = re.match(r'(\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3}))\s+(佐川|アート|西濃)\S*\s+(\S+)', text)
-        if delayed_m:
-            mn, carrier_kw, tracking = delayed_m.group(1), delayed_m.group(2), delayed_m.group(3)
-            carrier_name = {"佐川": "佐川急便", "アート": "アートデリバリー", "西濃": "西濃運輸"}.get(carrier_kw, carrier_kw)
-            delayed_item = get_item_from_monday(mn)
-            _finish_shipping(channel_id, current_ts, user_id, mn, carrier_name, tracking,
-                             is_old_board=delayed_item.get("is_old_board", False),
-                             monday_board_id=delayed_item.get("monday_board_id", ""),
-                             item_name=delayed_item.get("monday_name", ""))
-            return
-
-        # 通常の梱包開始
-        text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4}|[A-Z]{2}\d{3})', text)
-        if not text_mn and not image_urls:
-            print(f"[梱包CH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
-            return
-        if text_mn:
-            management_number = text_mn.group(0)
-        else:
-            post_to_slack(channel_id, current_ts, "🔍 管理番号を読み取り中...", bot_role="konpo")
-            management_number = extract_management_number_from_image(image_urls[0])
-            if not management_number:
-                post_to_slack(channel_id, current_ts,
-                    "━━━━━━━━━━━━━━━━\n"
-                    "⚠️ *読み取りエラー*\n"
-                    "━━━━━━━━━━━━━━━━\n\n"
-                    "管理番号を確認できませんでした。\n\n"
-                    "もう一度送信してください。",
-                    bot_role="konpo")
-                return
-
-        item_data = get_item_from_monday(management_number)
-        if not item_data:
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *該当なし*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"*{management_number}* は確認できません。\n\n"
-                "管理番号を確認して再送信してください。",
-                bot_role="konpo")
-            return
-
-        kw = item_data.get("internal_keyword", "")
-        size_m = re.search(r'/[A-Z]+(\d+)/', kw)
-        size = size_m.group(1) if size_m else "不明"
-        is_old_board = item_data.get("is_old_board", False)
-
-        konpo_sessions[current_ts] = {
-            "management_number": management_number,
-            "item_name":         item_data.get("monday_name", ""),
-            "size":              size,
-            "packed":            False,
-            "carrier":           None,
-            "waiting_label":     False,
-            "start_time":        datetime.now(),
-            "is_old_board":      is_old_board,
-            "monday_board_id":   item_data.get("monday_board_id", MONDAY_BOARD_ID),
-        }
-
-        if is_old_board:
-            # 旧ボード品：アイテム名と棚番を表示（サイズ・チャンネル等は手動確認）
-            shelf = ""
-            for col_id, col_val in item_data.items():
-                if col_id in ("monday_name", "is_old_board", "monday_item_id", "monday_board_id") or not col_val:
-                    continue
-                if col_val == management_number:
-                    continue
-                if re.match(r'^([A-Z][A-Za-z\d\s横奥]*|\d{1,2}[階F]?|倉庫[外奥]?)$', col_val.strip()):
-                    shelf = col_val
-                    break
-            shelf_line = f"📍 棚番\n　{shelf}\n\n" if shelf else ""
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "📦 *梱包情報確認（旧ボード）*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"🔖 管理番号\n"
-                f"　*{management_number}*\n\n"
-                f"📋 アイテム名\n"
-                f"　{item_data.get('monday_name', '---')}\n\n"
-                f"{shelf_line}"
-                "⚠️ サイズ・チャンネル等は手動で確認してください。\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "梱包が完了したら `梱包完了` と入力してください。",
-                mention_user=user_id, bot_role="konpo")
-        else:
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "📦 *梱包情報確認*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"🔖 管理番号\n"
-                f"　*{management_number}*\n\n"
-                f"📐 梱包サイズ\n"
-                f"　{size}サイズ\n\n"
-                f"📺 判定チャンネル\n"
-                f"　{item_data.get('hantei_channel', '')}\n\n"
-                f"💰 予想販売価格\n"
-                f"　{item_data.get('yosou_kakaku', '')}\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "梱包が完了したら `梱包完了` と入力してください。",
-                mention_user=user_id, bot_role="konpo")
-        return
-
-    # ── スレッド内 ────────────────────────────────────────
-    # 削除確認待ちの処理
-    if handle_delete_step2(channel_id, thread_ts, user_id, text):
-        return
-
-    session = konpo_sessions.get(thread_ts)
-    if not session:
-        # 削除コマンド（セッションなし）
-        if text == "削除":
-            handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
-        else:
-            print(f"[梱包CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
-        return
-    management_number = session["management_number"]
-
-    # キャンセル・中断
-    if text in CANCEL_WORDS:
-        log_work_activity(CHANNEL_NAMES["konpo"], management_number,
-                          get_staff_code(user_id), "キャンセル", session.get("start_time"))
-        del konpo_sessions[thread_ts]
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "⏹️ *梱包作業キャンセル*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号\n"
-            f"　*{management_number}*\n\n"
-            "梱包作業をキャンセルしました。",
-            mention_user=user_id, bot_role="konpo")
-        return
-
-    # 削除コマンド
-    if text == "削除":
-        handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
-        return
-
-    # ① 梱包完了 → 運送会社選択へ
-    if text in ("梱包完了", "梱包") and not session["packed"]:
-        session["packed"] = True
-        konpo_sessions[thread_ts] = session
-        post_to_slack(channel_id, thread_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "✅ *梱包完了確認*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"{CARRIER_MENU}",
-            mention_user=user_id, bot_role="konpo")
-        try:
-            update_monday_columns(management_number, {
-                "status": {"label": "梱包作業"},
-                "konpo_tantosha": get_staff_code(user_id),
-                "konpo_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-            })
-        except Exception as e:
-            print(f"[Monday.com梱包済み更新エラー] {e}")
-        return
-
-    # ② 運送会社選択（1〜5）
-    if session["packed"] and not session["carrier"] and text in CARRIER_MAP:
-        carrier = CARRIER_MAP[text]
-        session["carrier"] = carrier
-        konpo_sessions[thread_ts] = session
-
-        if text == "4":  # 直接引き取り
-            _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, "",
-                             is_old_board=session.get("is_old_board", False),
-                             monday_board_id=session.get("monday_board_id", ""),
-                             item_name=session.get("item_name", ""))
-            log_work_activity(CHANNEL_NAMES["konpo"], management_number,
-                              get_staff_code(user_id), "完了", session.get("start_time"))
-            del konpo_sessions[thread_ts]
-        elif text == "5":  # 後日発送
-            post_to_slack(channel_id, thread_ts,
-                f"📋 *{management_number}* を「梱包済み（発送待ち）」として保留しました。\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n"
-                "📮 *後日発送時の入力方法*\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                "このチャンネルに新規メッセージで投稿してください。\n\n"
-                "*入力形式*\n"
-                "`管理番号 運送会社 伝票番号`\n\n"
-                "*サンプル*\n"
-                "```\n"
-                "2603-0001 佐川 123456789012\n"
-                "2603-0002 アート 0987654321\n"
-                "2603-0003 西濃 111222333444\n"
-                "```\n\n"
-                "*運送会社の入力方法*\n"
-                "• 佐川急便 → `佐川`\n"
-                "• アートデリバリー → `アート`\n"
-                "• 西濃運輸 → `西濃`\n\n"
-                "⚠️ *注意事項*\n"
-                "• スペースで区切ってください（全角スペース不可）\n"
-                "• 伝票番号は数字のみ（ハイフン不要）\n"
-                "• 管理番号・運送会社・伝票番号の順番を守ってください",
-                mention_user=user_id, bot_role="konpo")
-            del konpo_sessions[thread_ts]
-        else:  # 佐川・アート・西濃
-            session["waiting_label"] = True
-            konpo_sessions[thread_ts] = session
-            post_to_slack(channel_id, thread_ts,
-                f"📸 *{carrier}* の\n"
-                "送り状ラベルの写真を送ってください。",
-                mention_user=user_id, bot_role="konpo")
-        return
-
-    # ③ 送り状ラベル写真 → OCRで追跡番号抽出
-    if session.get("waiting_label") and image_urls:
-        carrier = session["carrier"]
-        post_to_slack(channel_id, thread_ts, "🔍 追跡番号を読み取り中...", bot_role="konpo")
-        tracking_number = extract_tracking_number_from_image(image_urls[0], carrier)
-        if not tracking_number:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *読み取りエラー*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "追跡番号を読み取れませんでした。\n\n"
-                "もう一度写真を送ってください。",
-                mention_user=user_id, bot_role="konpo")
-            return
-        _finish_shipping(channel_id, thread_ts, user_id, management_number, carrier, tracking_number,
-                         is_old_board=session.get("is_old_board", False),
-                         monday_board_id=session.get("monday_board_id", ""),
-                         item_name=session.get("item_name", ""))
-        log_work_activity(CHANNEL_NAMES["konpo"], management_number,
-                          get_staff_code(user_id), "完了", session.get("start_time"))
-        del konpo_sessions[thread_ts]
-
-
-# ── 現場査定チャンネル（渋沢栄一）────────────────────────
-
-# 古物台帳フローのセッション管理
-# key: "{channel_id}_{user_id}"
-# value: {"step": 1〜3, "price": int, "item_name": str, "staff_id": str, "timestamp": str, "id_info": dict}
-kaitori_sessions = {}
-
-
-def _extract_id_info(image_url: str) -> dict:
-    """身分証の写真からClaudeで情報を抽出する（古物台帳記載用）"""
-    img_data, img_type = fetch_image_as_base64(image_url)
-    client = get_anthropic_client()
-    if not client:
-        return {}
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        system="""身分証明書の画像から以下の情報をJSON形式のみで返してください。
-読み取れない項目は「読取不可」としてください。
-{
-  "doc_type": "運転免許証 または マイナンバーカード または パスポート",
-  "name": "氏名（姓名）",
-  "address": "住所",
-  "birthdate": "生年月日（YYYY/MM/DD形式）",
-  "id_number": "証明書番号（免許証番号など）"
-}
-※マイナンバー（12桁の個人番号）は絶対に記録しないこと。
-※JSON以外のテキストは一切出力しないこと。""",
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "この身分証から情報を抽出してください。"},
-                {"type": "image", "source": {"type": "base64", "media_type": img_type, "data": img_data}},
-            ]
-        }],
-    )
-    text = response.content[0].text
-    m = re.search(r'\{.*\}', text, re.DOTALL)
-    if m:
-        try:
-            return json.loads(m.group(0))
-        except Exception:
-            pass
-    return {}
-
-
-def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
-                         user_id: str, text: str, image_urls: list) -> bool:
-    """古物台帳フロー（買取確定〜身分証確認〜台帳登録）を処理する。
-    フロー処理した場合はTrueを返す。"""
-    session_key = f"{channel_id}_{user_id}"
-
-    # ── Step 0: 「買取確定 ¥3000」でフロー開始 ──
-    m = re.search(r'買取確定\s*[¥￥]?\s*([\d,]+)', text or "")
-    if m:
-        price = int(m.group(1).replace(",", ""))
-        kaitori_sessions[session_key] = {
-            "step": 1,
-            "price": price,
-            "staff_id": get_staff_code(user_id),
-            "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
-        }
-        post_to_slack(channel_id, current_ts,
-            f"買取価格 *¥{price:,}* で記録いたします。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📦 *品物の名称・特徴を教えてください*\n\n"
-            "記入例：\n"
-            "`パナソニック 洗濯機 NA-F60B14 中古 動作OK`\n"
-            "━━━━━━━━━━━━━━━━",
-            mention_user=user_id, bot_role="genba")
-        return True
-
-    # セッションがなければフロー外
-    session = kaitori_sessions.get(session_key)
-    if not session:
-        return False
-
-    step = session["step"]
-
-    # ── Step 1: 品物名を受け取る ──
-    if step == 1 and text and not image_urls:
-        session["item_name"] = text
-        session["step"] = 2
-        kaitori_sessions[session_key] = session
-        post_to_slack(channel_id, current_ts,
-            "承りました。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "🪪 *相手方の身分証をお送りください*\n\n"
-            "古物営業法に基づく確認が必要です。\n\n"
-            "📸 対応書類：\n"
-            "　・運転免許証\n"
-            "　・マイナンバーカード（番号面は不要）\n"
-            "　・パスポート\n\n"
-            "氏名・住所・生年月日・証明書番号が\n"
-            "確認できる面の写真を送信してください。\n"
-            "━━━━━━━━━━━━━━━━",
-            mention_user=user_id, bot_role="genba")
-        return True
-
-    # ── Step 2: 身分証写真を受け取る ──
-    if step == 2 and image_urls:
-        post_to_slack(channel_id, current_ts,
-            "🔍 身分証の情報を読み取っております...\n"
-            "しばしお待ちを。",
-            bot_role="genba")
-        try:
-            id_info = _extract_id_info(image_urls[0])
-            session["id_info"] = id_info
-            session["step"] = 3
-            kaitori_sessions[session_key] = session
-            post_to_slack(channel_id, current_ts,
-                "読み取り完了でございます。\n"
-                "内容をご確認ください。\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "📋 *古物台帳　記載内容確認*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"📅 取引日時　：{session['timestamp']}\n\n"
-                f"📦 品　　物　：{session['item_name']}\n\n"
-                f"💴 買取価格　：¥{session['price']:,}\n\n"
-                f"👤 氏　　名　：{id_info.get('name', '読取不可')}\n\n"
-                f"🏠 住　　所　：{id_info.get('address', '読取不可')}\n\n"
-                f"🎂 生年月日　：{id_info.get('birthdate', '読取不可')}\n\n"
-                f"🪪 証明書番号：{id_info.get('id_number', '読取不可')}\n\n"
-                f"📋 確認書類　：{id_info.get('doc_type', '運転免許証')}\n\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "✅ 正しければ `登録` と送信してください。\n"
-                "✏️ 修正がある場合は\n"
-                "　`修正 氏名：正しい名前`\n"
-                "　のように送信してください。",
-                mention_user=user_id, bot_role="genba")
-        except Exception as e:
-            print(f"[身分証読取エラー] {e}")
-            post_to_slack(channel_id, current_ts,
-                "⚠️ 身分証の読み取りに失敗いたしました。\n\n"
-                "もう一度、鮮明な写真をお送りください。",
-                mention_user=user_id, bot_role="genba")
-        return True
-
-    # ── Step 3: 登録確認 or 修正 ──
-    if step == 3:
-        n = normalize_keyword(text or "")
-        if n == "登録":
-            id_info = session.get("id_info", {})
-            try:
-                send_to_spreadsheet({
-                    "action":     "kobutsu_daichou",
-                    "timestamp":  session["timestamp"],
-                    "item_name":  session["item_name"],
-                    "price":      session["price"],
-                    "staff_id":   session["staff_id"],
-                    "name":       id_info.get("name", ""),
-                    "address":    id_info.get("address", ""),
-                    "birthdate":  id_info.get("birthdate", ""),
-                    "id_number":  id_info.get("id_number", ""),
-                    "doc_type":   id_info.get("doc_type", "運転免許証"),
-                })
-                del kaitori_sessions[session_key]
-                post_to_slack(channel_id, current_ts,
-                    "━━━━━━━━━━━━━━━━\n"
-                    "✅ *古物台帳への記録が完了いたしました*\n"
-                    "━━━━━━━━━━━━━━━━\n\n"
-                    "道徳と算盤、両面から\n"
-                    "適切な取引でありました。\n\n"
-                    "スプレッドシートの\n"
-                    "「古物台帳」シートをご確認ください。",
-                    mention_user=user_id, bot_role="genba")
-            except Exception as e:
-                print(f"[古物台帳登録エラー] {e}")
-                post_to_slack(channel_id, current_ts,
-                    "⚠️ 記録に失敗いたしました。\n\n"
-                    "もう一度 `登録` と送信してください。",
-                    mention_user=user_id, bot_role="genba")
-            return True
-
-        # 修正コマンド処理
-        fix = re.match(r'修正\s+(.+?)[:：](.+)', text or "")
-        if fix:
-            field_name = fix.group(1).strip()
-            new_value = fix.group(2).strip()
-            field_map = {
-                "氏名": "name", "住所": "address",
-                "生年月日": "birthdate", "証明書番号": "id_number",
-                "確認書類": "doc_type",
-            }
-            field_key = field_map.get(field_name)
-            if field_key:
-                session["id_info"][field_key] = new_value
-                kaitori_sessions[session_key] = session
-            id_info = session["id_info"]
-            post_to_slack(channel_id, current_ts,
-                f"✏️ *{field_name}* を修正しました。\n\n"
-                "━━━━━━━━━━━━━━━━\n"
-                "📋 *修正後の内容*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                f"👤 氏　　名　：{id_info.get('name', '読取不可')}\n\n"
-                f"🏠 住　　所　：{id_info.get('address', '読取不可')}\n\n"
-                f"🎂 生年月日　：{id_info.get('birthdate', '読取不可')}\n\n"
-                f"🪪 証明書番号：{id_info.get('id_number', '読取不可')}\n\n"
-                f"📋 確認書類　：{id_info.get('doc_type', '運転免許証')}\n\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "✅ 正しければ `登録` と送信してください。",
-                mention_user=user_id, bot_role="genba")
-            return True
-
-    return False
-
-
-
-def handle_genba_channel(event: dict) -> None:
-    """現場査定チャンネル（渋沢の算盤_現場の力）のイベントを処理する"""
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    thread_ts = event.get("thread_ts") or current_ts
-    user_id = event.get("user", "")
-    text = event.get("text", "")
-    files = event.get("files", [])
-    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-
-    # テキストも画像もない場合はスキップ
-    if not text and not image_urls:
-        return
-
-    # ── 古物台帳フローを最優先で処理 ──
-    if _handle_kaitori_flow(event, channel_id, current_ts, user_id, text, image_urls):
-        return
-
-    # 知識インプット判定（「メモ」「情報」「覚えておいて」「相場」などのキーワード）
-    memo_keywords = ["メモ", "情報", "覚えておいて", "相場", "業者", "単価", "注意", "ポイント", "コツ"]
-    is_memo = any(kw in text for kw in memo_keywords)
-
-    if is_memo and not image_urls:
-        # 知識をスプレッドシートに保存
-        try:
-            send_to_spreadsheet({
-                "action":    "genba_memo",
-                "staff_id":  get_staff_code(user_id),
-                "message":   text,
-                "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
-            })
-        except Exception as e:
-            print(f"[現場メモ保存エラー] {e}")
-        post_to_slack(channel_id, current_ts,
-            BOT_PERSONA["genba"]["memo_saved"],
-            mention_user=user_id, bot_role="genba")
-        return
-
-    # 買取査定 or 廃棄判断 → Claudeに投げる
-    post_to_slack(channel_id, current_ts,
-        BOT_PERSONA["genba"]["thinking"],
-        bot_role="genba")
-
-    try:
-        messages = []
-        # 画像がある場合は画像を含める
-        if image_urls:
-            content = []
-            if text:
-                content.append({"type": "text", "text": text})
-            for url in image_urls[:3]:  # 最大3枚
-                try:
-                    img_data, img_type = fetch_image_as_base64(url)
-                    content.append({
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": img_type, "data": img_data},
-                    })
-                except Exception as e:
-                    print(f"[画像取得エラー] {e}")
-            messages.append({"role": "user", "content": content})
-        else:
-            messages.append({"role": "user", "content": text})
-
-        client = get_anthropic_client()
-        if not client:
-            raise RuntimeError("ANTHROPIC_API_KEY が設定されていません")
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            system=GENBA_SYSTEM_PROMPT,
-            messages=messages,
-        )
-        result_text = response.content[0].text
-        post_to_slack(channel_id, current_ts, result_text,
-            mention_user=user_id, bot_role="genba")
-
-        # スプレッドシートに査定記録を保存
-        try:
-            send_to_spreadsheet({
-                "action":    "genba_satei",
-                "staff_id":  get_staff_code(user_id),
-                "input":     text[:200] if text else "（画像のみ）",
-                "result":    result_text[:500],
-                "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
-            })
-        except Exception as e:
-            print(f"[現場査定記録エラー] {e}")
-
-    except Exception as e:
-        print(f"[現場査定エラー] {e}")
-        post_to_slack(channel_id, current_ts,
-            BOT_PERSONA["genba"]["error"],
-            mention_user=user_id, bot_role="genba")
-
-
-# ── ステータス確認チャンネル（松本）────────────────────
-
-def handle_status_channel(event: dict) -> None:
-    """ステータス確認チャンネルのイベントを処理する"""
-    from datetime import date
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    thread_ts = event.get("thread_ts") or current_ts
-    user_id = event.get("user", "")
-    files = event.get("files", [])
-    image_urls = [f.get("url_private") for f in files if f.get("url_private")]
-    text = normalize_keyword(event.get("text", ""))
-
-    text_mn = re.search(r'\d{4}(?:[VGME]\d{4}|-\d{4})', text)
-    if not text_mn and not image_urls:
-        print(f"[ステータスCH無視] 管理番号なし・画像なし channel={channel_id} text={text[:30]!r}")
-        return
-
-    if text_mn:
-        management_number = text_mn.group(0)
-    else:
-        management_number = extract_management_number_from_image(image_urls[0])
-        if not management_number:
-            post_to_slack(channel_id, current_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⚠️ *読み取りエラー*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "管理番号を確認できませんでした。\n\n"
-                "もう一度送信してください。",
-                bot_role="status")
-            return
-
-    item_data = get_item_from_monday(management_number)
-    if not item_data:
-        post_to_slack(channel_id, current_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "⚠️ *該当なし*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"*{management_number}* は確認できません。\n\n"
-            "管理番号を確認して再送信してください。",
-            bot_role="status")
-        return
-
-    # 登録からの経過日数（管理番号のYYMMから計算）
-    days_elapsed = ""
-    try:
-        yymm = management_number[:4]
-        reg_date = date(int("20" + yymm[:2]), int(yymm[2:4]), 1)
-        days_elapsed = (date.today() - reg_date).days
-    except Exception:
-        pass
-
-    status = item_data.get("status", "不明")
-    reply = (
-        "━━━━━━━━━━━━━━━━\n"
-        "📊 *ステータス確認*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"🔖 管理番号\n"
-        f"　*{management_number}*\n\n"
-        f"📌 現在のステータス\n"
-        f"　*{status}*\n\n"
-        f"📺 判定チャンネル\n"
-        f"　{item_data.get('hantei_channel', '不明')}\n\n"
-        f"💰 予想販売価格\n"
-        f"　{item_data.get('yosou_kakaku', '不明')}\n\n"
-        f"📅 在庫予測期間\n"
-        f"　{item_data.get('zaiko_kikan', '不明')}\n\n"
-        f"⭐ スコア\n"
-        f"　{item_data.get('score', '不明')} 点"
-    )
-    if days_elapsed:
-        reply += f"\n\n🕐 登録からの経過\n　約 {days_elapsed} 日"
-    reply += "\n━━━━━━━━━━━━━━━━"
-
-    post_to_slack(channel_id, current_ts, reply, mention_user=user_id, bot_role="status")
-
-
-# ── 出退勤チャンネル ──────────────────────────────────────
-
-def get_staff_break_minutes(staff_id: str) -> int:
-    """スタッフマスターから標準休憩時間（分）を取得する。取得失敗時は60分を返す"""
-    try:
-        resp = httpx.get(GAS_URL, params={"type": "staff"}, timeout=10)
-        data = resp.json()
-        if data.get("ok"):
-            for row in data.get("data", []):
-                if row.get("SlackユーザーID") == staff_id or row.get("名前") == staff_id:
-                    val = row.get("標準休憩時間（分）", 60)
-                    return int(val) if val else 60
-    except Exception as e:
-        print(f"[休憩時間取得エラー] {e}")
-    return 60
-
-
-def handle_attendance_channel(event: dict) -> None:
-    """出退勤チャンネル - 9:00~16:00 形式で自己申告"""
-    channel_id = event.get("channel")
-    current_ts = event.get("ts", "")
-    user_id = event.get("user", "")
-    text = normalize_keyword(event.get("text", ""))
-    today = datetime.now().strftime("%Y/%m/%d")
-
-    # ── 代筆モード：「北瀬孝 9:00~17:00」形式を検出 ──────────
-    # Slackを使えないスタッフの勤怠を別のスタッフが代理入力する
-    DAIHITSU_STAFF = ["北瀬孝"]  # 代筆対象スタッフ名リスト
-    proxy_name = None
-    proxy_match = None
-    for name in DAIHITSU_STAFF:
-        pm = re.match(
-            rf'{re.escape(name)}\s+(\d{{1,2}}):(\d{{2}})[~\-～](\d{{1,2}}):(\d{{2}})',
-            text
-        )
-        if pm:
-            proxy_name = name
-            proxy_match = pm
-            break
-
-    if proxy_name and proxy_match:
-        # 代筆として処理
-        daihitsu_by = get_staff_code(user_id)  # 代筆した人
-        sh2, sm2 = int(proxy_match.group(1)), int(proxy_match.group(2))
-        eh2, em2 = int(proxy_match.group(3)), int(proxy_match.group(4))
-        total2 = (eh2 * 60 + em2) - (sh2 * 60 + sm2)
-        if total2 <= 0:
-            post_to_slack(channel_id, current_ts,
-                "⚠️ 終了時刻が開始時刻より前になっています。確認してください。",
-                bot_role="kintaro")
-            return
-        break2 = get_staff_break_minutes(proxy_name)
-        net2 = max(0, total2 - break2) / 60
-        try:
-            send_to_spreadsheet({
-                "action":        "attendance",
-                "staff_id":      proxy_name,
-                "type":          "勤務申告（代筆）",
-                "date":          today,
-                "start_time":    f"{sh2:02d}:{sm2:02d}",
-                "end_time":      f"{eh2:02d}:{em2:02d}",
-                "total_minutes": str(total2),
-                "break_minutes": str(break2),
-                "net_hours":     f"{net2:.2f}",
-                "completed_count": "0",
-                "daihitsu_by":   daihitsu_by,
-            })
-        except Exception as e:
-            print(f"[代筆勤務記録エラー] {e}")
-        post_to_slack(channel_id, current_ts,
-            "━━━━━━━━━━━━━━━━\n"
-            "📝 *代筆勤務記録完了*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"👤 {proxy_name}（代筆：{daihitsu_by}）\n\n"
-            f"🕐 勤務時間\n"
-            f"　{sh2:02d}:{sm2:02d} 〜 {eh2:02d}:{em2:02d}\n\n"
-            f"☕ 休憩　{break2}分\n\n"
-            f"⏱️ 実働時間　{net2:.1f}時間\n\n"
-            f"記録しました。お疲れさまです。",
-            bot_role="kintaro")
-        return
-
-    staff_id = get_staff_code(user_id)
-
-    # "9:00~16:00" / "9:00-16:00" / "9:00～16:00" のパース
-    m = re.match(r'(\d{1,2}):(\d{2})[~\-～](\d{1,2}):(\d{2})', text)
-    if not m:
-        post_to_slack(channel_id, current_ts,
-            "入力形式：`9:00~16:00`\n（開始時刻〜終了時刻）\n小さな記録の積み重ねが、大きな実りとなります。",
-            bot_role="kintaro")
-        return
-
-    sh, sm, eh, em = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
-    total_minutes = (eh * 60 + em) - (sh * 60 + sm)
-
-    if total_minutes <= 0:
-        post_to_slack(channel_id, current_ts,
-            "⚠️ 終了時刻が開始時刻より前になっています。\n焦らず、もう一度ご確認ください。",
-            bot_role="kintaro")
-        return
-
-    # スタッフマスターから標準休憩時間を取得
-    break_minutes = get_staff_break_minutes(staff_id)
-    net_minutes = max(0, total_minutes - break_minutes)
-    net_hours = net_minutes / 60
-
-    # 本日の作業サマリー
-    stats = daily_stats.get(staff_id, {"完了": 0, "キャンセル": 0, "削除": 0})
-    summary_lines = []
-    if stats["完了"] > 0:
-        summary_lines.append(f"✅ 完了：{stats['完了']}件")
-    if stats["キャンセル"] > 0:
-        summary_lines.append(f"⏹️ キャンセル：{stats['キャンセル']}件")
-    if stats["削除"] > 0:
-        summary_lines.append(f"🗑️ 削除：{stats['削除']}件")
-    summary_text = "\n".join(summary_lines) if summary_lines else "本日の作業記録なし"
-
-    try:
-        send_to_spreadsheet({
-            "action":          "attendance",
-            "staff_id":        staff_id,
-            "type":            "勤務申告",
-            "date":            today,
-            "start_time":      f"{sh:02d}:{sm:02d}",
-            "end_time":        f"{eh:02d}:{em:02d}",
-            "total_minutes":   str(total_minutes),
-            "break_minutes":   str(break_minutes),
-            "net_hours":       f"{net_hours:.2f}",
-            "completed_count": str(stats.get("完了", 0)),
-        })
-    except Exception as e:
-        print(f"[勤務記録エラー] {e}")
-
-    # daily_statsをリセット
-    if staff_id in daily_stats:
-        del daily_stats[staff_id]
-
-    post_to_slack(channel_id, current_ts,
-        "今日もよく働かれました。\n\n"
-        "━━━━━━━━━━━━━━━━\n"
-        "🌙 *勤務記録完了*\n"
-        "━━━━━━━━━━━━━━━━\n\n"
-        f"👤 {staff_id}\n\n"
-        f"🕐 勤務時間\n"
-        f"　{sh:02d}:{sm:02d} 〜 {eh:02d}:{em:02d}\n\n"
-        f"☕ 休憩\n"
-        f"　{break_minutes}分\n\n"
-        f"⏱️ 実働時間\n"
-        f"　{net_hours:.1f}時間\n\n"
-        "─────────────────\n"
-        f"📊 *本日の作業実績*\n\n"
-        f"{summary_text}\n\n"
-        "積小為大。今日の積み重ねが明日の実りとなります。",
-        bot_role="kintaro")
-    return
-
-
-# ── 勤怠連絡チャンネル（サイレント記録）──────────────────
-
-def handle_kintai_channel(event: dict) -> None:
-    """勤怠連絡チャンネルのメッセージをスプレッドシートにサイレント記録する"""
-    user_id = event.get("user", "")
-    text = event.get("text", "")
-    if not text:
-        return
-    staff_id = get_staff_code(user_id)
-    try:
-        send_to_spreadsheet({
-            "action":    "kintai_renraku",
-            "staff_id":  staff_id,
-            "message":   text,
-            "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
-        })
-    except Exception as e:
-        print(f"[勤怠連絡記録エラー] {e}")
+# ── Flask Routes ──────────────────────────────────────────
 
 
 @app.route("/debug", methods=["GET"])
@@ -2775,7 +351,6 @@ def env_keys():
 def monday_setup():
     """monday.comボードにカラムを作成する（初回のみ実行）"""
     columns = [
-        # 既存カラム（作成済みの場合はスキップされる）
         ("管理番号",           "text",    "kanri_bango"),
         ("判定チャンネル",     "text",    "hantei_channel"),
         ("確信度",             "text",    "kakushin_do"),
@@ -2785,26 +360,21 @@ def monday_setup():
         ("スコア",             "numbers", "score"),
         ("分荷作業時間(分)",   "numbers", "sakugyou_jikan"),
         ("内部KW",             "text",    "internal_keyword"),
-        # 商品情報
         ("アイテム名",         "text",    "item_name"),
         ("ブランド/メーカー",  "text",    "maker"),
         ("品番/型式",          "text",    "model_number"),
         ("状態",               "text",    "condition"),
         ("カテゴリ",           "text",    "category"),
-        # 査定・仕入れ
         ("査定担当者",         "text",    "satei_tantosha"),
         ("査定日",             "date",    "satei_date"),
         ("仕入れ原価",         "numbers", "shiire_genka"),
-        # 分荷判定
         ("分荷日",             "date",    "bunka_date"),
         ("在庫期限日",         "date",    "deadline_date"),
-        # 撮影
         ("撮影担当",           "text",    "satsuei_tantosha"),
         ("撮影完了日",         "date",    "satsuei_date"),
         ("撮影時間(分)",       "numbers", "satsuei_jikan"),
         ("写真枚数",           "numbers", "photo_count"),
         ("Drive写真URL",       "text",    "drive_url"),
-        # 出品
         ("出品担当",           "text",    "shuppinon_tantosha"),
         ("出品日",             "date",    "shuppinon_date"),
         ("出品作業時間(分)",   "numbers", "shuppinon_jikan"),
@@ -2813,7 +383,6 @@ def monday_setup():
         ("開始価格",           "numbers", "kaishi_kakaku"),
         ("目標価格",           "numbers", "mokuhyo_kakaku"),
         ("保管ロケーション",   "text",    "location"),
-        # 梱包・出荷
         ("梱包担当",           "text",    "konpo_tantosha"),
         ("梱包完了日",         "date",    "konpo_date"),
         ("梱包時間(分)",       "numbers", "konpo_jikan"),
@@ -2822,13 +391,11 @@ def monday_setup():
         ("追跡番号",           "text",    "tracking_number"),
         ("出荷日",             "date",    "shukka_date"),
         ("発送コスト",         "numbers", "hasso_cost"),
-        # 販売結果
         ("落札日",             "date",    "rakusatsu_date"),
         ("落札価格",           "numbers", "rakusatsu_kakaku"),
         ("入札数",             "numbers", "nyusatsu_count"),
         ("アクセス数",         "numbers", "access_count"),
         ("在庫日数",           "numbers", "zaiko_days"),
-        # 原価・利益（数式はMonday.com側で設定）
         ("プラットフォーム手数料", "numbers", "platform_fee"),
         ("合計原価",           "numbers", "total_genka"),
         ("総労務時間(分)",     "numbers", "total_rodo_jikan"),
@@ -2837,7 +404,6 @@ def monday_setup():
         ("純利益",             "numbers", "junri"),
         ("ROI(%)",             "numbers", "roi"),
         ("利益率(%)",          "numbers", "rieki_ritsu"),
-        # メモ
         ("メモ",               "text",    "memo"),
     ]
     _monday_setup_log.clear()
@@ -2882,28 +448,22 @@ def monday_setup_status():
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     """Slack Events APIのエンドポイント"""
-    # Slackのリトライは即座に200を返して無視する
     if request.headers.get("X-Slack-Retry-Num"):
         print(f"[Slackリトライ] リトライ#{request.headers.get('X-Slack-Retry-Num')}を無視")
         return jsonify({"ok": True})
 
-    # 署名検証：本物のSlackからのリクエストか確認する
     if not verify_slack_signature(request):
         print("[署名検証] 不正なリクエストを拒否しました")
         return jsonify({"error": "invalid signature"}), 403
 
     data = request.get_json(force=True)
 
-    # URL検証チャレンジへの応答（初回設定時のみ）
     if data.get("type") == "url_verification":
         return jsonify({"challenge": data["challenge"]})
 
-    # イベント処理
     event = data.get("event", {})
     event_id = data.get("event_id", "")
 
-    # ボット自身の発言・重複イベントを無視
-    # file_shareサブタイプは画像投稿なので許可する
     subtype = event.get("subtype", "")
     if event.get("bot_id") or event.get("bot_profile") or event_id in _processed_events_dict:
         return jsonify({"ok": True})
@@ -2911,13 +471,10 @@ def slack_events():
         return jsonify({"ok": True})
 
     _processed_events_dict[event_id] = True
-    # 古い順に削除して最大件数を維持（全消しはしない）
     while len(_processed_events_dict) > PROCESSED_EVENTS_MAX:
         _processed_events_dict.popitem(last=False)
 
-    # メッセージイベントのみ処理
     if event.get("type") == "message":
-        # バックグラウンドで処理（Slackの3秒タイムアウトを回避）
         thread = threading.Thread(target=process_slack_message, args=(event,))
         thread.daemon = True
         thread.start()
@@ -2961,7 +518,6 @@ def webhook():
         return jsonify({"error": "認証が必要です"}), 403
 
     data = request.get_json(force=True)
-
     channel_id = data.get("channel_id")
     thread_ts = data.get("thread_ts")
     user_message = data.get("user_message")
@@ -2975,7 +531,6 @@ def webhook():
         judgment = call_claude(user_message, image_urls)
         post_to_slack(channel_id, thread_ts, judgment)
         return jsonify({"ok": True, "judgment": judgment}), 200
-
     except Exception as e:
         print(f"[Webhook判定エラー] {e}")
         try:
@@ -2996,7 +551,7 @@ def health_check():
     alerts = []
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # ── 1. Slack API ──────────────────────────────────────────
+    # ── 1. Slack API ──
     try:
         token = get_slack_token()
         if not token:
@@ -3012,7 +567,7 @@ def health_check():
         results["slack"] = f"ERROR: {e}"
         alerts.append(f"🚨 Slack APIに接続できません\n→ Railwayの環境変数 SLACK_BOT_TOKEN が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
-    # ── 2. Monday.com API ─────────────────────────────────────
+    # ── 2. Monday.com API ──
     try:
         r = monday_graphql("query { me { id name } }")
         if r.get("data", {}).get("me"):
@@ -3023,7 +578,7 @@ def health_check():
         results["monday"] = f"ERROR: {e}"
         alerts.append(f"🚨 Monday.comに接続できません\n→ Railwayの環境変数 MONDAY_TOKEN が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
-    # ── 3. Anthropic API ステータスページ確認 ─────────────────
+    # ── 3. Anthropic API ステータスページ確認 ──
     try:
         r = httpx.get("https://status.claude.com/api/v2/status.json", timeout=10, follow_redirects=True)
         data = r.json()
@@ -3038,7 +593,7 @@ def health_check():
         results["anthropic"] = f"ERROR: {e}"
         alerts.append(f"⚠️ Claude AIのステータス確認ができませんでした\n→ しばらく待ってから再確認してください")
 
-    # ── 4. Slack ステータスページ確認 ─────────────────────────
+    # ── 4. Slack ステータスページ確認 ──
     try:
         r = httpx.get("https://status.slack.com/api/v2.0.0/current", timeout=10, follow_redirects=True)
         data = r.json()
@@ -3051,14 +606,13 @@ def health_check():
     except Exception as e:
         results["slack_status"] = f"ERROR: {e}"
 
-    # ── 5. Google Drive API（設定済みの場合のみ）─────────────
+    # ── 5. Google Drive API ──
     try:
         svc = get_drive_service()
         folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
         if svc:
             svc.files().list(pageSize=1, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
             results["google_drive"] = "OK"
-            # フォルダアクセス確認（共有ドライブのメンバー権限が切れていないかチェック）
             if folder_id:
                 try:
                     folder = svc.files().get(fileId=folder_id, fields="id,name", supportsAllDrives=True).execute()
@@ -3076,7 +630,7 @@ def health_check():
         results["google_drive_folder"] = "SKIP"
         alerts.append(f"🚨 Google Driveに接続できません\n→ Railwayの環境変数 GOOGLE_SERVICE_ACCOUNT_JSON が正しく設定されているか確認してください\n→ 人間の対応が必要です")
 
-    # ── 6. Bot直近24時間の処理件数確認 ────────────────────────
+    # ── 6. Bot直近24時間の処理件数確認 ──
     total_ops = sum(v.get("完了", 0) + v.get("キャンセル", 0) + v.get("削除", 0)
                     for v in daily_stats.values())
     results["bot_24h_ops"] = total_ops
@@ -3085,7 +639,7 @@ def health_check():
     else:
         results["bot_activity"] = f"OK: {total_ops}件処理済み"
 
-    # ── Slack通知（異常がある場合のみ） ──────────────────────
+    # ── Slack通知（異常がある場合のみ）──
     if alerts:
         alert_channel = os.environ.get("ALERT_CHANNEL_ID", "")
         if alert_channel:
