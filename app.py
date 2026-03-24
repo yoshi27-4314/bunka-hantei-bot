@@ -64,6 +64,12 @@ print(f"[起動時ENV確認] {_env_check}")
 app = Flask(__name__)
 
 
+@app.errorhandler(500)
+def handle_500(e):
+    import traceback
+    return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 def verify_admin_token(req):
     """管理用エンドポイントのアクセスを合言葉（トークン）で制限する"""
     admin_token = os.environ.get("ADMIN_API_TOKEN", "")
