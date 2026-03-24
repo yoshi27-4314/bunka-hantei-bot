@@ -385,7 +385,7 @@ def _handle_checklist(checklist: dict, raw_text: str, channel_id: str, thread_ts
     # Monday.comのステータス・状態を更新
     try:
         update_monday_columns(management_number, {
-            "status": {"label": "動作確認済み"},
+            "status": {"label": "分荷確定"},
             "condition": condition_label,
         })
     except Exception as e:

@@ -223,7 +223,7 @@ def execute_listing(session: dict, location: str, channel_id: str, thread_ts: st
         if session.get("start_time"):
             shuppinon_jikan = max(0, int((datetime.now() - session["start_time"]).total_seconds() / 60))
         monday_cols = {
-            "status": {"label": "出品待ち"},
+            "status": {"label": "出品中"},
             "shuppinon_tantosha": get_staff_code(user_id),
             "shuppinon_date": {"date": datetime.now().strftime("%Y-%m-%d")},
             "location": location,
@@ -469,7 +469,7 @@ def handle_shuppinon_channel(event: dict) -> None:
         listing_sessions[thread_ts] = session
         try:
             update_monday_columns(management_number, {
-                "status": {"label": "ページ作成完了"},
+                "status": {"label": "出品中"},
             })
         except Exception as e:
             print(f"[Monday.comページ作成完了更新エラー] {e}")
