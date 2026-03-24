@@ -460,6 +460,21 @@ def monday_setup():
     return jsonify({"ok": True, "message": "カラム作成をバックグラウンドで開始しました。/monday-setup-status で進捗確認できます。"})
 
 
+@app.route("/monday-columns", methods=["GET"])
+def monday_columns():
+    """Monday.comボードの全カラムIDと名前を表示"""
+    query = """
+    query ($board_id: ID!) {
+        boards(ids: [$board_id]) {
+            columns { id title type }
+        }
+    }
+    """
+    result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
+    columns = result.get("data", {}).get("boards", [{}])[0].get("columns", [])
+    return jsonify({"columns": columns, "total": len(columns)})
+
+
 @app.route("/monday-setup-status", methods=["GET"])
 def monday_setup_status():
     """monday-setup バックグラウンド処理の進捗確認"""
