@@ -460,6 +460,92 @@ def monday_setup():
     return jsonify({"ok": True, "message": "カラム作成をバックグラウンドで開始しました。/monday-setup-status で進捗確認できます。"})
 
 
+_fix_photo_result = {"status": "not_started"}
+
+
+def _upload_all_main_photos():
+    """全商品のメイン写真を一括アップロード"""
+    global _fix_photo_result
+    _fix_photo_result = {"status": "running", "progress": "開始..."}
+    try:
+        from services.monday import upload_file_to_monday
+        from services.google_drive import download_first_product_image
+
+        # Monday.comから全アイテム取得（メイン写真カラム含む）
+        query = """
+        query ($board_id: ID!) {
+            boards(ids: [$board_id]) {
+                items_page(limit: 500) {
+                    items {
+                        id
+                        name
+                        column_values(ids: ["kanri_bango", "file_mm1rwrna"]) { id text }
+                    }
+                }
+            }
+        }
+        """
+        result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
+        items = (result.get("data", {}).get("boards", [{}])[0]
+                 .get("items_page", {}).get("items", []))
+
+        success = []
+        skipped = 0
+        no_image = 0
+        errors = []
+
+        for i, item in enumerate(items):
+            cols = {c["id"]: c["text"] for c in item.get("column_values", [])}
+            kanri = cols.get("kanri_bango", "")
+            has_photo = cols.get("file_mm1rwrna", "")
+            if not kanri:
+                continue
+            if has_photo:
+                skipped += 1
+                continue
+
+            _fix_photo_result["progress"] = f"{i+1}/{len(items)} - {kanri}"
+            try:
+                img_bytes, img_name = download_first_product_image(kanri)
+                if not img_bytes:
+                    no_image += 1
+                    continue
+                if upload_file_to_monday(kanri, "file_mm1rwrna", img_bytes, img_name):
+                    success.append(kanri)
+                else:
+                    errors.append({"kanri_bango": kanri, "error": "upload failed"})
+            except Exception as e:
+                errors.append({"kanri_bango": kanri, "error": str(e)})
+
+        _fix_photo_result = {
+            "status": "done",
+            "total": len(items),
+            "uploaded": len(success),
+            "skipped_has_photo": skipped,
+            "no_image_in_drive": no_image,
+            "errors": len(errors),
+            "error_details": errors,
+        }
+    except Exception as e:
+        import traceback
+        _fix_photo_result = {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
+
+@app.route("/upload-main-photos-20260325", methods=["GET"])
+def upload_main_photos():
+    """メイン写真一括アップロード"""
+    global _fix_photo_result
+    if _fix_photo_result["status"] == "running":
+        return jsonify({"message": "実行中...", "progress": _fix_photo_result.get("progress", "")})
+    if _fix_photo_result["status"] in ("done", "error"):
+        if request.args.get("reset"):
+            _fix_photo_result = {"status": "not_started"}
+            return jsonify({"message": "リセットしました。"})
+        return jsonify(_fix_photo_result)
+    threading.Thread(target=_upload_all_main_photos, daemon=True).start()
+    return jsonify({"message": "メイン写真の一括アップロードを開始しました。数分後にこのURLに再度アクセスしてください。"})
+
+
 @app.route("/monday-columns", methods=["GET"])
 def monday_columns():
     """Monday.comボードの全カラムIDと名前を表示"""
