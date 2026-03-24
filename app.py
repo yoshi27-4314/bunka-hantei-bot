@@ -434,7 +434,7 @@ def _fix_drive_urls_v2():
 
             if not kanri:
                 continue
-            if drive_url:
+            if drive_url and drive_url.startswith("https://"):
                 already_set += 1
                 continue
 
@@ -473,6 +473,9 @@ def fix_drive_urls_v2():
     if _fix_drive_result["status"] == "running":
         return jsonify({"message": "実行中です...", "progress": _fix_drive_result.get("progress", "")})
     if _fix_drive_result["status"] in ("done", "error"):
+        if request.args.get("reset"):
+            _fix_drive_result = {"status": "not_started"}
+            return jsonify({"message": "リセットしました。もう一度アクセスして実行してください。"})
         return jsonify(_fix_drive_result)
     threading.Thread(target=_fix_drive_urls_v2, daemon=True).start()
     return jsonify({"message": "修復v2を開始しました。30秒後にこのURLに再度アクセスしてください。"})
