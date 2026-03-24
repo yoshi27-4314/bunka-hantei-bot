@@ -179,7 +179,6 @@ def register_to_monday(management_number: str, item_name: str, judgment: dict, u
     col = {
         "kanri_bango": management_number,
         "hantei_channel": kakutei_channel or judgment.get("first_channel", ""),
-        "kakushin_do": judgment.get("first_confidence", ""),
         "toshosha": get_staff_code(user_id),
         "zaiko_kikan": judgment.get("inventory_period", ""),
         "status": {"label": "分荷確定"},
@@ -252,7 +251,7 @@ def cancel_monday_item(kanri_bango: str) -> None:
         change_multiple_column_values(board_id: $board_id, item_id: $item_id, column_values: $col_vals) { id }
     }
     """
-    col_vals = json.dumps({"status": {"label": "キャンセル"}, "kakushin_do": "キャンセル"}, ensure_ascii=False)
+    col_vals = json.dumps({"status": {"label": "キャンセル"}}, ensure_ascii=False)
     monday_graphql(update_query, {"board_id": MONDAY_BOARD_ID, "item_id": item_id, "col_vals": col_vals})
     print(f"[Monday.com] {kanri_bango} をキャンセルに更新")
 
@@ -335,7 +334,7 @@ def search_inventory(keyword: str) -> list[dict]:
                 items {
                     id
                     name
-                    column_values(ids: ["kanri_bango", "hantei_channel", "kakushin_do", "zaiko_kikan", "status"]) {
+                    column_values(ids: ["kanri_bango", "hantei_channel", "zaiko_kikan", "status"]) {
                         id
                         text
                     }
