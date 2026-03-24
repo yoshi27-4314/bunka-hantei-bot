@@ -50,16 +50,32 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
     url = "https://slack.com/api/conversations.replies"
     headers = {"Authorization": f"Bearer {token}"}
     params = {"channel": channel_id, "ts": thread_ts}
-    response = httpx.get(url, headers=headers, params=params, timeout=20)
-    data = response.json()
+    try:
+        response = httpx.get(url, headers=headers, params=params, timeout=20)
+        data = response.json()
+    except Exception as e:
+        print(f"[判定データ取得エラー] API呼び出し失敗: {e}")
+        return {}
 
+    if not data.get("ok"):
+        print(f"[判定データ取得エラー] Slack API応答: {data.get('error', '不明')}")
+        return {}
+
+    messages = data.get("messages", [])
+    print(f"[判定データ取得] スレッド内メッセージ数: {len(messages)}")
+
+    bot_messages_found = 0
     result = {}
-    for msg in data.get("messages", []):
-        if not (msg.get("bot_id") or msg.get("bot_profile")):
+    for msg in messages:
+        is_bot = bool(msg.get("bot_id") or msg.get("bot_profile"))
+        if not is_bot:
             continue
+        bot_messages_found += 1
         text = msg.get("text", "")
         if "分荷判定結果" not in text:
+            print(f"[判定データ取得] Botメッセージ(判定結果なし): {text[:80]}...")
             continue
+        print(f"[判定データ取得] 判定結果メッセージ発見: {text[:120]}...")
         mn = re.search(r'管理番号\n　\*?(\d{4}(?:[VGME]\d{4}|-\d{4}))\*?', text)
         if mn:
             result["kanri_bango"] = mn.group(1)
@@ -125,6 +141,10 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         if roi:
             result["expected_roi"] = roi.group(1)
         # breakしない → 全メッセージを走査し、最新の判定（再判定含む）で上書きされる
+
+    if not bot_messages_found:
+        print(f"[判定データ取得] Botメッセージが1件も見つかりません")
+    print(f"[判定データ取得] 抽出結果: auto_channel={result.get('auto_channel')}, first_channel={result.get('first_channel')}, keys={list(result.keys())}")
     return result
 
 
