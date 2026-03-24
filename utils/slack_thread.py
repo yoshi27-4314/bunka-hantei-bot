@@ -201,3 +201,37 @@ def get_matome_pending_from_thread(channel_id: str, thread_ts: str):
         if m:
             return m.group(1)
     return None
+
+
+def get_thread_starter(channel_id: str, thread_ts: str) -> str:
+    """スレッドの最初の投稿者（スタッフ）のuser_idを返す"""
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"channel": channel_id, "ts": thread_ts, "limit": 1}
+    try:
+        response = httpx.get(url, headers=headers, params=params, timeout=10)
+        data = response.json()
+        messages = data.get("messages", [])
+        if messages:
+            return messages[0].get("user", "")
+    except Exception as e:
+        print(f"[スレッド投稿者取得エラー] {e}")
+    return ""
+
+
+def has_bot_interaction(channel_id: str, thread_ts: str) -> bool:
+    """スレッド内にBotメッセージが1件以上あるか確認する"""
+    token = get_slack_token()
+    url = "https://slack.com/api/conversations.replies"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"channel": channel_id, "ts": thread_ts}
+    try:
+        response = httpx.get(url, headers=headers, params=params, timeout=10)
+        data = response.json()
+        for msg in data.get("messages", []):
+            if msg.get("bot_id") or msg.get("bot_profile"):
+                return True
+    except Exception as e:
+        print(f"[Bot応答確認エラー] {e}")
+    return False

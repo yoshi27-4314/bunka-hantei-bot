@@ -17,7 +17,7 @@ from services.slack import post_to_slack
 from services.monday import get_item_from_monday, update_monday_columns
 from services.spreadsheet import send_to_spreadsheet
 from handlers.satsuei import extract_management_number_from_image
-from utils.commands import normalize_keyword
+from utils.commands import normalize_keyword, handle_free_comment
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
@@ -393,3 +393,7 @@ def handle_konpo_channel(event: dict) -> None:
         log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                           get_staff_code(user_id), "完了", session.get("start_time"))
         del konpo_sessions[thread_ts]
+        return
+
+    # どのコマンドにもマッチしなかった場合 → フリーコメント
+    handle_free_comment(channel_id, thread_ts, event)

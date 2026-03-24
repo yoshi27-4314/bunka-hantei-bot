@@ -19,7 +19,7 @@ from services.google_drive import (
 )
 from services.spreadsheet import send_to_spreadsheet
 from handlers.satsuei import extract_management_number_from_image
-from utils.commands import normalize_keyword
+from utils.commands import normalize_keyword, handle_free_comment
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
@@ -512,6 +512,10 @@ def handle_shuppinon_channel(event: dict) -> None:
             session[field] = value
         listing_sessions[thread_ts] = session
         post_listing_summary(channel_id, thread_ts, session, mention_user=user_id)
+        return
+
+    # どのコマンドにもマッチしなかった場合 → フリーコメント
+    if handle_free_comment(channel_id, thread_ts, event):
         return
 
     # ロケーション番号（バリデーション付き）→ 出品確定

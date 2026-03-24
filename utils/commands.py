@@ -2,7 +2,44 @@
 utils/commands.py - コマンド判定・正規化ユーティリティ
 """
 
-from config import VALID_CHANNELS
+from config import VALID_CHANNELS, ASANO_USER_ID
+from services.slack import post_to_slack, get_bot_role_for_channel
+from utils.slack_thread import get_thread_starter, has_bot_interaction
+
+
+def handle_free_comment(channel_id: str, thread_ts: str, event: dict) -> bool:
+    """スレッド内のフリーコメントを処理する。
+    Botが応答済みのスレッドで、浅野↔スタッフ間のメンション通知を行う。
+    処理した場合True、処理不要の場合Falseを返す。
+    """
+    if not event.get("thread_ts"):
+        return False
+
+    user_id = event.get("user", "")
+    if not user_id:
+        return False
+
+    if not has_bot_interaction(channel_id, thread_ts):
+        return False
+
+    bot_role = get_bot_role_for_channel(channel_id)
+    starter = get_thread_starter(channel_id, thread_ts)
+
+    if user_id == ASANO_USER_ID:
+        # 浅野のコメント → スタッフに通知
+        if starter and starter != ASANO_USER_ID:
+            post_to_slack(channel_id, thread_ts,
+                f"<@{starter}> 浅野から連絡があります。上のコメントを確認してください。",
+                bot_role=bot_role)
+            return True
+    else:
+        # スタッフのコメント → 浅野に通知
+        post_to_slack(channel_id, thread_ts,
+            f"<@{ASANO_USER_ID}> スタッフから連絡があります。上のコメントを確認してください。",
+            bot_role=bot_role)
+        return True
+
+    return False
 
 
 def normalize_keyword(text: str) -> str:

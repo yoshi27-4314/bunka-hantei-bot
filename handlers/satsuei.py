@@ -14,7 +14,7 @@ from services.google_drive import (
     get_drive_service, get_or_create_drive_folder, upload_images_to_drive,
 )
 from services.spreadsheet import send_to_spreadsheet
-from utils.commands import normalize_keyword
+from utils.commands import normalize_keyword, handle_free_comment
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
@@ -249,3 +249,7 @@ def handle_satsuei_channel(event: dict) -> None:
             })
         except Exception as e:
             print(f"[スプレッドシート撮影完了更新エラー] {e}")
+        return
+
+    # どのコマンドにもマッチしなかった場合 → フリーコメント
+    handle_free_comment(channel_id, thread_ts, event)

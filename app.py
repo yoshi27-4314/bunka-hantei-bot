@@ -30,8 +30,8 @@ from services.monday import monday_graphql
 from services.google_drive import get_drive_service
 
 # ユーティリティ
-from utils.commands import normalize_keyword, parse_command
-from utils.slack_thread import fetch_thread_messages, get_matome_pending_from_thread
+from utils.commands import normalize_keyword, parse_command, handle_free_comment
+from utils.slack_thread import fetch_thread_messages, get_matome_pending_from_thread, get_judgment_from_thread
 from utils.checklist import get_checklist_state
 from utils.work_activity import daily_stats
 
@@ -270,6 +270,13 @@ def process_slack_message(event: dict) -> None:
                         "例：`B 電源OK、外観に小傷あり`",
                         mention_user=event.get("user", ""))
                     return
+
+    # ── フリーコメント（判定完了後のスレッドで浅野↔スタッフの連絡）──
+    if event.get("thread_ts") and user_message and not image_urls:
+        judgment = get_judgment_from_thread(channel_id, thread_ts)
+        if judgment.get("auto_channel") or judgment.get("first_channel"):
+            if handle_free_comment(channel_id, thread_ts, event):
+                return
 
     # ── 通常のAI判定フロー ────────────────────────────────
     history = []
