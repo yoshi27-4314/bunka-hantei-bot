@@ -365,68 +365,71 @@ def env_keys():
 @app.route("/fix-drive-urls-run-once-20260325", methods=["GET"])
 def fix_drive_urls():
     """Monday.comのdrive_urlが空の商品にGoogle DriveのURLを一括書き込み（一時エンドポイント）"""
+    try:
+        from services.monday import update_monday_columns
+        from services.google_drive import get_drive_folder_id
 
-    from services.monday import update_monday_columns
-    from services.google_drive import get_drive_folder_id, get_drive_service, get_or_create_drive_folder
-
-    # Monday.comからdrive_urlが空のアイテムを取得
-    query = """
-    query ($board_id: ID!) {
-        boards(ids: [$board_id]) {
-            items_page(limit: 500) {
-                items {
-                    id
-                    name
-                    column_values(ids: ["kanri_bango", "drive_url"]) { id text }
+        # Monday.comからdrive_urlが空のアイテムを取得
+        query = """
+        query ($board_id: ID!) {
+            boards(ids: [$board_id]) {
+                items_page(limit: 500) {
+                    items {
+                        id
+                        name
+                        column_values(ids: ["kanri_bango", "drive_url"]) { id text }
+                    }
                 }
             }
         }
-    }
-    """
-    result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
-    items = (result.get("data", {}).get("boards", [{}])[0]
-             .get("items_page", {}).get("items", []))
+        """
+        result = monday_graphql(query, {"board_id": MONDAY_BOARD_ID})
+        items = (result.get("data", {}).get("boards", [{}])[0]
+                 .get("items_page", {}).get("items", []))
 
-    missing = []
-    for item in items:
-        cols = {c["id"]: c["text"] for c in item.get("column_values", [])}
-        kanri = cols.get("kanri_bango", "")
-        drive_url = cols.get("drive_url", "")
-        if kanri and not drive_url:
-            missing.append({"name": item["name"], "kanri_bango": kanri})
+        missing = []
+        for item in items:
+            cols = {c["id"]: c["text"] for c in item.get("column_values", [])}
+            kanri = cols.get("kanri_bango", "")
+            drive_url = cols.get("drive_url", "")
+            if kanri and not drive_url:
+                missing.append({"name": item["name"], "kanri_bango": kanri})
 
-    if not missing:
-        return jsonify({"message": "全商品にdrive_urlが設定済みです", "fixed": 0})
+        if not missing:
+            return jsonify({"message": "全商品にdrive_urlが設定済みです", "fixed": 0})
 
-    success_list = []
-    not_found_list = []
-    error_list = []
+        success_list = []
+        not_found_list = []
+        error_list = []
 
-    for item in missing:
-        kanri = item["kanri_bango"]
-        try:
-            folder_id, service = get_drive_folder_id(kanri)
-            if folder_id:
-                folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
-                update_monday_columns(kanri, {"drive_url": folder_url})
-                success_list.append({"kanri_bango": kanri, "name": item["name"], "url": folder_url})
-            else:
-                not_found_list.append({"kanri_bango": kanri, "name": item["name"]})
-        except Exception as e:
-            error_list.append({"kanri_bango": kanri, "name": item["name"], "error": str(e)})
+        for item in missing:
+            kanri = item["kanri_bango"]
+            try:
+                folder_id, service = get_drive_folder_id(kanri)
+                if folder_id:
+                    folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
+                    update_monday_columns(kanri, {"drive_url": folder_url})
+                    success_list.append({"kanri_bango": kanri, "name": item["name"], "url": folder_url})
+                else:
+                    not_found_list.append({"kanri_bango": kanri, "name": item["name"]})
+            except Exception as e:
+                error_list.append({"kanri_bango": kanri, "name": item["name"], "error": str(e)})
 
-    return jsonify({
-        "message": f"{len(success_list)}件のdrive_urlを修復しました",
-        "total_missing": len(missing),
-        "fixed": len(success_list),
-        "not_found_in_drive": len(not_found_list),
-        "errors": len(error_list),
-        "details": {
-            "success": success_list,
-            "not_found": not_found_list,
-            "errors": error_list,
-        }
-    })
+        return jsonify({
+            "message": f"{len(success_list)}件のdrive_urlを修復しました",
+            "total_missing": len(missing),
+            "fixed": len(success_list),
+            "not_found_in_drive": len(not_found_list),
+            "errors": len(error_list),
+            "details": {
+                "success": success_list,
+                "not_found": not_found_list,
+                "errors": error_list,
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/monday-setup", methods=["GET"])
