@@ -6,7 +6,7 @@ import re
 import httpx
 from datetime import datetime
 
-from config import GAS_URL, get_staff_code
+from config import get_gas_url, get_staff_code
 from services.slack import post_to_slack
 from services.spreadsheet import send_to_spreadsheet
 from utils.commands import normalize_keyword
@@ -16,7 +16,7 @@ from utils.work_activity import daily_stats
 def get_staff_break_minutes(staff_id: str) -> int:
     """スタッフマスターから標準休憩時間（分）を取得する。取得失敗時は60分を返す"""
     try:
-        resp = httpx.get(GAS_URL, params={"type": "staff"}, timeout=10)
+        resp = httpx.get(get_gas_url(), params={"type": "staff"}, timeout=10)
         data = resp.json()
         if data.get("ok"):
             for row in data.get("data", []):

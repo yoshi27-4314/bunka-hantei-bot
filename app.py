@@ -55,7 +55,7 @@ _env_check = {k: ("設定済み" if v else "未設定") for k, v in {
     "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY"),
     "SLACK_BOT_TOKEN": os.environ.get("SLACK_BOT_TOKEN"),
     "SLACK_SIGNING_SECRET": os.environ.get("SLACK_SIGNING_SECRET"),
-    "GAS_URL": os.environ.get("GAS_URL"),
+    "GAS_URL": os.environ.get("GAS_URL"),  # 起動時チェック用（実際はget_gas_url()で遅延取得）
     "MONDAY_TOKEN": os.environ.get("MONDAY_TOKEN"),
     "GOOGLE_SERVICE_ACCOUNT_JSON": os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"),
 }.items()}
