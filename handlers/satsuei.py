@@ -208,26 +208,6 @@ def handle_satsuei_channel(event: dict) -> None:
 
     # 完了コマンド
     if text == "完了":
-        post_to_slack(channel_id, thread_ts,
-            "✅ *撮影完了！お疲れ様でした*\n"
-            "━━━━━━━━━━━━━━━━\n\n"
-            f"🔖 管理番号　*{management_number}*\n\n"
-            "写真をDriveに保存しました。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📌 *次の作業*\n\n"
-            "　このトークの元メッセージを削除して\n"
-            "　次の商品に進んでください。",
-            mention_user=user_id, bot_role="satsuei")
-        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
-        try:
-            update_monday_columns(management_number, {
-                "status": {"label": "撮影完了"},
-                "satsuei_tantosha": get_staff_code(user_id),
-                "satsuei_date": {"date": datetime.now().strftime("%Y-%m-%d")},
-                "drive_url": folder_url,
-            })
-        except Exception as e:
-            print(f"[Monday.com撮影完了更新エラー] {e}")
         # 完了メッセージと写真投稿が別メッセージの場合、folder_urlが空になるため取得し直す
         if not folder_url:
             try:
@@ -239,6 +219,28 @@ def handle_satsuei_channel(event: dict) -> None:
                     folder_url = f"https://drive.google.com/drive/folders/{_item_id}"
             except Exception as e:
                 print(f"[DriveフォルダURL取得エラー] {e}")
+        post_to_slack(channel_id, thread_ts,
+            "✅ *撮影完了！お疲れ様でした*\n"
+            "━━━━━━━━━━━━━━━━\n\n"
+            f"🔖 管理番号　*{management_number}*\n\n"
+            "写真をDriveに保存しました。\n\n"
+            "━━━━━━━━━━━━━━━━\n"
+            "📌 *次の作業*\n\n"
+            "　このトークの元メッセージを削除して\n"
+            "　次の商品に進んでください。",
+            mention_user=user_id, bot_role="satsuei")
+        log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
+        monday_updates = {
+            "status": {"label": "撮影完了"},
+            "satsuei_tantosha": get_staff_code(user_id),
+            "satsuei_date": {"date": datetime.now().strftime("%Y-%m-%d")},
+        }
+        if folder_url:
+            monday_updates["drive_url"] = folder_url
+        try:
+            update_monday_columns(management_number, monday_updates)
+        except Exception as e:
+            print(f"[Monday.com撮影完了更新エラー] {e}")
         try:
             send_to_spreadsheet({
                 "action":           "satsuei_update",
