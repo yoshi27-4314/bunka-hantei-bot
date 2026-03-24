@@ -51,7 +51,15 @@ from handlers.attendance import handle_attendance_channel, get_staff_break_minut
 from handlers.kintai import handle_kintai_channel
 
 load_dotenv()
-print(f"[起動時ENV一覧] {[k for k in os.environ.keys() if 'ANTHROPIC' in k or 'SLACK' in k]}")
+_env_check = {k: ("設定済み" if v else "未設定") for k, v in {
+    "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY"),
+    "SLACK_BOT_TOKEN": os.environ.get("SLACK_BOT_TOKEN"),
+    "SLACK_SIGNING_SECRET": os.environ.get("SLACK_SIGNING_SECRET"),
+    "GAS_URL": os.environ.get("GAS_URL"),
+    "MONDAY_TOKEN": os.environ.get("MONDAY_TOKEN"),
+    "GOOGLE_SERVICE_ACCOUNT_JSON": os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"),
+}.items()}
+print(f"[起動時ENV確認] {_env_check}")
 
 app = Flask(__name__)
 
