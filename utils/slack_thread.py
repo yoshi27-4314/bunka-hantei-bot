@@ -67,7 +67,7 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         if kw:
             result["internal_keyword"] = kw.group(1)
         # 新フォーマット：AI自動判定チャンネル
-        auto_ch = re.search(r'▶\s*判定：(.+)', text)
+        auto_ch = re.search(r'▶\s*\*?判定：(.+?)\*?\s*$', text, re.MULTILINE)
         if auto_ch:
             result["auto_channel"] = auto_ch.group(1).strip()
         # 浅野承認待ちフラグ
