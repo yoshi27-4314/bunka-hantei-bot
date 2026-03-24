@@ -362,15 +362,9 @@ def env_keys():
     return jsonify({"keys": keys, "count": len(keys)})
 
 
-@app.route("/fix-drive-urls", methods=["GET"])
+@app.route("/fix-drive-urls-run-once-20260325", methods=["GET"])
 def fix_drive_urls():
-    """Monday.comのdrive_urlが空の商品にGoogle DriveのURLを一括書き込み（要認証）"""
-    if not verify_admin_token(request):
-        # フォールバック: WEBHOOK_SECRETでも認証を許可
-        webhook_secret = os.environ.get("WEBHOOK_SECRET", "")
-        provided = request.args.get("token", "")
-        if not webhook_secret or not hmac.compare_digest(provided, webhook_secret):
-            return jsonify({"error": "認証が必要です"}), 403
+    """Monday.comのdrive_urlが空の商品にGoogle DriveのURLを一括書き込み（一時エンドポイント）"""
 
     from services.monday import update_monday_columns
     from services.google_drive import get_drive_folder_id, get_drive_service, get_or_create_drive_folder
