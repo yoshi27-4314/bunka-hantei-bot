@@ -368,14 +368,17 @@ def env_keys():
     return jsonify({"keys": keys, "count": len(keys)})
 
 
-@app.route("/fix-drive-urls-run-once-20260325", methods=["GET"])
-def fix_drive_urls():
-    """Monday.comのdrive_urlが空の商品にGoogle DriveのURLを一括書き込み（一時エンドポイント）"""
+_fix_drive_result = {"status": "not_started"}
+
+
+def _fix_drive_urls_worker():
+    """バックグラウンドでdrive_url一括修復を実行"""
+    global _fix_drive_result
+    _fix_drive_result = {"status": "running"}
     try:
         from services.monday import update_monday_columns
         from services.google_drive import get_drive_folder_id
 
-        # Monday.comからdrive_urlが空のアイテムを取得
         query = """
         query ($board_id: ID!) {
             boards(ids: [$board_id]) {
@@ -402,7 +405,8 @@ def fix_drive_urls():
                 missing.append({"name": item["name"], "kanri_bango": kanri})
 
         if not missing:
-            return jsonify({"message": "全商品にdrive_urlが設定済みです", "fixed": 0})
+            _fix_drive_result = {"status": "done", "message": "全商品にdrive_urlが設定済みです", "fixed": 0}
+            return
 
         success_list = []
         not_found_list = []
@@ -421,7 +425,8 @@ def fix_drive_urls():
             except Exception as e:
                 error_list.append({"kanri_bango": kanri, "name": item["name"], "error": str(e)})
 
-        return jsonify({
+        _fix_drive_result = {
+            "status": "done",
             "message": f"{len(success_list)}件のdrive_urlを修復しました",
             "total_missing": len(missing),
             "fixed": len(success_list),
@@ -432,10 +437,24 @@ def fix_drive_urls():
                 "not_found": not_found_list,
                 "errors": error_list,
             }
-        })
+        }
     except Exception as e:
         import traceback
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        _fix_drive_result = {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
+
+@app.route("/fix-drive-urls-run-once-20260325", methods=["GET"])
+def fix_drive_urls():
+    """drive_url一括修復を開始 or 結果を確認"""
+    global _fix_drive_result
+    if _fix_drive_result["status"] == "running":
+        return jsonify({"message": "実行中です。しばらく待ってから再度アクセスしてください。"})
+    if _fix_drive_result["status"] == "done" or _fix_drive_result["status"] == "error":
+        result = _fix_drive_result
+        return jsonify(result)
+    # 開始
+    threading.Thread(target=_fix_drive_urls_worker, daemon=True).start()
+    return jsonify({"message": "修復を開始しました。30秒後にこのURLに再度アクセスして結果を確認してください。"})
 
 
 @app.route("/monday-setup", methods=["GET"])
