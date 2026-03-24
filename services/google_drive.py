@@ -146,6 +146,28 @@ def list_drive_images(management_number: str, exclude_tepura: bool = True) -> li
         return []
 
 
+def download_first_product_image(management_number: str) -> tuple:
+    """管理番号フォルダの1枚目の商品画像（テプラ以外）をダウンロードして(bytes, filename)を返す"""
+    images = list_drive_images(management_number, exclude_tepura=True)
+    if not images:
+        return None, None
+    first_image = images[0]
+    file_id = first_image["id"]
+    filename = first_image.get("name", "main.jpg")
+    service = get_drive_service()
+    if not service:
+        return None, None
+    try:
+        content = service.files().get_media(
+            fileId=file_id, supportsAllDrives=True
+        ).execute()
+        print(f"[Drive] メイン写真ダウンロード: {management_number}/{filename} ({len(content)}bytes)")
+        return content, filename
+    except Exception as e:
+        print(f"[Drive] メイン写真ダウンロードエラー: {e}")
+        return None, None
+
+
 def delete_drive_file(file_id: str) -> bool:
     """Driveファイルをゴミ箱に移動（削除）"""
     service = get_drive_service()

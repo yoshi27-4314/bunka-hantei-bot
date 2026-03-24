@@ -9,9 +9,10 @@ from datetime import datetime
 from config import get_anthropic_client, get_staff_code, CHANNEL_NAMES, CANCEL_WORDS
 from services.slack import post_to_slack
 from services.claude import fetch_image_as_base64
-from services.monday import update_monday_columns
+from services.monday import update_monday_columns, upload_file_to_monday
 from services.google_drive import (
     get_drive_service, get_or_create_drive_folder, upload_images_to_drive,
+    download_first_product_image,
 )
 from services.spreadsheet import send_to_spreadsheet
 from utils.commands import normalize_keyword, handle_free_comment
@@ -241,6 +242,13 @@ def handle_satsuei_channel(event: dict) -> None:
             update_monday_columns(management_number, monday_updates)
         except Exception as e:
             print(f"[Monday.com撮影完了更新エラー] {e}")
+        # メイン写真をMonday.comにアップロード
+        try:
+            img_bytes, img_name = download_first_product_image(management_number)
+            if img_bytes:
+                upload_file_to_monday(management_number, "main_photo", img_bytes, img_name)
+        except Exception as e:
+            print(f"[メイン写真アップロードエラー] {e}")
         try:
             send_to_spreadsheet({
                 "action":           "satsuei_update",

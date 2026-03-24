@@ -400,6 +400,7 @@ def monday_setup():
         ("撮影時間(分)",       "numbers", "satsuei_jikan"),
         ("写真枚数",           "numbers", "photo_count"),
         ("Drive写真URL",       "text",    "drive_url"),
+        ("メイン写真",         "file",    "main_photo"),
         ("出品担当",           "text",    "shuppinon_tantosha"),
         ("出品日",             "date",    "shuppinon_date"),
         ("出品作業時間(分)",   "numbers", "shuppinon_jikan"),

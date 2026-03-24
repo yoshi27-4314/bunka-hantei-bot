@@ -293,6 +293,35 @@ def update_monday_columns(management_number: str, col_updates: dict) -> None:
     print(f"[Monday.com] {management_number} を更新: {list(col_updates.keys())}")
 
 
+def upload_file_to_monday(management_number: str, column_id: str, file_bytes: bytes, filename: str) -> bool:
+    """Monday.comのファイルカラムに画像をアップロードする"""
+    item_id = _find_monday_item_id(management_number)
+    if not item_id:
+        print(f"[Monday.com] 管理番号 {management_number} が見つかりません")
+        return False
+    token = get_monday_token()
+    if not token:
+        return False
+    query = 'mutation ($file: File!) { add_file_to_column (item_id: %s, column_id: "%s", file: $file) { id } }' % (item_id, column_id)
+    try:
+        resp = httpx.post(
+            MONDAY_API_URL + "/file",
+            headers={"Authorization": token},
+            data={"query": query},
+            files={"variables[file]": (filename, file_bytes, "image/jpeg")},
+            timeout=30,
+        )
+        result = resp.json()
+        if result.get("data", {}).get("add_file_to_column"):
+            print(f"[Monday.com] {management_number} にメイン写真をアップロード")
+            return True
+        print(f"[Monday.com] ファイルアップロードエラー: {result}")
+        return False
+    except Exception as e:
+        print(f"[Monday.com] ファイルアップロードエラー: {e}")
+        return False
+
+
 def update_monday_item_status(management_number: str, status_label: str) -> None:
     """monday.comの該当アイテムのstatusを更新する"""
     search_query = """
