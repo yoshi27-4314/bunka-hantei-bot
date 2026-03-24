@@ -108,7 +108,10 @@ def _complete_kakutei(kakutei_channel: str, judgment: dict, user_id: str,
         "sakugyou_jikan":      sakugyou_jikan,
         "timestamp":           datetime.now().strftime("%Y/%m/%d %H:%M"),
     }
-    send_to_spreadsheet(payload)
+    try:
+        send_to_spreadsheet(payload)
+    except Exception as se:
+        print(f"[スプレッドシート転記エラー] {se}")
 
     # 通販チャンネル かつ 管理番号あり → Monday.com登録
     if management_number:
