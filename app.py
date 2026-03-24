@@ -372,30 +372,6 @@ def env_keys():
 
 
 
-@app.route("/fix-yokoyama-20260325", methods=["GET"])
-def fix_yokoyama():
-    """横山さんの誤出品ステータスを撮影完了に戻す（一時エンドポイント）"""
-    from services.monday import update_monday_columns
-    targets = [
-        "2603-0002", "2603-0003", "2603-0004", "2603-0005",
-        "2603-0006", "2603-0009", "2603-0012", "2603-0015",
-        "2603-0017", "2603-0026", "2603-0028", "2603-0030",
-        "2603-0036",
-    ]
-    results = []
-    for kanri in targets:
-        try:
-            update_monday_columns(kanri, {
-                "status": {"label": "撮影完了"},
-                "shuppinon_tantosha": "",
-                "shuppinon_date": "",
-            })
-            results.append({"kanri_bango": kanri, "status": "OK"})
-        except Exception as e:
-            results.append({"kanri_bango": kanri, "status": f"ERROR: {e}"})
-    return jsonify({"message": f"{len(targets)}件のステータスを撮影完了に戻しました", "results": results})
-
-
 @app.route("/monday-setup", methods=["GET"])
 def monday_setup():
     """monday.comボードにカラムを作成する（初回のみ実行）"""
