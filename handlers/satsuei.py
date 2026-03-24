@@ -246,7 +246,7 @@ def handle_satsuei_channel(event: dict) -> None:
         try:
             img_bytes, img_name = download_first_product_image(management_number)
             if img_bytes:
-                upload_file_to_monday(management_number, "main_photo", img_bytes, img_name)
+                upload_file_to_monday(management_number, "file_mm1rwrna", img_bytes, img_name)
         except Exception as e:
             print(f"[メイン写真アップロードエラー] {e}")
         try:
