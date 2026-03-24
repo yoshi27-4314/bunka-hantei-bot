@@ -16,8 +16,8 @@ prompts.py              ← SYSTEM_PROMPT・GENBA_SYSTEM_PROMPT
 services/
     slack.py            ← post_to_slack, send_dm
     claude.py           ← call_claude, fetch_image_as_base64
-    monday.py           ← monday_graphql, 管理番号発行, 登録・検索
-    google_drive.py     ← Drive操作（アップロード・一覧・削除）
+    monday.py           ← monday_graphql, 管理番号発行, 登録・検索, ファイルアップロード
+    google_drive.py     ← Drive操作（アップロード・一覧・削除・メイン写真DL）
     spreadsheet.py      ← send_to_spreadsheet（GAS経由）
 utils/
     commands.py         ← parse_command, normalize_keyword
@@ -127,9 +127,25 @@ handlers/
 
 ---
 
+## ステータスフロー（2026/03/25 整理済み）
+
+分荷確定 → 撮影完了 → 出品中 → 落札済み → 入金待ち → 入金確認済み → 梱包作業 → 出荷待ち → 完了
+その他: 確認/相談, 再分荷, 再リスト, キャンセル
+
+## メイン写真（2026/03/25 追加）
+
+撮影完了時、Driveの1枚目商品画像（テプラ除外）をMonday.comの「メイン写真」カラム(file_mm1rwrna)に自動アップロード。
+出品・梱包スタッフが管理番号+画像でダブルチェックする用途。
+
+## 管理用エンドポイント
+
+| パス | 用途 |
+|---|---|
+| /monday-columns | ボードの全カラムID・名前・型を表示 |
+
 ## 次タスク
 
 - DM権限追加（im:write / im:read）→ 浅野承認通知をDMで送る
-- 浅野リスト（スプレッドシート管理 → Slackからも追加可能に）
-- 在庫状況の定期見直し仕組み
+- ヘルプ機能（各チャンネルで「ヘルプ」→マニュアル表示）
 - ヤフオクAPI自動出品（オークタウンAPI確認後）
+- CSV出品機能
