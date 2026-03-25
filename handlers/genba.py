@@ -58,6 +58,63 @@ def _extract_id_info(image_url: str) -> dict:
     return {}
 
 
+def _handle_scrap_calc(text: str, channel_id: str, current_ts: str, user_id: str) -> bool:
+    """スクラップ計算コマンドを処理する。
+    形式: スクラップ [素材] [単価]円 [重量]kg
+    例: スクラップ 鉄 45円 120kg
+    例: スクラップ 45円 120kg（素材省略可）
+    処理した場合はTrueを返す。"""
+    if not text:
+        return False
+
+    normalized = normalize_keyword(text)
+    if "スクラップ" not in normalized:
+        return False
+
+    # 単価（円）と重量（kg）を全て normalized から抽出
+    price_match = re.search(r'(\d+(?:\.\d+)?)\s*円', normalized)
+    weight_match = re.search(r'(\d+(?:\.\d+)?)\s*kg', normalized, re.IGNORECASE)
+
+    if not price_match or not weight_match:
+        if price_match or weight_match:
+            # 片方だけ入力されている → 使い方を案内
+            post_to_slack(channel_id, current_ts,
+                "━━━━━━━━━━━━━━━━\n"
+                "⚖️ *スクラップ計算*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                "単価と重量の両方が必要です。\n\n"
+                "📝 入力例：\n"
+                "`スクラップ 鉄 45円 120kg`\n\n"
+                "━━━━━━━━━━━━━━━━",
+                mention_user=user_id, bot_role="genba")
+            return True
+        # どちらもない → 通常の査定に回す
+        return False
+
+    unit_price = float(price_match.group(1))
+    weight_kg = float(weight_match.group(1))
+    total = unit_price * weight_kg
+
+    # 素材名を抽出（Slackメンション・「スクラップ」・数値部分を除いた残り）
+    cleaned = re.sub(r'<[^>]+>', '', normalized).strip()
+    material = re.sub(r'スクラップ|[\d.]+\s*円|[\d.]+\s*kg', '', cleaned, flags=re.IGNORECASE).strip()
+    material_str = material if material else "指定なし"
+
+    reply = (
+        "━━━━━━━━━━━━━━━━\n"
+        "⚖️ *スクラップ計算*\n"
+        "━━━━━━━━━━━━━━━━\n\n"
+        f"📦 素材：*{material_str}*\n\n"
+        f"💴 単価：¥{unit_price:g}/kg\n\n"
+        f"⚖️ 重量：{weight_kg:g}kg\n\n"
+        "─────────────────────────\n\n"
+        f"💰 *合計：¥{total:,.0f}*\n\n"
+        "━━━━━━━━━━━━━━━━"
+    )
+    post_to_slack(channel_id, current_ts, reply, mention_user=user_id, bot_role="genba")
+    return True
+
+
 def _handle_kaitori_flow(event: dict, channel_id: str, current_ts: str,
                          user_id: str, text: str, image_urls: list) -> bool:
     """古物台帳フロー（買取確定〜身分証確認〜台帳登録）を処理する。
@@ -231,6 +288,10 @@ def handle_genba_channel(event: dict) -> None:
 
     # テキストも画像もない場合はスキップ
     if not text and not image_urls:
+        return
+
+    # ── スクラップ計算（例：「スクラップ 鉄 45円 120kg」）──
+    if _handle_scrap_calc(text, channel_id, current_ts, user_id):
         return
 
     # ── 古物台帳フローを最優先で処理 ──
