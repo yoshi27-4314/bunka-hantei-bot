@@ -585,9 +585,14 @@ def webhook():
         return jsonify({"ok": False, "error": "internal error"}), 500
 
 
+# ヘルスチェック: 前回のアラート内容（同じ障害の連続通知を防ぐ）
+_previous_health_alerts: set = set()
+
 @app.route("/health", methods=["GET"])
 def health_check():
-    """全サービスの生死確認エンドポイント。Make.comから定期的に呼び出す。"""
+    """全サービスの生死確認エンドポイント。Make.comから定期的に呼び出す。
+    同じ障害が続いている場合は重複通知しない。復旧時に復旧通知を送る。"""
+    global _previous_health_alerts
     results = {}
     alerts = []
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -680,16 +685,21 @@ def health_check():
     else:
         results["bot_activity"] = f"OK: {total_ops}件処理済み"
 
-    # ── Slack通知（異常がある場合のみ）──
-    if alerts:
-        alert_channel = os.environ.get("ALERT_CHANNEL_ID", "")
-        if alert_channel:
+    # ── Slack通知（ステータスが変わったときだけ）──
+    current_alerts = set(alerts)
+    new_alerts = current_alerts - _previous_health_alerts
+    recovered = _previous_health_alerts - current_alerts
+    alert_channel = os.environ.get("ALERT_CHANNEL_ID", "")
+
+    if alert_channel:
+        # 新しい障害が発生した場合のみ通知
+        if new_alerts:
             alert_text = (
                 "━━━━━━━━━━━━━━━━\n"
                 "🔍 *ヘルスチェック異常検知*\n"
                 "━━━━━━━━━━━━━━━━\n\n"
                 f"確認日時: {now}\n\n"
-                + "\n\n".join(alerts) +
+                + "\n\n".join(new_alerts) +
                 "\n\n━━━━━━━━━━━━━━━━"
             )
             try:
@@ -700,6 +710,28 @@ def health_check():
                     timeout=10)
             except Exception as e:
                 print(f"[ヘルスチェック通知エラー] {e}")
+
+        # 障害が復旧した場合に復旧通知
+        if recovered:
+            recovery_text = (
+                "━━━━━━━━━━━━━━━━\n"
+                "✅ *ヘルスチェック復旧*\n"
+                "━━━━━━━━━━━━━━━━\n\n"
+                f"確認日時: {now}\n\n"
+                "以下の問題が解消しました：\n\n"
+                + "\n\n".join(f"✅ {a.split(chr(10))[0]}" for a in recovered) +
+                "\n\n━━━━━━━━━━━━━━━━"
+            )
+            try:
+                httpx.post("https://slack.com/api/chat.postMessage",
+                    headers={"Authorization": f"Bearer {get_slack_token()}",
+                             "Content-Type": "application/json"},
+                    json={"channel": alert_channel, "text": recovery_text},
+                    timeout=10)
+            except Exception as e:
+                print(f"[ヘルスチェック復旧通知エラー] {e}")
+
+    _previous_health_alerts = current_alerts
 
     print(f"[ヘルスチェック] {now} 結果: {results}")
     return jsonify({
