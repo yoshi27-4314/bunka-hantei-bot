@@ -68,6 +68,7 @@ def normalize_channel(channel: str) -> str:
     aliases = {
         '自社使用': '社内利用',
         '自社利用': '社内利用',
+        'ヤフオクビンテージ': 'ヤフオクヴィンテージ',
     }
     return aliases.get(channel.strip(), channel.strip())
 
