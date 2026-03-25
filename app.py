@@ -49,6 +49,7 @@ from handlers.genba import handle_genba_channel
 from handlers.status import handle_status_channel
 from handlers.attendance import handle_attendance_channel, get_staff_break_minutes
 from handlers.kintai import handle_kintai_channel
+from handlers.help import handle_help
 
 load_dotenv()
 _env_check = {k: ("設定済み" if v else "未設定") for k, v in {
@@ -164,6 +165,12 @@ def process_slack_message(event: dict) -> None:
 
     if thread_ts in _consultation_threads:
         return
+
+    # ── ヘルプはチャンネルに関わらず最優先で処理 ──────────
+    if user_message:
+        bot_role = get_bot_role_for_channel(channel_id)
+        if handle_help(user_message, channel_id, thread_ts, user_id, bot_role):
+            return
 
     # ── 在庫検索はチャンネルに関わらず最優先で処理 ──────────
     if user_message:
