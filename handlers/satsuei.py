@@ -113,7 +113,7 @@ def handle_satsuei_channel(event: dict) -> None:
             "━━━━━━━━━━━━━━━━\n"
             "📌 *作業手順*\n\n"
             "　① このスレッドに商品写真を投稿\n"
-            "　　（複数枚まとめてOK）\n\n"
+            "　　（原則3枚・最大5枚）\n\n"
             "　② Botの確認メッセージが届いたら\n"
             "　　写真をチェックする\n\n"
             "　③ 問題なければ `完了` と送信\n\n"
@@ -206,6 +206,11 @@ def handle_satsuei_channel(event: dict) -> None:
             "📷 追加写真があればそのまま投稿\n"
             "🔄 撮り直す場合は `やり直し` と送信",
             mention_user=user_id, bot_role="satsuei")
+        # 写真投稿は通常操作 → 浅野通知不要
+        if text == "完了":
+            pass  # 下の完了処理に進む
+        else:
+            return
 
     # 完了コマンド
     if text == "完了":
@@ -224,11 +229,7 @@ def handle_satsuei_channel(event: dict) -> None:
             "✅ *撮影完了！お疲れ様でした*\n"
             "━━━━━━━━━━━━━━━━\n\n"
             f"🔖 管理番号　*{management_number}*\n\n"
-            "写真をDriveに保存しました。\n\n"
-            "━━━━━━━━━━━━━━━━\n"
-            "📌 *次の作業*\n\n"
-            "　このトークの元メッセージを削除して\n"
-            "　次の商品に進んでください。",
+            "写真をDriveに保存しました。",
             mention_user=user_id, bot_role="satsuei")
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "完了")
         monday_updates = {
