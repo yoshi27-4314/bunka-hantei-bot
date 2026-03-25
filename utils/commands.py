@@ -57,9 +57,12 @@ def handle_free_comment(channel_id: str, thread_ts: str, event: dict) -> bool:
 
 
 def normalize_keyword(text: str) -> str:
-    """全角→半角・漢数字→数字に正規化してコマンド判定しやすくする"""
+    """全角→半角・漢数字→数字・ヴ行→バ行に正規化してコマンド判定しやすくする"""
     text = text.translate(str.maketrans('０１２３４５６７８９', '0123456789'))
     text = text.replace('／', '/').replace('　', ' ')
+    # ヴ行 → バ行（スマホで入力しやすい形に統一）
+    for old, new in [('ヴァ', 'バ'), ('ヴィ', 'ビ'), ('ヴゥ', 'ブ'), ('ヴェ', 'ベ'), ('ヴォ', 'ボ'), ('ヴ', 'ブ')]:
+        text = text.replace(old, new)
     return text.strip()
 
 
@@ -68,7 +71,6 @@ def normalize_channel(channel: str) -> str:
     aliases = {
         '自社使用': '社内利用',
         '自社利用': '社内利用',
-        'ヤフオクビンテージ': 'ヤフオクヴィンテージ',
     }
     return aliases.get(channel.strip(), channel.strip())
 
