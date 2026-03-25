@@ -7,10 +7,10 @@
 
 ---
 
-## プロジェクト構成（2026/03/24 ファイル分割済み）
+## プロジェクト構成
 
 ```
-app.py                  ← Flask routes + メッセージルーティング（673行）
+app.py                  ← Flask routes + メッセージルーティング
 config.py               ← 全定数・環境変数・STAFF_MAP・BOT_PERSONA
 prompts.py              ← SYSTEM_PROMPT・GENBA_SYSTEM_PROMPT
 services/
@@ -20,7 +20,7 @@ services/
     google_drive.py     ← Drive操作（アップロード・一覧・削除・メイン写真DL）
     spreadsheet.py      ← send_to_spreadsheet（GAS経由）
 utils/
-    commands.py         ← parse_command, normalize_keyword
+    commands.py         ← parse_command, normalize_keyword, handle_free_comment
     slack_thread.py     ← スレッド解析（判定データ抽出・確定確認）
     checklist.py        ← 動作確認チェックリスト
     work_activity.py    ← 作業ログ・削除処理
@@ -37,7 +37,7 @@ handlers/
 
 ---
 
-## 分荷判定フロー（2026/03/24 刷新）
+## 分荷判定フロー
 
 ```
 1. スタッフが写真投稿 → AIが商品を特定
@@ -127,15 +127,19 @@ handlers/
 
 ---
 
-## ステータスフロー（2026/03/25 整理済み）
+## ステータスフロー
 
 分荷確定 → 撮影完了 → 出品中 → 落札済み → 入金待ち → 入金確認済み → 梱包作業 → 出荷待ち → 完了
 その他: 確認/相談, 再分荷, 再リスト, キャンセル
 
-## メイン写真（2026/03/25 追加）
+## メイン写真
 
 撮影完了時、Driveの1枚目商品画像（テプラ除外）をMonday.comの「メイン写真」カラム(file_mm1rwrna)に自動アップロード。
-出品・梱包スタッフが管理番号+画像でダブルチェックする用途。
+
+## フリーコメントのルール
+
+- @メンションなし → Botへの質問として各チャンネルのキャラクターがAIで返事する
+- @メンションあり → 人同士の会話。Botは何もしない（Slack標準の通知が届く）
 
 ## 管理用エンドポイント
 

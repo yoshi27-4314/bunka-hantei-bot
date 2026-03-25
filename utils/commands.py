@@ -2,14 +2,17 @@
 utils/commands.py - コマンド判定・正規化ユーティリティ
 """
 
-from config import VALID_CHANNELS, ASANO_USER_ID
+import re
+
+from config import VALID_CHANNELS, BOT_NAMES, get_anthropic_client
 from services.slack import post_to_slack, get_bot_role_for_channel
-from utils.slack_thread import get_thread_starter, has_bot_interaction
+from utils.slack_thread import has_bot_interaction
 
 
 def handle_free_comment(channel_id: str, thread_ts: str, event: dict) -> bool:
     """スレッド内のフリーコメントを処理する。
-    Botが応答済みのスレッドで、浅野↔スタッフ間のメンション通知を行う。
+    @メンションあり → 人同士の会話。Botは何もしない。
+    @メンションなし → Botへの質問。AIで返事する。
     処理した場合True、処理不要の場合Falseを返す。
     """
     if not event.get("thread_ts"):
@@ -22,24 +25,35 @@ def handle_free_comment(channel_id: str, thread_ts: str, event: dict) -> bool:
     if not has_bot_interaction(channel_id, thread_ts):
         return False
 
+    text = event.get("text", "")
+
+    # @メンションが含まれている → 人同士の会話。Botは何もしない
+    if re.search(r'<@U[A-Z0-9]+>', text):
+        return False
+
+    # @メンションなし → Botへの質問としてAIで返事する
     bot_role = get_bot_role_for_channel(channel_id)
-    starter = get_thread_starter(channel_id, thread_ts)
-
-    if user_id == ASANO_USER_ID:
-        # 浅野のコメント → スタッフに通知
-        if starter and starter != ASANO_USER_ID:
-            post_to_slack(channel_id, thread_ts,
-                f"<@{starter}> 浅野から連絡があります。上のコメントを確認してください。",
-                bot_role=bot_role)
-            return True
-    else:
-        # スタッフのコメント → 浅野に通知
-        post_to_slack(channel_id, thread_ts,
-            f"<@{ASANO_USER_ID}> スタッフから連絡があります。上のコメントを確認してください。",
-            bot_role=bot_role)
-        return True
-
-    return False
+    bot_name = BOT_NAMES.get(bot_role, "北大路魯山人")
+    try:
+        client = get_anthropic_client()
+        if not client:
+            return False
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=(
+                f"あなたは「{bot_name}」です。TakeBack事業部の業務サポートBotとして、"
+                "スタッフからの質問に短く丁寧に答えてください。"
+                "分からないことは「浅野さんに@メンションで聞いてください」と案内してください。"
+            ),
+            messages=[{"role": "user", "content": text}],
+        )
+        reply = response.content[0].text
+        post_to_slack(channel_id, thread_ts, reply,
+                      mention_user=user_id, bot_role=bot_role)
+    except Exception as e:
+        print(f"[フリーコメントAI応答エラー] {e}")
+    return True
 
 
 def normalize_keyword(text: str) -> str:
