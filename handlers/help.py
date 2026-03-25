@@ -20,7 +20,6 @@ _CHANNEL_HELP_MAP = {
     "GENBA_CHANNEL_ID":    "現場査定",
     "STATUS_CHANNEL_ID":   "ステータス確認",
     "ATTENDANCE_CHANNEL_ID": "出退勤",
-    "KINTAI_CHANNEL_ID":   "勤怠連絡",
 }
 # デフォルト（分荷判定チャンネル）
 _DEFAULT_HELP = "分荷判定"

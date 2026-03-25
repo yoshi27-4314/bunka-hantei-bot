@@ -48,7 +48,6 @@ from handlers.konpo import handle_konpo_channel
 from handlers.genba import handle_genba_channel
 from handlers.status import handle_status_channel
 from handlers.attendance import handle_attendance_channel, get_staff_break_minutes
-from handlers.kintai import handle_kintai_channel
 from handlers.help import handle_help
 
 load_dotenv()
@@ -218,11 +217,6 @@ def process_slack_message(event: dict) -> None:
         handle_genba_channel(event)
         return
 
-    kintai_channel_id = os.environ.get("KINTAI_CHANNEL_ID", "")
-    if kintai_channel_id and channel_id == kintai_channel_id:
-        handle_kintai_channel(event)
-        return
-
     # 添付画像のURLを取得（複数対応）
     files = event.get("files", [])
     image_urls = [f.get("url_private") for f in files if f.get("url_private")]
@@ -361,7 +355,6 @@ def debug():
         "STATUS_CHANNEL_ID": os.environ.get("STATUS_CHANNEL_ID", "未設定"),
         "ATTENDANCE_CHANNEL_ID": os.environ.get("ATTENDANCE_CHANNEL_ID", "未設定"),
         "GENBA_CHANNEL_ID": os.environ.get("GENBA_CHANNEL_ID", "未設定"),
-        "KINTAI_CHANNEL_ID": os.environ.get("KINTAI_CHANNEL_ID", "未設定"),
         "env_keys_count": len(os.environ),
     })
 

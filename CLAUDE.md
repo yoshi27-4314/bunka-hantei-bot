@@ -32,7 +32,6 @@ handlers/
     genba.py            ← 現場査定（渋沢栄一）
     status.py           ← ステータス確認（ステータス松本）
     attendance.py       ← 出退勤（二宮金次郎）
-    kintai.py           ← 勤怠連絡（サイレント記録）
 ```
 
 ---
@@ -104,7 +103,7 @@ handlers/
 | GAS_URL | スプレッドシート連携 |
 | GOOGLE_SERVICE_ACCOUNT_JSON | Google Drive認証（base64） |
 | GOOGLE_DRIVE_FOLDER_ID | Driveルートフォルダ |
-| SATSUEI/SHUPPINON/KONPO/STATUS/ATTENDANCE/GENBA/KINTAI_CHANNEL_ID | 各チャンネルID |
+| SATSUEI/SHUPPINON/KONPO/STATUS/ATTENDANCE/GENBA_CHANNEL_ID | 各チャンネルID |
 | ALERT_CHANNEL_ID | #system-alert |
 
 ---
