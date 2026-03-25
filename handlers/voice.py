@@ -17,6 +17,7 @@ handlers/voice.py - 新しい声ポイント制度
 import os
 import json
 import re
+import httpx
 from datetime import datetime
 
 from config import get_anthropic_client, get_staff_code, STAFF_MAP, ASANO_USER_ID
@@ -28,7 +29,13 @@ VOICE_BOARD_ID = os.environ.get("VOICE_BOARD_ID", "")
 
 # チャンネルID
 VOICE_CHANNEL_ID = "C0AMM3N5Z7F"       # #新しい声（浅野専用）
-SHANAI_CHANNEL_ID = "C0ALAA21S57"       # #社内連絡（全員）
+SHANAI_CHANNEL_ID = "C0ALAA21S57"       # #社内連絡（Slack）
+
+# Google Chat Webhook URL（環境変数で設定）
+GCHAT_WEBHOOKS = {
+    "アスカラ｜現場作業": "GCHAT_WEBHOOK_ASKARA",
+    "業務支援チーム｜総務・経理": "GCHAT_WEBHOOK_SOUMU",
+}
 
 # ポイント定義
 POINTS = {
@@ -50,6 +57,23 @@ STATUS_LABELS = {
     "実装": {"label": "実装", "color": "#9cd326"},
     "優秀": {"label": "優秀", "color": "#fdab3d"},
 }
+
+
+def send_to_gchat(text: str) -> None:
+    """全てのGoogle Chatスペースにメッセージを送信する"""
+    for name, env_key in GCHAT_WEBHOOKS.items():
+        url = os.environ.get(env_key, "")
+        if not url:
+            print(f"[Google Chat] {env_key} が未設定、スキップ: {name}")
+            continue
+        try:
+            resp = httpx.post(url, json={"text": text}, timeout=10)
+            if resp.status_code == 200:
+                print(f"[Google Chat] {name} に送信完了")
+            else:
+                print(f"[Google Chat] {name} 送信エラー: {resp.status_code} {resp.text[:100]}")
+        except Exception as e:
+            print(f"[Google Chat] {name} 送信エラー: {e}")
 
 
 def _classify_category(content: str) -> str:

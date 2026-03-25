@@ -51,7 +51,7 @@ from handlers.attendance import handle_attendance_channel, get_staff_break_minut
 from handlers.help import handle_help
 from handlers.voice import (
     handle_voice_command, handle_voice_management, submit_voice,
-    get_daily_summary, VOICE_CHANNEL_ID, SHANAI_CHANNEL_ID,
+    get_daily_summary, send_to_gchat, VOICE_CHANNEL_ID, SHANAI_CHANNEL_ID,
 )
 
 load_dotenv()
@@ -703,11 +703,13 @@ def voice_submit():
 
 @app.route("/voice/daily-summary", methods=["POST"])
 def voice_daily_summary():
-    """日次サマリーを#社内連絡に送信する（Make.comから毎朝8:55に呼び出す）"""
+    """日次サマリーをSlack #社内連絡 + Google Chatに送信する（Make.comから毎朝8:55に呼び出す）"""
     summary = get_daily_summary()
     if not summary:
         return jsonify({"ok": True, "msg": "本日の活動なし"})
 
+    errors = []
+    # Slack #社内連絡に送信
     try:
         token = get_slack_token()
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
@@ -715,9 +717,18 @@ def voice_daily_summary():
             headers=headers,
             json={"channel": SHANAI_CHANNEL_ID, "text": summary},
             timeout=10)
-        return jsonify({"ok": True, "msg": "サマリー送信完了"})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        errors.append(f"Slack: {e}")
+
+    # Google Chat（全スペース）に送信
+    try:
+        send_to_gchat(summary)
+    except Exception as e:
+        errors.append(f"Google Chat: {e}")
+
+    if errors:
+        return jsonify({"ok": False, "errors": errors})
+    return jsonify({"ok": True, "msg": "Slack + Google Chat 送信完了"})
 
 
 # ヘルスチェック: 前回のアラート内容（同じ障害の連続通知を防ぐ）
