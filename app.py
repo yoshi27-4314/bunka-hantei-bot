@@ -20,7 +20,7 @@ from collections import OrderedDict
 # 設定・定数
 from config import (
     get_slack_token, MONDAY_BOARD_ID, PROCESSED_EVENTS_MAX,
-    ASANO_USER_ID, ADMIN_USER_ID, CONDITION_MAP,
+    ASANO_USER_ID, ADMIN_USER_ID, CONDITION_MAP, STAFF_MAP,
 )
 
 # サービスレイヤー（app.py で直接使うもののみ）
@@ -49,6 +49,10 @@ from handlers.genba import handle_genba_channel
 from handlers.status import handle_status_channel
 from handlers.attendance import handle_attendance_channel, get_staff_break_minutes
 from handlers.help import handle_help
+from handlers.voice import (
+    handle_voice_command, handle_voice_management, submit_voice,
+    get_daily_summary, VOICE_CHANNEL_ID, SHANAI_CHANNEL_ID,
+)
 
 load_dotenv()
 _env_check = {k: ("設定済み" if v else "未設定") for k, v in {
@@ -170,6 +174,14 @@ def process_slack_message(event: dict) -> None:
         bot_role = get_bot_role_for_channel(channel_id)
         if handle_help(user_message, channel_id, thread_ts, user_id, bot_role):
             return
+
+    # ── #新しい声チャンネルでの管理コマンド ──────────
+    if user_message and handle_voice_management(user_message, channel_id, thread_ts, user_id):
+        return
+
+    # ── 新しい声コマンド（DMまたは任意チャンネル）──────────
+    if user_message and handle_voice_command(user_message, user_id):
+        return
 
     # ── 在庫検索はチャンネルに関わらず最優先で処理 ──────────
     if user_message:
@@ -583,6 +595,129 @@ def webhook():
         except Exception:
             pass
         return jsonify({"ok": False, "error": "internal error"}), 500
+
+
+# ============================================================
+# 新しい声 Webフォーム
+# ============================================================
+
+# スタッフ一覧をHTMLのoptionに変換
+def _staff_options_html():
+    names = sorted(set(STAFF_MAP.values()))
+    return "\n".join(f'<option value="{n}">{n}</option>' for n in names)
+
+@app.route("/voice", methods=["GET"])
+def voice_form():
+    """新しい声 投稿フォーム（Google Chatユーザー向け）"""
+    return f'''<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新しい声 | TakeBack</title>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif;
+         background: #1a1a2e; color: #eee; min-height: 100vh;
+         display: flex; justify-content: center; align-items: center; padding: 20px; }}
+  .card {{ background: #16213e; border-radius: 16px; padding: 32px;
+           max-width: 480px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }}
+  h1 {{ font-size: 22px; text-align: center; margin-bottom: 8px; color: #fdab3d; }}
+  .subtitle {{ text-align: center; font-size: 13px; color: #888; margin-bottom: 24px; }}
+  label {{ display: block; font-size: 14px; margin-bottom: 6px; color: #ccc; }}
+  select, textarea {{ width: 100%; padding: 12px; border: 1px solid #333;
+                      border-radius: 8px; background: #0f3460; color: #eee;
+                      font-size: 16px; margin-bottom: 16px; }}
+  textarea {{ height: 120px; resize: vertical; }}
+  button {{ width: 100%; padding: 14px; background: #fdab3d; color: #1a1a2e;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: bold;
+            cursor: pointer; }}
+  button:hover {{ background: #e89a2e; }}
+  .result {{ text-align: center; padding: 20px; }}
+  .result.ok {{ color: #00c875; }}
+  .result.ng {{ color: #e2445c; }}
+  .points {{ font-size: 12px; color: #888; margin-top: 16px; text-align: center; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>💡 新しい声</h1>
+  <div class="subtitle">要望・アイデア・相談を投稿できます</div>
+  <form method="POST" action="/voice">
+    <label for="name">あなたの名前</label>
+    <select id="name" name="name" required>
+      <option value="">選んでください</option>
+      {_staff_options_html()}
+    </select>
+    <label for="content">内容</label>
+    <textarea id="content" name="content" placeholder="思いついたこと、改善してほしいこと、相談したいことを書いてください" required></textarea>
+    <button type="submit">送信する</button>
+  </form>
+  <div class="points">投稿するだけで +1ポイント（1pt = 100円）</div>
+</div>
+</body>
+</html>''', 200, {"Content-Type": "text/html; charset=utf-8"}
+
+@app.route("/voice", methods=["POST"])
+def voice_submit():
+    """新しい声 Webフォームからの投稿を処理する"""
+    name = request.form.get("name", "").strip()
+    content = request.form.get("content", "").strip()
+    if not name or not content:
+        return '<div class="card result ng">名前と内容を入力してください。<br><a href="/voice" style="color:#fdab3d;">戻る</a></div>', 400
+
+    try:
+        result = submit_voice(name, content)
+        category = result.get("category", "")
+        html = (
+            '<!DOCTYPE html>'
+            '<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+            '<title>送信完了 | 新しい声</title>'
+            '<style>'
+            '* { margin: 0; padding: 0; box-sizing: border-box; }'
+            'body { font-family: "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif;'
+            '       background: #1a1a2e; color: #eee; min-height: 100vh;'
+            '       display: flex; justify-content: center; align-items: center; padding: 20px; }'
+            '.card { background: #16213e; border-radius: 16px; padding: 32px;'
+            '        max-width: 480px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center; }'
+            'h1 { font-size: 22px; color: #00c875; margin-bottom: 16px; }'
+            'p { font-size: 14px; color: #ccc; margin-bottom: 8px; }'
+            'a { color: #fdab3d; text-decoration: none; }'
+            '.pt { font-size: 18px; color: #fdab3d; font-weight: bold; margin: 16px 0; }'
+            '</style></head>'
+            '<body><div class="card">'
+            '<h1>✅ 送信完了</h1>'
+            f'<p>カテゴリ：<strong>{category}</strong></p>'
+            '<div class="pt">+1 ポイント獲得</div>'
+            '<p>浅野が確認して対応します。</p>'
+            '<p style="margin-top:20px;"><a href="/voice">もう1件送る</a></p>'
+            '</div></body></html>'
+        )
+        return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+    except Exception as e:
+        print(f"[新しい声Webフォームエラー] {e}")
+        return ('<div style="text-align:center;padding:40px;color:#e2445c;">'
+                '送信に失敗しました。もう一度お試しください。<br>'
+                '<a href="/voice" style="color:#fdab3d;">戻る</a></div>'), 500
+
+
+@app.route("/voice/daily-summary", methods=["POST"])
+def voice_daily_summary():
+    """日次サマリーを#社内連絡に送信する（Make.comから毎朝8:55に呼び出す）"""
+    summary = get_daily_summary()
+    if not summary:
+        return jsonify({"ok": True, "msg": "本日の活動なし"})
+
+    try:
+        token = get_slack_token()
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=utf-8"}
+        httpx.post("https://slack.com/api/chat.postMessage",
+            headers=headers,
+            json={"channel": SHANAI_CHANNEL_ID, "text": summary},
+            timeout=10)
+        return jsonify({"ok": True, "msg": "サマリー送信完了"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 
 # ヘルスチェック: 前回のアラート内容（同じ障害の連続通知を防ぐ）
