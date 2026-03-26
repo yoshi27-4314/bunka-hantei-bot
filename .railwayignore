@@ -1,0 +1,18 @@
+# マニュアル・ドキュメント（Botの動作に不要）
+docs/*.pdf
+docs/*.html
+docs/*.md
+docs/sales_deck.html
+
+# GASスクリプト（Bot側では使わない）
+*.gs
+
+# 開発用ファイル
+.claude/
+CLAUDE.md
+STATUS.md
+scripts/
+
+# Git
+.git/
+.gitignore
