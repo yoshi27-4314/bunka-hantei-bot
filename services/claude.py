@@ -11,7 +11,15 @@ from prompts import SYSTEM_PROMPT
 
 def fetch_image_as_base64(image_url: str) -> tuple[str, str]:
     """画像URLをダウンロードしてbase64エンコードとメディアタイプを返す"""
-    headers = {"Authorization": f"Bearer {get_slack_token()}"}
+    from urllib.parse import urlparse
+    parsed = urlparse(image_url)
+    allowed_domains = ("files.slack.com", "slack-edge.com", "slack-files.com")
+    is_slack_url = any(parsed.hostname and parsed.hostname.endswith(d) for d in allowed_domains)
+
+    headers = {}
+    if is_slack_url:
+        headers["Authorization"] = f"Bearer {get_slack_token()}"
+
     response = httpx.get(image_url, headers=headers, timeout=30, follow_redirects=True)
     response.raise_for_status()
 

@@ -71,7 +71,8 @@ app = Flask(__name__)
 @app.errorhandler(500)
 def handle_500(e):
     import traceback
-    return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+    print(f"[500エラー] {e}\n{traceback.format_exc()}")
+    return jsonify({"error": "internal server error"}), 500
 
 
 def verify_admin_token(req):
@@ -87,8 +88,8 @@ def verify_slack_signature(req):
     """Slackからのリクエストが本物かどうかを署名で検証する"""
     signing_secret = os.environ.get("SLACK_SIGNING_SECRET", "")
     if not signing_secret:
-        print("[警告] SLACK_SIGNING_SECRET が未設定です。署名検証をスキップします")
-        return True
+        print("[エラー] SLACK_SIGNING_SECRET が未設定です。リクエストを拒否します")
+        return False
 
     timestamp = req.headers.get("X-Slack-Request-Timestamp", "")
     signature = req.headers.get("X-Slack-Signature", "")
@@ -387,6 +388,8 @@ def env_keys():
 @app.route("/monday-setup", methods=["GET"])
 def monday_setup():
     """monday.comボードにカラムを作成する（初回のみ実行）"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
     columns = [
         ("管理番号",           "text",    "kanri_bango"),
         ("判定チャンネル",     "text",    "hantei_channel"),
@@ -475,6 +478,8 @@ def monday_setup():
 @app.route("/monday-columns", methods=["GET"])
 def monday_columns():
     """Monday.comボードの全カラムIDと名前を表示"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
     query = """
     query ($board_id: ID!) {
         boards(ids: [$board_id]) {
@@ -490,6 +495,8 @@ def monday_columns():
 @app.route("/monday-setup-status", methods=["GET"])
 def monday_setup_status():
     """monday-setup バックグラウンド処理の進捗確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
     done = "done" in _monday_setup_log
     return jsonify({
         "done": done,
@@ -609,6 +616,13 @@ def _staff_options_html():
 @app.route("/voice", methods=["GET"])
 def voice_form():
     """新しい声 投稿フォーム（Google Chatユーザー向け）"""
+    webhook_secret = os.environ.get("WEBHOOK_SECRET", "")
+    provided_token = request.args.get("token", "")
+    if not webhook_secret or not hmac.compare_digest(provided_token, webhook_secret):
+        print("[Voice GET] 認証失敗：不正なリクエストを拒否しました")
+        return jsonify({"error": "認証が必要です"}), 403
+
+    token = provided_token
     return f'''<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -644,6 +658,7 @@ def voice_form():
   <h1>💡 新しい声</h1>
   <div class="subtitle">要望・アイデア・相談を投稿できます</div>
   <form method="POST" action="/voice">
+    <input type="hidden" name="_token" value="{token}">
     <label for="name">あなたの名前</label>
     <select id="name" name="name" required>
       <option value="">選んでください</option>
@@ -661,6 +676,12 @@ def voice_form():
 @app.route("/voice", methods=["POST"])
 def voice_submit():
     """新しい声 Webフォームからの投稿を処理する"""
+    webhook_secret = os.environ.get("WEBHOOK_SECRET", "")
+    provided_token = request.form.get("_token", "")
+    if not webhook_secret or not hmac.compare_digest(provided_token, webhook_secret):
+        print("[Voice POST] 認証失敗：不正なリクエストを拒否しました")
+        return jsonify({"error": "認証が必要です"}), 403
+
     name = request.form.get("name", "").strip()
     content = request.form.get("content", "").strip()
     if not name or not content:
@@ -704,6 +725,12 @@ def voice_submit():
 @app.route("/voice/daily-summary", methods=["POST"])
 def voice_daily_summary():
     """日次サマリーをSlack #社内連絡 + Google Chatに送信する（Make.comから毎朝8:55に呼び出す）"""
+    webhook_secret = os.environ.get("WEBHOOK_SECRET", "")
+    provided_secret = request.headers.get("X-Webhook-Secret", "")
+    if not webhook_secret or not hmac.compare_digest(provided_secret, webhook_secret):
+        print("[Voice Daily Summary] 認証失敗：不正なリクエストを拒否しました")
+        return jsonify({"error": "認証が必要です"}), 403
+
     summary = get_daily_summary()
     if not summary:
         return jsonify({"ok": True, "msg": "本日の活動なし"})
