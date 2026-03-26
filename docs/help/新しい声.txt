@@ -65,8 +65,8 @@
 
 Slackを使っていない方はこちらの方法で出せます。
 
-1. 以下のページを開く
-   https://web-production-e7e9d.up.railway.app/voice
+1. 浅野さんから共有された「新しい声」フォームのURLを開く
+   ※URLはSlackまたはGoogle Chatで共有されます。ブックマークしておくと便利です。
 
 2. 自分の名前を選ぶ
 
