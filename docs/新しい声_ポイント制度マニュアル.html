@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新しい声 ポイント制度マニュアル｜TakeBack事業部</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Meiryo", "MS Gothic", sans-serif;
+    font-size: 11pt;
+    line-height: 1.85;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  .page {
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 15mm 18mm;
+  }
+
+  /* 表紙 */
+  .cover {
+    text-align: center;
+    padding: 28mm 0 18mm;
+    border-bottom: 3px solid #1a3a2a;
+    margin-bottom: 12mm;
+    page-break-after: always;
+  }
+  .cover .logo { font-size: 38pt; margin-bottom: 6mm; }
+  .cover h1 { font-size: 24pt; color: #1a3a2a; margin-bottom: 3mm; line-height: 1.4; }
+  .cover .subtitle { font-size: 13pt; color: #555; margin-bottom: 8mm; }
+  .cover .badge {
+    display: inline-block;
+    background: #1a3a2a;
+    color: #fff;
+    padding: 5px 16px;
+    border-radius: 20px;
+    font-size: 10pt;
+    margin: 3px;
+  }
+  .cover .welcome {
+    margin-top: 10mm;
+    padding: 8px 20px;
+    background: #f0f5f2;
+    border-radius: 8px;
+    font-size: 11pt;
+    color: #1a3a2a;
+    display: inline-block;
+    line-height: 1.8;
+  }
+
+  /* 見出し */
+  h1.section {
+    font-size: 15pt; color: #fff; background: #1a3a2a;
+    padding: 7px 16px; border-radius: 5px; margin: 8mm 0 4mm;
+  }
+  h2.subsection {
+    font-size: 12pt; color: #1a3a2a; border-left: 5px solid #1a3a2a;
+    padding: 4px 12px; margin: 6mm 0 3mm; background: #f0f5f2;
+    border-radius: 0 4px 4px 0;
+  }
+  h3.item {
+    font-size: 11pt; color: #333; margin: 4mm 0 2mm;
+    padding: 4px 10px; border-left: 3px solid #95a5a6;
+    background: #fafafa;
+  }
+
+  /* ボックス */
+  .box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3mm 0;
+    background: #fafafa;
+  }
+  .box-green {
+    border: 1px solid #27ae60;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3mm 0;
+    background: #eafaf1;
+  }
+  .box-blue {
+    border: 1px solid #2980b9;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3mm 0;
+    background: #eaf2f8;
+  }
+  .box-yellow {
+    border: 1px solid #f39c12;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 3mm 0;
+    background: #fef9e7;
+  }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0;
+    font-size: 10.5pt;
+  }
+  th {
+    background: #1a3a2a;
+    color: #fff;
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: bold;
+  }
+  td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ddd;
+  }
+  tr:nth-child(even) { background: #f8f8f8; }
+
+  /* リスト */
+  ul, ol { margin: 2mm 0 2mm 6mm; }
+  li { margin-bottom: 1.5mm; }
+
+  /* ステップ */
+  .step {
+    display: flex;
+    align-items: flex-start;
+    margin: 3mm 0;
+    gap: 10px;
+  }
+  .step-num {
+    background: #1a3a2a;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12pt;
+    flex-shrink: 0;
+  }
+  .step-body { flex: 1; padding-top: 2px; }
+
+  /* 吹き出し */
+  .chat {
+    background: #e8f5e9;
+    border-radius: 12px;
+    padding: 8px 14px;
+    margin: 2mm 0;
+    display: inline-block;
+    max-width: 80%;
+    font-size: 10.5pt;
+  }
+  .chat-bot {
+    background: #f3f3f3;
+    border-radius: 12px;
+    padding: 8px 14px;
+    margin: 2mm 0;
+    display: inline-block;
+    max-width: 80%;
+    font-size: 10.5pt;
+  }
+
+  .point-big {
+    font-size: 20pt;
+    font-weight: bold;
+    color: #1a3a2a;
+  }
+
+  .footer {
+    margin-top: 12mm;
+    padding-top: 4mm;
+    border-top: 1px solid #ddd;
+    font-size: 9pt;
+    color: #888;
+    text-align: center;
+  }
+
+  @media print {
+    .page { padding: 10mm 15mm; }
+    .cover { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ===== 表紙 ===== -->
+  <div class="cover">
+    <div class="logo">💡</div>
+    <h1>新しい声 ポイント制度<br>スタッフマニュアル</h1>
+    <div class="subtitle">TakeBack事業部</div>
+    <div>
+      <span class="badge">あなたの声が会社を変える</span>
+      <span class="badge">1ポイント = 100円</span>
+    </div>
+    <div class="welcome">
+      日々の仕事の中で気づいたこと・思いついたことを<br>
+      気軽に声にしてください。<br>
+      あなたの声がポイントになり、お給料に反映されます。
+    </div>
+  </div>
+
+  <!-- ===== 1. この制度について ===== -->
+  <h1 class="section">1. この制度について</h1>
+
+  <p>「新しい声」は、スタッフの皆さんからの気づき・要望・アイデアを集めて、会社をもっと良くするための仕組みです。</p>
+
+  <div class="box-green">
+    <strong>ポイントの基本</strong>
+    <ul>
+      <li><span class="point-big">1pt = 100円</span></li>
+      <li>3ヶ月ごとにお給料と一緒にお支払い（3月・6月・9月・12月）</li>
+      <li>声を出すだけで <strong>1ポイントもらえます</strong></li>
+    </ul>
+  </div>
+
+  <!-- ===== 2. 声の出し方 ===== -->
+  <h1 class="section">2. 声の出し方</h1>
+
+  <p>2つの方法があります。どちらでもOKです。</p>
+
+  <h2 class="subsection">方法① Slackから出す</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">Slackでボットに<strong>直接メッセージ</strong>を送ります</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      以下のように入力してください<br>
+      <div class="chat">新しい声 ○○○○○</div><br>
+      <small>※「新しい声」の後にスペースを入れて、内容を書いてください</small>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      ボットから確認メッセージが届きます<br>
+      <div class="chat-bot">💡 新しい声を受け付けました（+1pt）</div>
+    </div>
+  </div>
+
+  <div class="box-blue">
+    <strong>入力例</strong>
+    <ul>
+      <li><code>新しい声 倉庫の照明が暗いので明るくしてほしい</code></li>
+      <li><code>新しい声 梱包材の置き場所を変えたら作業しやすくなると思う</code></li>
+      <li><code>新しい声 出品の写真を撮るとき背景の布があるといいかも</code></li>
+    </ul>
+  </div>
+
+  <h2 class="subsection">方法② Webフォームから出す</h2>
+
+  <p>Slackを使っていない方はこちらの方法で出せます。</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">以下のページを開きます<br>
+      <div class="box"><strong>https://web-production-e7e9d.up.railway.app/voice</strong></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">自分の名前を選び、内容を入力して「送信」を押します</div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">「送信しました」と表示されたら完了です</div>
+  </div>
+
+  <!-- ===== 3. ポイントの仕組み ===== -->
+  <h1 class="section">3. ポイントの仕組み</h1>
+
+  <p>声を出した後、浅野さんが内容を確認してポイントが加算されていきます。</p>
+
+  <table>
+    <tr>
+      <th>段階</th>
+      <th>意味</th>
+      <th>ポイント</th>
+    </tr>
+    <tr>
+      <td><strong>投稿</strong></td>
+      <td>声を出した時点で自動的にもらえます</td>
+      <td>+1pt（+100円）</td>
+    </tr>
+    <tr>
+      <td><strong>受理</strong></td>
+      <td>浅野さんが「確かに」と受け取った</td>
+      <td>+1pt（+100円）</td>
+    </tr>
+    <tr>
+      <td><strong>採用</strong></td>
+      <td>「やってみよう」と決まった</td>
+      <td>+1pt（+100円）</td>
+    </tr>
+    <tr>
+      <td><strong>実装</strong></td>
+      <td>実際に会社のやり方が変わった</td>
+      <td>+3pt（+300円）</td>
+    </tr>
+    <tr>
+      <td><strong>優秀</strong></td>
+      <td>大きな改善につながった声</td>
+      <td>+15pt（+1,500円）</td>
+    </tr>
+    <tr>
+      <td>見送り</td>
+      <td>今回は見送り（また今度）</td>
+      <td>0pt</td>
+    </tr>
+    <tr>
+      <td>却下</td>
+      <td>対応が難しい</td>
+      <td>-1pt</td>
+    </tr>
+  </table>
+
+  <div class="box-yellow">
+    <strong>ポイントの例</strong><br>
+    「倉庫の照明を明るくしてほしい」と声を出して、実際にLEDに交換された場合：<br><br>
+    投稿（+1）→ 受理（+1）→ 採用（+1）→ 実装（+3）＝ <strong>合計 6pt（600円）</strong>
+  </div>
+
+  <!-- ===== 4. 声を出した後の流れ ===== -->
+  <h1 class="section">4. 声を出した後の流れ</h1>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <strong>あなたが声を出す</strong><br>
+      Slack or Webフォームで投稿 → 自動で +1pt
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <strong>浅野さんが確認する</strong><br>
+      内容を見て「受理」「採用」などを判断します
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <strong>進み具合がSlackで届く</strong><br>
+      ポイントが変わるたびにお知らせが届きます
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <strong>3ヶ月ごとにお給料に反映</strong><br>
+      3月・6月・9月・12月のお給料と一緒にお支払い
+    </div>
+  </div>
+
+  <!-- ===== 5. どんな声を出せばいい？ ===== -->
+  <h1 class="section">5. どんな声を出せばいい？</h1>
+
+  <p>何でもOKです。小さなことでも気づいたら出してください。</p>
+
+  <h3 class="item">要望（こうしてほしい）</h3>
+  <ul>
+    <li>「エアコンの温度をもう少し下げてほしい」</li>
+    <li>「梱包材の在庫が少なくなったら教えてほしい」</li>
+    <li>「作業手順書がほしい」</li>
+  </ul>
+
+  <h3 class="item">アイデア（こうしたらどうか）</h3>
+  <ul>
+    <li>「商品写真を撮る場所を固定したら効率が上がりそう」</li>
+    <li>「よく売れる商品をリスト化しておくと判定が早くなる」</li>
+    <li>「倉庫のレイアウトを変えたら動線がよくなる」</li>
+  </ul>
+
+  <h3 class="item">相談（聞いてほしいこと）</h3>
+  <ul>
+    <li>「この作業のやり方が合っているか不安」</li>
+    <li>「○○の判断に迷うことが多い」</li>
+    <li>「シフトについて相談したい」</li>
+  </ul>
+
+  <div class="box-green">
+    <strong>声は自動で分類されます</strong><br>
+    「要望」「アイデア」「相談」のどれに当てはまるかはBotが自動で判断するので、気にせず自由に書いてください。
+  </div>
+
+  <!-- ===== 6. よくある質問 ===== -->
+  <h1 class="section">6. よくある質問</h1>
+
+  <h3 class="item">Q. 誰が声を出したか、みんなにわかりますか？</h3>
+  <div class="box">
+    <strong>基本的にわかりません。</strong>毎朝の社内連絡では名前は出ません。ただし「実装」や「優秀」で大きく貢献した場合は、お名前付きで紹介されることがあります。
+  </div>
+
+  <h3 class="item">Q. 同じような内容を何度も出していいですか？</h3>
+  <div class="box">
+    全く同じ内容はご遠慮ください。ただし「前に出した要望の補足」や「別の角度からの提案」は大歓迎です。
+  </div>
+
+  <h3 class="item">Q. 却下されてもポイントは減りますか？</h3>
+  <div class="box">
+    投稿時の +1pt は残ります。却下で -1pt なので、差し引き 0pt になります。マイナスにはなりません。
+  </div>
+
+  <h3 class="item">Q. ポイントの確認方法は？</h3>
+  <div class="box">
+    声を出すたびにSlackでお知らせが届きます。累計ポイントが気になる場合は浅野さんに聞いてください。
+  </div>
+
+  <!-- フッター -->
+  <div class="footer">
+    新しい声 ポイント制度マニュアル｜TakeBack事業部｜2026年3月
+  </div>
+
+</div>
+</body>
+</html>
