@@ -68,11 +68,15 @@ def normalize_keyword(text: str) -> str:
 
 def normalize_channel(channel: str) -> str:
     """チャンネル名の表記ゆれを統一する"""
+    c = channel.strip()
+    # ヴ行→バ行の統一（既存データ対応）
+    for old, new in [('ヴァ', 'バ'), ('ヴィ', 'ビ'), ('ヴゥ', 'ブ'), ('ヴェ', 'ベ'), ('ヴォ', 'ボ'), ('ヴ', 'ブ')]:
+        c = c.replace(old, new)
     aliases = {
         '自社使用': '社内利用',
         '自社利用': '社内利用',
     }
-    return aliases.get(channel.strip(), channel.strip())
+    return aliases.get(c, c)
 
 
 def parse_command(text: str):

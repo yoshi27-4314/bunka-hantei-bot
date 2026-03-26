@@ -85,7 +85,9 @@ def get_judgment_from_thread(channel_id: str, thread_ts: str) -> dict:
         # 新フォーマット：AI自動判定チャンネル（▶ or :arrow_forward: + 太字*対応）
         auto_ch = re.search(r'(?:▶|:arrow_forward:)?\s*\*?判定：(.+?)\*?\s*$', text, re.MULTILINE)
         if auto_ch:
-            result["auto_channel"] = auto_ch.group(1).strip()
+            # 括弧付き補足（例：「ヤフオクビンテージ（4枚まとめ出品）」）を除去
+            ch_name = re.sub(r'[（(].+?[）)]', '', auto_ch.group(1)).strip()
+            result["auto_channel"] = ch_name
         # 浅野承認待ちフラグ
         if '承認待ち' in text or '承認が必要' in text:
             result["needs_approval"] = True
