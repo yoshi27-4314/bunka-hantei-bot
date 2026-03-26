@@ -246,7 +246,7 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
 
     if cmd_type == 'kakutei':
         judgment = get_judgment_from_thread(channel_id, thread_ts)
-        if not judgment.get("first_channel"):
+        if not judgment.get("first_channel") and not judgment.get("auto_channel"):
             post_to_slack(channel_id, thread_ts,
                 "━━━━━━━━━━━━━━━━\n"
                 "⚠️ *判定データなし*\n"
@@ -260,8 +260,13 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             kakutei_channel = normalize_channel(judgment.get("first_channel", ""))
         elif cmd_option == '2':
             kakutei_channel = normalize_channel(judgment.get("second_channel", ""))
-        else:
+        elif cmd_option:
             kakutei_channel = normalize_channel(cmd_option)  # 確定/○○ の場合
+        else:
+            # 「確定」のみ（オプションなし）→ AI判定チャンネルを使用
+            kakutei_channel = normalize_channel(
+                judgment.get("auto_channel") or judgment.get("first_channel", "")
+            )
 
         # まとめ売り系チャンネルは選択肢を表示して一旦止める
         if kakutei_channel in MATOME_CHANNELS:
