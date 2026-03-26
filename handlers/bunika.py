@@ -25,6 +25,31 @@ from utils.slack_thread import (
 )
 
 
+def _asano_has_replied(channel_id: str, thread_ts: str) -> bool:
+    """承認待ちスレッドに浅野さんが返信済みかどうかを確認する。
+    浅野さんの返信がある＝指示済みなので、スタッフも確定できる。"""
+    from config import get_slack_token
+    import httpx as _httpx
+    token = get_slack_token()
+    if not token:
+        return False
+    try:
+        resp = _httpx.get("https://slack.com/api/conversations.replies",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"channel": channel_id, "ts": thread_ts},
+            timeout=10)
+        data = resp.json()
+        if not data.get("ok"):
+            return False
+        for msg in data.get("messages", []):
+            # 浅野のメッセージ（Botではない）を探す
+            if msg.get("user") == ASANO_USER_ID and not msg.get("bot_id"):
+                return True
+    except Exception as e:
+        print(f"[浅野返信確認エラー] {e}")
+    return False
+
+
 def _handle_zaiko_search(keyword: str, channel_id: str, thread_ts: str, event: dict) -> None:
     """在庫検索コマンドを処理する"""
     user_id = event.get("user", "")
@@ -196,15 +221,16 @@ def _handle_command(cmd_type: str, cmd_option: str, channel_id: str, thread_ts: 
             return
         kakutei_channel = normalize_channel(kakutei_channel)
 
-        # 承認待ちの場合、スタッフのOKは受け付けない（浅野さんのみ）
+        # 承認待ちの場合、浅野さん or 浅野さんが返信済みならスタッフもOK可
         if judgment.get("needs_approval") and user_id != ASANO_USER_ID:
-            post_to_slack(channel_id, thread_ts,
-                "━━━━━━━━━━━━━━━━\n"
-                "⏳ *承認待ちです*\n"
-                "━━━━━━━━━━━━━━━━\n\n"
-                "この商品は浅野の承認が必要です。\nしばらくお待ちください。",
-                mention_user=user_id)
-            return
+            if not _asano_has_replied(channel_id, thread_ts):
+                post_to_slack(channel_id, thread_ts,
+                    "━━━━━━━━━━━━━━━━\n"
+                    "⏳ *承認待ちです*\n"
+                    "━━━━━━━━━━━━━━━━\n\n"
+                    "この商品は浅野の承認が必要です。\nしばらくお待ちください。",
+                    mention_user=user_id)
+                return
 
         # まとめ売り系チャンネルは選択肢を表示
         MATOME_CHANNELS_LOCAL = {"eBayまとめ", "ヤフオクまとめ", "ロット販売"}
