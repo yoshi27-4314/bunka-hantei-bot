@@ -88,7 +88,7 @@ def get_staff_code(user_id: str) -> str:
 # チャンネルごとのBot表示名
 BOT_NAMES = {
     "bunika":    "北大路魯山人",  # 分荷判定
-    "satsuei":   "白洲次郎",     # 写真撮影
+    "satsuei":   "白洲次郎",     # 撮影保管
     "shuppinon": "岩崎弥太郎",   # 出品・保管
     "konpo":     "黒田官兵衛",   # 梱包・出荷
     "status":    "ステータス松本", # ステータス確認
@@ -468,7 +468,7 @@ CONDITION_MAP = {
 
 # チャンネルごとのBot表示名（工程名）
 CHANNEL_NAMES = {
-    "satsuei":   "商品撮影",
+    "satsuei":   "撮影保管",
     "shuppinon": "出品保管",
     "konpo":     "梱包出荷",
 }

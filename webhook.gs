@@ -176,6 +176,7 @@ function doPost(e) {
       switch (action) {
         case 'checklist_update':  result = _handleChecklistUpdate(payload); break;
         case 'satsuei_update':    result = _handleSatsueiUpdate(payload);   break;
+        case 'hokan_update':     result = _handleHokanUpdate(payload);    break;
         case 'shuppinon_listing':      result = _handleShuppinon(payload);           break;
         case 'shuppinon_page_complete': result = _handleShuppinonPageComplete(payload); break;
         case 'shipping_update':   result = _handleShippingUpdate(payload);  break;
@@ -407,6 +408,21 @@ function _handleSatsueiUpdate(payload) {
   if (!kanriNo) return { ok: true, skipped: 'no kanri_bango' };
   if (payload.drive_folder_url) _updateListingCell(kanriNo, '画像フォルダURL', String(payload.drive_folder_url));
   _updateListingCell(kanriNo, '出品ステータス', '撮影完了');
+  return { ok: true };
+}
+
+// ============================================================
+// ④-2 保管完了（ロケーション番号 + リードタイム記録）
+// ============================================================
+function _handleHokanUpdate(payload) {
+  const kanriNo = String(payload.kanri_bango || '');
+  if (!kanriNo) return { ok: true, skipped: 'no kanri_bango' };
+  if (payload.location) _updateListingCell(kanriNo, '保管ロケーション', String(payload.location));
+  if (payload.leadtime_minutes) _updateListingCell(kanriNo, '撮影→保管(分)', String(payload.leadtime_minutes));
+  if (payload.size_height) _updateListingCell(kanriNo, '商品_縦cm', String(payload.size_height));
+  if (payload.size_width) _updateListingCell(kanriNo, '商品_横cm', String(payload.size_width));
+  if (payload.size_depth) _updateListingCell(kanriNo, '商品_高さcm', String(payload.size_depth));
+  _updateListingCell(kanriNo, '出品ステータス', '出品待ち');
   return { ok: true };
 }
 
