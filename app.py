@@ -591,6 +591,39 @@ def backup_monday_endpoint():
     return jsonify({"ok": True, "message": "バックアップをバックグラウンドで開始しました。/backup-monday-status で確認できます。"})
 
 
+_migration_log: list = []
+
+@app.route("/migrate-board-data", methods=["GET"])
+def migrate_board_data_endpoint():
+    """boardデータをMonday.comに移行（取引先498件＋案件811件）"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    _migration_log.clear()
+    _migration_log.append("started")
+    def _run():
+        try:
+            from scripts.migrate_to_monday import run_migration
+            run_migration(token)
+        except Exception as e:
+            _migration_log.append(f"error: {e}")
+        _migration_log.append("done")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "board移行をバックグラウンドで開始しました（取引先498件＋案件811件）。/migrate-board-status で確認できます。"})
+
+
+@app.route("/migrate-board-status", methods=["GET"])
+def migrate_board_status():
+    """board移行の進捗確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    done = "done" in _migration_log
+    return jsonify({"done": done, "total": len(_migration_log), "log": _migration_log})
+
+
 @app.route("/backup-monday-status", methods=["GET"])
 def backup_monday_status():
     """バックアップの進捗確認"""
