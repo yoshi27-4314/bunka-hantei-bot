@@ -615,6 +615,30 @@ def migrate_board_data_endpoint():
     return jsonify({"ok": True, "message": "board移行をバックグラウンドで開始しました（取引先498件＋案件811件）。/migrate-board-status で確認できます。"})
 
 
+_staff_log: list = []
+
+@app.route("/register-staff", methods=["GET"])
+def register_staff_endpoint():
+    """スタッフマスタを登録"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.register_staff import register_staff
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    _staff_log.clear()
+    _staff_log.append("started")
+    def _run():
+        try:
+            register_staff(token)
+        except Exception as e:
+            _staff_log.append(f"error: {e}")
+        _staff_log.append("done")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "スタッフマスタ登録を開始しました。"})
+
+
 @app.route("/migrate-board-status", methods=["GET"])
 def migrate_board_status():
     """board移行の進捗確認"""
