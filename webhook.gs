@@ -224,6 +224,31 @@ function getCurrentListingSheet() {
   return id;
 }
 
+/**
+ * 出品管理シートに不足しているヘッダー列を追加する（既存データに影響なし）
+ * GASエディタで手動実行する: addMissingListingColumns()
+ */
+function addMissingListingColumns() {
+  const newCols = ['商品_縦cm', '商品_横cm', '商品_高さcm', '撮影→保管(分)'];
+  const ss = _getListingSS();
+  const sh = ss.getSheetByName(LISTING_MAIN_SH);
+  if (!sh) { console.log('出品管理シートが見つかりません'); return; }
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  let added = [];
+  for (const col of newCols) {
+    if (headers.indexOf(col) < 0) {
+      const nextCol = sh.getLastColumn() + 1;
+      sh.getRange(1, nextCol).setValue(col).setFontWeight('bold');
+      added.push(col);
+    }
+  }
+  if (added.length > 0) {
+    console.log('追加した列: ' + added.join(', '));
+  } else {
+    console.log('すべての列が既に存在します');
+  }
+}
+
 // ============================================================
 // ヘルパー: スプレッドシート取得
 // ============================================================
@@ -321,6 +346,10 @@ function _handleBunikaKakutei(payload) {
     '発送サイズ':                  '',
     '発送重量目安(kg)':            '',
     '保管ロケーション':             '',
+    '商品_縦cm':                   '',
+    '商品_横cm':                   '',
+    '商品_高さcm':                 '',
+    '撮影→保管(分)':              '',
     '出品タイトル(65文字以内)':    '',
     'カテゴリID':                  '',
     '開始価格':                    String(payload.start_price  || ''),
