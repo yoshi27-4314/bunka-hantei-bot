@@ -658,6 +658,25 @@ def update_staff_tags_endpoint():
     return jsonify({"ok": True, "message": "スタッフマスタのタグ・権限更新を開始しました。"})
 
 
+@app.route("/register-skill-map", methods=["GET"])
+def register_skill_map_endpoint():
+    """スキルマップを個人ボードに登録"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.register_skill_map import register_skill_map
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    def _run():
+        try:
+            register_skill_map(token)
+        except Exception as e:
+            print(f"[スキルマップ登録エラー] {e}")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "スキルマップ登録を開始しました。約160項目×人数分のため数分かかります。"})
+
+
 @app.route("/migrate-board-status", methods=["GET"])
 def migrate_board_status():
     """board移行の進捗確認"""
