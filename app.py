@@ -658,6 +658,19 @@ def update_staff_tags_endpoint():
     return jsonify({"ok": True, "message": "スタッフマスタのタグ・権限更新を開始しました。"})
 
 
+@app.route("/verify-all", methods=["GET"])
+def verify_all_endpoint():
+    """全ボードの状態を自動検証してJSON結果を返す"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.fix_boards import verify_all_boards_json
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    result = verify_all_boards_json(token)
+    return jsonify(result)
+
+
 @app.route("/fix-boards", methods=["GET"])
 def fix_boards_endpoint():
     """ボードの修正と全ボード状態確認"""

@@ -142,6 +142,39 @@ def verify_all_boards(token):
             print(f"    {g['title']}: {len(group_items)}件")
 
 
+def verify_all_boards_json(token):
+    """全ボードの状態をJSON形式で返す（API検証用）"""
+    boards = {
+        "CMタスク管理": 18405995548,
+        "TBタスク管理": 18405995566,
+        "AIXタスク管理": 18405995588,
+        "経営管理タスク": 18405995604,
+        "アスカラタスク管理": 18405995636,
+        "全体タスク管理": 18405995746,
+        "取引先": 18405636938,
+        "連絡先": 18405637012,
+        "スタッフマスタ": 18405637105,
+        "CM案件管理": 18405637284,
+    }
+
+    result = {}
+    for name, bid in boards.items():
+        board_data = get_all_items(token, bid)
+        items = board_data.get("items_page", {}).get("items", [])
+        groups = board_data.get("groups", [])
+        group_detail = {}
+        for g in groups:
+            group_items = [i["name"] for i in items if i.get("group", {}).get("id") == g["id"]]
+            group_detail[g["title"]] = {"count": len(group_items), "items": group_items[:5]}
+        result[name] = {
+            "board_id": bid,
+            "total_items": len(items),
+            "total_groups": len(groups),
+            "groups": group_detail,
+        }
+    return result
+
+
 if __name__ == "__main__":
     token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
     if not token:
