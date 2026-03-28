@@ -30,6 +30,10 @@ const CLAUDE_LOG_SS_ID = '1-jspSk-pi9Epm0Z5GoyppVfCw8mXSLhJ3B-yBPoRy8U';
 // システム仕様書 スプレッドシートID
 const SPEC_SS_ID = '1Sty7dE9tOsYOLoCJmXtoFnj4S0cQmbgG_WogxxSthHg';
 
+// Monday.comバックアップ スプレッドシートID（初回実行時に自動作成される）
+// GASエディタで setBackupSheet("スプレッドシートID") を実行して設定する
+// 未設定の場合は分荷判定DBに書き込む
+
 // 分荷判定DB のシート名
 const DB_SH = {
   BUNIKA_LOG:  '分荷確定ログ',
@@ -188,6 +192,7 @@ function doPost(e) {
         case 'genba_memo':        result = _handleGenbaMemo(payload);       break;
         case 'claude_session_log': result = _handleClaudeSessionLog(payload); break;
         case 'update_spec_sheet':  result = _handleUpdateSpecSheet(payload); break;
+        case 'backup_sheet':      result = _handleBackupSheet(payload);    break;
         default:                  result = { ok: true, skipped: action };   break;
       }
     }
@@ -664,4 +669,45 @@ function _handleUpdateSpecSheet(payload) {
   }
 
   return { ok: true, msg: 'シート「' + sheetName + '」を更新しました（' + rows.length + '行）' };
+}
+
+// ============================================================
+// ⑮ Monday.comバックアップ（分荷判定DBにシート単位で上書き保存）
+// ============================================================
+// payload: { action: "backup_sheet", sheet_name: "シート名", headers: [...], rows: [[...], ...] }
+function _handleBackupSheet(payload) {
+  const ss = _getSS();  // 分荷判定DBに保存
+  const sheetName = String(payload.sheet_name || '');
+  if (!sheetName) return { ok: false, error: 'sheet_name が必要です' };
+
+  let sh = ss.getSheetByName(sheetName);
+  if (!sh) {
+    sh = ss.insertSheet(sheetName);
+  } else {
+    sh.clear();
+  }
+
+  var headers = payload.headers || [];
+  var rows    = payload.rows    || [];
+
+  if (headers.length > 0) {
+    sh.appendRow(headers);
+    sh.getRange(1, 1, 1, headers.length)
+      .setBackground('#1c2e4a')
+      .setFontColor('#ffffff')
+      .setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+
+  for (var i = 0; i < rows.length; i++) {
+    sh.appendRow(rows[i]);
+  }
+
+  return { ok: true, msg: 'バックアップ「' + sheetName + '」完了（' + rows.length + '行）' };
+}
+
+/** バックアップ用スプレッドシートIDを設定する（将来、別SSに分ける場合） */
+function setBackupSheet(id) {
+  PropertiesService.getScriptProperties().setProperty('BACKUP_SS_ID', id);
+  console.log('バックアップ先を設定しました: ' + id);
 }

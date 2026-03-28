@@ -566,6 +566,40 @@ def register_tasks_status():
     return jsonify({"done": done, "total": len(_register_tasks_log), "log": _register_tasks_log})
 
 
+_backup_log: list = []
+
+@app.route("/backup-monday", methods=["GET"])
+def backup_monday_endpoint():
+    """Monday.com全ボードをスプレッドシートにバックアップ"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.backup_to_sheets import backup_all
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    gas_url = os.environ.get("GAS_URL", "")
+    if not token or not gas_url:
+        return jsonify({"error": "MONDAY_TOKEN or GAS_URL 未設定"}), 500
+    _backup_log.clear()
+    _backup_log.append("started")
+    def _run():
+        try:
+            backup_all(token, gas_url)
+        except Exception as e:
+            _backup_log.append(f"error: {e}")
+        _backup_log.append("done")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "バックアップをバックグラウンドで開始しました。/backup-monday-status で確認できます。"})
+
+
+@app.route("/backup-monday-status", methods=["GET"])
+def backup_monday_status():
+    """バックアップの進捗確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    done = "done" in _backup_log
+    return jsonify({"done": done, "total": len(_backup_log), "log": _backup_log})
+
+
 @app.route("/setup-task-boards-status", methods=["GET"])
 def setup_task_boards_status():
     """タスクボード作成の進捗確認"""
