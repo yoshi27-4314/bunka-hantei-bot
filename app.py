@@ -658,6 +658,22 @@ def update_staff_tags_endpoint():
     return jsonify({"ok": True, "message": "スタッフマスタのタグ・権限更新を開始しました。"})
 
 
+@app.route("/scan-drives", methods=["GET"])
+def scan_drives_endpoint():
+    """共有ドライブの全構造をスキャンしてスプレッドシートに書き出す"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.scan_shared_drives import scan_all_drives
+    def _run():
+        try:
+            scan_all_drives()
+        except Exception as e:
+            print(f"[ドライブスキャンエラー] {e}")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "共有ドライブのスキャンを開始しました。完了後、分荷判定DBに3シート追加されます。"})
+
+
 @app.route("/register-skill-map", methods=["GET"])
 def register_skill_map_endpoint():
     """スキルマップを個人ボードに登録"""
