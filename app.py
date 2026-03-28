@@ -533,6 +533,39 @@ def setup_task_boards_endpoint():
     return jsonify({"ok": True, "message": "タスクボード作成をバックグラウンドで開始しました。/setup-task-boards-status で確認できます。"})
 
 
+_register_tasks_log: list = []
+
+@app.route("/register-tasks", methods=["GET"])
+def register_tasks_endpoint():
+    """タスクを一括登録する"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.register_tasks import register_all_tasks
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    _register_tasks_log.clear()
+    _register_tasks_log.append("started")
+    def _run():
+        try:
+            register_all_tasks(token)
+        except Exception as e:
+            _register_tasks_log.append(f"error: {e}")
+        _register_tasks_log.append("done")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "タスク登録をバックグラウンドで開始しました。/register-tasks-status で確認できます。"})
+
+
+@app.route("/register-tasks-status", methods=["GET"])
+def register_tasks_status():
+    """タスク登録の進捗確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    done = "done" in _register_tasks_log
+    return jsonify({"done": done, "total": len(_register_tasks_log), "log": _register_tasks_log})
+
+
 @app.route("/setup-task-boards-status", methods=["GET"])
 def setup_task_boards_status():
     """タスクボード作成の進捗確認"""
