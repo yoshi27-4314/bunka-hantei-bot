@@ -16,12 +16,16 @@ from services.google_drive import (
 )
 from services.spreadsheet import send_to_spreadsheet
 from utils.commands import normalize_keyword, handle_free_comment
+from utils.unified_commands import (
+    is_unified_command, show_options, get_pending_selection,
+    has_pending_session, clear_session,
+)
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
 
 
-# 撮影完了後のサイズ計測・ロケーション入力待ちセッション（スレッドTS → セッション情報）
+# 撮影完了後のサイズ測定・ロケーション入力待ちセッション（スレッドTS → セッション情報）
 # セッション状態: photo_done → size_done → (ロケーション入力で完了)
 satsuei_sessions = {}
 
@@ -154,7 +158,7 @@ def handle_satsuei_channel(event: dict) -> None:
             "　② Botの確認メッセージが届いたら\n"
             "　　写真をチェックする\n\n"
             "　③ 問題なければ `完了` と送信\n\n"
-            "　④ 商品サイズを計測して入力\n"
+            "　④ 商品サイズを測定して入力\n"
             "　　（縦×横×高さ cm）\n\n"
             "　⑤ 商品を棚に保管して\n"
             "　　ロケーション番号を入力\n\n"
@@ -180,10 +184,135 @@ def handle_satsuei_channel(event: dict) -> None:
             print(f"[撮影CH無視] スレッド内・セッションなし channel={channel_id} text={text[:30]!r}")
         return
 
+    # ── 統一コマンド（修正・キャンセル・削除）──
+    # 選択待ちセッションの処理（番号入力）
+    if has_pending_session(channel_id, thread_ts):
+        cmd, selected = get_pending_selection(channel_id, thread_ts, text)
+        if cmd == "cancel_menu":
+            post_to_slack(channel_id, thread_ts, "戻りました。", bot_role="satsuei")
+            return
+        if cmd == "修正" and selected:
+            action = selected["key"]
+            if action == "size":
+                # サイズ修正 → 新しいサイズ入力待ちセッションを作る
+                satsuei_sessions[thread_ts] = {
+                    "management_number": management_number,
+                    "modify_mode": "size",
+                }
+                post_to_slack(channel_id, thread_ts,
+                    "📐 *サイズを修正します*\n\n"
+                    "新しいサイズを *縦×横×高さ* (cm)で入力してください。\n\n"
+                    "入力例：\n"
+                    "　`40×30×50`　`40x30x50`　`40 30 50`",
+                    mention_user=user_id, bot_role="satsuei")
+                return
+            elif action == "location":
+                satsuei_sessions[thread_ts] = {
+                    "management_number": management_number,
+                    "modify_mode": "location",
+                }
+                post_to_slack(channel_id, thread_ts,
+                    "📦 *棚番号を修正します*\n\n"
+                    "新しいロケーション番号を入力してください。\n\n"
+                    "入力例：\n"
+                    "　`A23`　`A25横`　`H5`　`Y12`　`A2階`",
+                    mention_user=user_id, bot_role="satsuei")
+                return
+            elif action == "photo":
+                satsuei_sessions.pop(thread_ts, None)
+                post_to_slack(channel_id, thread_ts,
+                    "📷 *写真を修正します*\n\n"
+                    "このスレッドに新しい写真を投稿してください。\n"
+                    "全て撮り直す場合は `やり直し` と入力してください。",
+                    mention_user=user_id, bot_role="satsuei")
+                return
+        if cmd is not None:
+            return
+
+    # 修正モード中の入力処理
+    session = satsuei_sessions.get(thread_ts)
+    if session and session.get("modify_mode"):
+        mode = session["modify_mode"]
+        mn = session["management_number"]
+        if mode == "size":
+            dims = parse_product_size(text)
+            if dims:
+                h, w, d = dims
+                size_text = f"{h}×{w}×{d}"
+                try:
+                    update_monday_columns(mn, {"product_size": size_text})
+                except Exception as e:
+                    print(f"[Monday.comサイズ修正エラー] {e}")
+                try:
+                    send_to_spreadsheet({
+                        "action": "hokan_update",
+                        "kanri_bango": mn,
+                        "size_height": h, "size_width": w, "size_depth": d,
+                        "staff_id": get_staff_code(user_id),
+                        "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+                    })
+                except Exception as e:
+                    print(f"[スプレッドシートサイズ修正エラー] {e}")
+                del satsuei_sessions[thread_ts]
+                post_to_slack(channel_id, thread_ts,
+                    f"✅ *サイズを修正しました*\n\n"
+                    f"　縦 *{h}* × 横 *{w}* × 高さ *{d}* cm",
+                    mention_user=user_id, bot_role="satsuei")
+            else:
+                post_to_slack(channel_id, thread_ts,
+                    "⚠️ サイズの形式が正しくありません。\n"
+                    "例：`40×30×50`　`40 30 50`\n"
+                    "`やめる` で戻れます。",
+                    bot_role="satsuei")
+            return
+        elif mode == "location":
+            if text == "やめる":
+                del satsuei_sessions[thread_ts]
+                post_to_slack(channel_id, thread_ts, "戻りました。", bot_role="satsuei")
+                return
+            if LOCATION_PATTERN.match(text):
+                try:
+                    update_monday_columns(mn, {"location": text})
+                except Exception as e:
+                    print(f"[Monday.com棚番号修正エラー] {e}")
+                try:
+                    send_to_spreadsheet({
+                        "action": "hokan_update",
+                        "kanri_bango": mn,
+                        "location": text,
+                        "staff_id": get_staff_code(user_id),
+                        "timestamp": datetime.now().strftime("%Y/%m/%d %H:%M"),
+                    })
+                except Exception as e:
+                    print(f"[スプレッドシート棚番号修正エラー] {e}")
+                del satsuei_sessions[thread_ts]
+                post_to_slack(channel_id, thread_ts,
+                    f"✅ *棚番号を修正しました*\n\n"
+                    f"　📍 保管場所　*{text}*",
+                    mention_user=user_id, bot_role="satsuei")
+            else:
+                post_to_slack(channel_id, thread_ts,
+                    "⚠️ 倉庫コード（A/H/Y）を先頭につけてください。\n"
+                    "例：`A23`　`H5`　`Y12`\n"
+                    "`やめる` で戻れます。",
+                    bot_role="satsuei")
+            return
+
+    # 「修正」コマンド → 選択肢を表示
+    unified_cmd = is_unified_command(text)
+    if unified_cmd == "修正":
+        show_options(channel_id, thread_ts, "修正", [
+            {"label": "サイズ", "key": "size"},
+            {"label": "棚番号（ロケーション）", "key": "location"},
+            {"label": "写真（撮り直し）", "key": "photo"},
+        ], bot_role="satsuei", user_id=user_id)
+        return
+
     # キャンセル・中断
-    if text in CANCEL_WORDS:
+    if text in CANCEL_WORDS or unified_cmd == "キャンセル":
         log_work_activity(CHANNEL_NAMES["satsuei"], management_number, get_staff_code(user_id), "キャンセル")
         satsuei_sessions.pop(thread_ts, None)
+        clear_session(channel_id, thread_ts)
         post_to_slack(channel_id, thread_ts,
             "⏹️ *作業を中断しました*\n"
             "━━━━━━━━━━━━━━━━\n\n"
@@ -254,7 +383,7 @@ def handle_satsuei_channel(event: dict) -> None:
         else:
             return
 
-    # ── サイズ計測・ロケーション入力（撮影完了後の保管ステップ）──
+    # ── サイズ測定・ロケーション入力（撮影完了後の保管ステップ）──
     session = satsuei_sessions.get(thread_ts)
     if session and session.get("photo_done"):
 
@@ -341,7 +470,7 @@ def handle_satsuei_channel(event: dict) -> None:
 
             post_to_slack(channel_id, thread_ts,
                 "━━━━━━━━━━━━━━━━\n"
-                "✅ *撮影・計測・保管 完了！*\n"
+                "✅ *撮影・サイズ測定・保管 完了！*\n"
                 "━━━━━━━━━━━━━━━━\n\n"
                 f"🔖 管理番号　*{mn}*\n"
                 f"📐 商品サイズ　*{size_text}* cm\n"
@@ -420,7 +549,7 @@ def handle_satsuei_channel(event: dict) -> None:
             f"🔖 管理番号　*{management_number}*\n\n"
             "写真をDriveに保存しました。\n\n"
             "━━━━━━━━━━━━━━━━\n"
-            "📐 *次のステップ：サイズ計測*\n\n"
+            "📐 *次のステップ：サイズ測定*\n\n"
             "商品の *縦×横×高さ* をcmで入力してください。\n\n"
             "入力例：\n"
             "　`40×30×50`\n"

@@ -18,6 +18,10 @@ from services.monday import get_item_from_monday, update_monday_columns
 from services.spreadsheet import send_to_spreadsheet
 from handlers.satsuei import extract_management_number_from_image
 from utils.commands import normalize_keyword, handle_free_comment
+from utils.unified_commands import (
+    is_unified_command, show_options, get_pending_selection,
+    has_pending_session, clear_session,
+)
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
@@ -284,11 +288,45 @@ def handle_konpo_channel(event: dict) -> None:
         return
     management_number = session["management_number"]
 
+    # ── 統一コマンド（修正・キャンセル・削除）──
+    if has_pending_session(channel_id, thread_ts):
+        cmd, selected = get_pending_selection(channel_id, thread_ts, text)
+        if cmd == "cancel_menu":
+            post_to_slack(channel_id, thread_ts, "戻りました。", bot_role="konpo")
+            return
+        if cmd == "修正" and selected:
+            action = selected["key"]
+            if action == "carrier":
+                from config import CARRIER_MENU
+                session["carrier"] = ""
+                konpo_sessions[thread_ts] = session
+                post_to_slack(channel_id, thread_ts,
+                    "🚚 *運送会社を修正します*\n\n" + CARRIER_MENU,
+                    mention_user=user_id, bot_role="konpo")
+            elif action == "tracking":
+                post_to_slack(channel_id, thread_ts,
+                    "📋 *追跡番号を修正します*\n\n"
+                    "新しい追跡番号を入力するか、\n"
+                    "送り状ラベルの写真を投稿してください。",
+                    mention_user=user_id, bot_role="konpo")
+            return
+        if cmd is not None:
+            return
+
+    unified_cmd = is_unified_command(text)
+    if unified_cmd == "修正":
+        show_options(channel_id, thread_ts, "修正", [
+            {"label": "運送会社", "key": "carrier"},
+            {"label": "追跡番号", "key": "tracking"},
+        ], bot_role="konpo", user_id=user_id)
+        return
+
     # キャンセル・中断
-    if text in CANCEL_WORDS:
+    if text in CANCEL_WORDS or unified_cmd == "キャンセル":
         log_work_activity(CHANNEL_NAMES["konpo"], management_number,
                           get_staff_code(user_id), "キャンセル", session.get("start_time"))
         del konpo_sessions[thread_ts]
+        clear_session(channel_id, thread_ts)
         post_to_slack(channel_id, thread_ts,
             "━━━━━━━━━━━━━━━━\n"
             "⏹️ *梱包作業キャンセル*\n"
@@ -300,7 +338,7 @@ def handle_konpo_channel(event: dict) -> None:
         return
 
     # 削除コマンド
-    if text == "削除":
+    if text == "削除" or unified_cmd == "削除":
         handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["konpo"], "konpo")
         return
 

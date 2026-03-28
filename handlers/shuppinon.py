@@ -20,6 +20,10 @@ from services.google_drive import (
 from services.spreadsheet import send_to_spreadsheet
 from handlers.satsuei import extract_management_number_from_image
 from utils.commands import normalize_keyword, handle_free_comment
+from utils.unified_commands import (
+    is_unified_command, show_options, get_pending_selection,
+    has_pending_session, clear_session,
+)
 from utils.work_activity import (
     log_work_activity, handle_delete_step1, handle_delete_step2,
 )
@@ -442,11 +446,41 @@ def handle_shuppinon_channel(event: dict) -> None:
             _post_image_list(channel_id, thread_ts, management_number)
         return
 
+    # ── 統一コマンド（修正・キャンセル・削除）──
+    if has_pending_session(channel_id, thread_ts):
+        cmd, selected = get_pending_selection(channel_id, thread_ts, text)
+        if cmd == "cancel_menu":
+            post_to_slack(channel_id, thread_ts, "戻りました。", bot_role="shuppinon")
+            return
+        if cmd == "修正" and selected:
+            action = selected["key"]
+            if action in ("title", "start_price", "description", "size"):
+                jp = {"title": "タイトル", "start_price": "開始価格",
+                      "description": "説明文", "size": "サイズ"}[action]
+                post_to_slack(channel_id, thread_ts,
+                    f"📝 *{jp}を修正します*\n\n"
+                    f"`{jp}：新しい値` の形式で入力してください。",
+                    mention_user=user_id, bot_role="shuppinon")
+            return
+        if cmd is not None:
+            return
+
+    unified_cmd = is_unified_command(text)
+    if unified_cmd == "修正":
+        show_options(channel_id, thread_ts, "修正", [
+            {"label": "タイトル", "key": "title"},
+            {"label": "開始価格", "key": "start_price"},
+            {"label": "説明文", "key": "description"},
+            {"label": "サイズ", "key": "size"},
+        ], bot_role="shuppinon", user_id=user_id)
+        return
+
     # キャンセル・中断
-    if text in CANCEL_WORDS:
+    if text in CANCEL_WORDS or unified_cmd == "キャンセル":
         log_work_activity(CHANNEL_NAMES["shuppinon"], management_number,
                           get_staff_code(user_id), "キャンセル", session.get("start_time"))
         del listing_sessions[thread_ts]
+        clear_session(channel_id, thread_ts)
         post_to_slack(channel_id, thread_ts,
             "━━━━━━━━━━━━━━━━\n"
             "⏹️ *出品作業キャンセル*\n"
@@ -458,7 +492,7 @@ def handle_shuppinon_channel(event: dict) -> None:
         return
 
     # 削除コマンド
-    if text == "削除":
+    if text == "削除" or unified_cmd == "削除":
         handle_delete_step1(channel_id, thread_ts, user_id, CHANNEL_NAMES["shuppinon"], "shuppinon")
         return
 
