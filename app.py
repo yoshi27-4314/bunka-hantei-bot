@@ -639,6 +639,25 @@ def register_staff_endpoint():
     return jsonify({"ok": True, "message": "スタッフマスタ登録を開始しました。"})
 
 
+@app.route("/update-staff-tags", methods=["GET"])
+def update_staff_tags_endpoint():
+    """スタッフマスタに業務タグ・権限を追加"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.update_staff_tags import update_staff_tags
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    def _run():
+        try:
+            update_staff_tags(token)
+        except Exception as e:
+            print(f"[スタッフタグ更新エラー] {e}")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "スタッフマスタのタグ・権限更新を開始しました。"})
+
+
 @app.route("/migrate-board-status", methods=["GET"])
 def migrate_board_status():
     """board移行の進捗確認"""
