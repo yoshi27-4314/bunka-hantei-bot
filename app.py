@@ -658,6 +658,27 @@ def update_staff_tags_endpoint():
     return jsonify({"ok": True, "message": "スタッフマスタのタグ・権限更新を開始しました。"})
 
 
+@app.route("/fix-boards", methods=["GET"])
+def fix_boards_endpoint():
+    """ボードの修正と全ボード状態確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.fix_boards import fix_asano_board, verify_all_boards
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    _fix_log = []
+    def _run():
+        try:
+            fix_asano_board(token)
+            verify_all_boards(token)
+        except Exception as e:
+            print(f"[ボード修正エラー] {e}")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "全体タスク管理ボードのスキルマップ項目を削除し、全ボードの状態を確認します。"})
+
+
 @app.route("/scan-drives", methods=["GET"])
 def scan_drives_endpoint():
     """共有ドライブの全構造をスキャンしてスプレッドシートに書き出す"""
