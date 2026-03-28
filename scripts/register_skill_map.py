@@ -365,8 +365,9 @@ STAFF_SKILL_SETS = {
     "桃井侑菜": [TB_SKILLS, COMMON_SKILLS],
     "伊藤佐和子": [TB_SKILLS, COMMON_SKILLS],
     "奥村亜優李": [TB_SKILLS, COMMON_SKILLS],
-    "松本豊彦": [TB_SKILLS, COMMON_SKILLS],
-    "北瀬孝": [TB_SKILLS, COMMON_SKILLS],
+    # 松本・北瀬は78歳の高齢者のため個人ボード運用なし。スキル評価はスタッフマスタで管理
+    # "松本豊彦": [TB_SKILLS, COMMON_SKILLS],
+    # "北瀬孝": [TB_SKILLS, COMMON_SKILLS],
     "白木雄介": [TB_SKILLS, COMMON_SKILLS],
 }
 
