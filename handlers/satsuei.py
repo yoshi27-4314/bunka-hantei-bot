@@ -345,8 +345,7 @@ def handle_satsuei_channel(event: dict) -> None:
                 "━━━━━━━━━━━━━━━━\n\n"
                 f"🔖 管理番号　*{mn}*\n"
                 f"📐 商品サイズ　*{size_text}* cm\n"
-                f"📍 保管場所　*{text}*\n"
-                f"⏱️ 撮影→保管　*{leadtime_minutes}分*\n\n"
+                f"📍 保管場所　*{text}*\n\n"
                 "お疲れ様でした。",
                 mention_user=user_id, bot_role="satsuei")
             return
