@@ -508,6 +508,40 @@ def monday_setup_status():
     })
 
 
+_task_board_log: list = []
+
+@app.route("/setup-task-boards", methods=["GET"])
+def setup_task_boards_endpoint():
+    """タスク管理ボードを一括作成する"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    from scripts.setup_task_boards import setup_task_boards
+    token = os.environ.get("MONDAY_TOKEN") or os.environ.get("MONDAY_API_TOKEN", "")
+    if not token:
+        return jsonify({"error": "MONDAY_TOKEN未設定"}), 500
+    _task_board_log.clear()
+    _task_board_log.append("started")
+    def _run():
+        try:
+            result = setup_task_boards(token)
+            _task_board_log.append(json.dumps(result, ensure_ascii=False))
+        except Exception as e:
+            _task_board_log.append(f"error: {e}")
+        _task_board_log.append("done")
+    import threading
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "タスクボード作成をバックグラウンドで開始しました。/setup-task-boards-status で確認できます。"})
+
+
+@app.route("/setup-task-boards-status", methods=["GET"])
+def setup_task_boards_status():
+    """タスクボード作成の進捗確認"""
+    if not verify_admin_token(request):
+        return jsonify({"error": "Unauthorized"}), 403
+    done = "done" in _task_board_log
+    return jsonify({"done": done, "total": len(_task_board_log), "log": _task_board_log})
+
+
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     """Slack Events APIのエンドポイント"""
