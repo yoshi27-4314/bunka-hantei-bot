@@ -34,7 +34,7 @@ def list_all_files(service, drive_id, parent_id=None, path="", depth=0, results=
     """再帰的に全ファイル・フォルダを取得"""
     if results is None:
         results = []
-    if depth > 10:
+    if depth > 4:
         return results
 
     query = f"'{parent_id or drive_id}' in parents and trashed=false"
@@ -115,7 +115,7 @@ def scan_all_drives():
         all_results[drive_name] = files
         print(f"  ✅ {len(files)}件のファイル・フォルダを検出")
 
-    # GASに送信してスプレッドシートに書き出す
+    # GASに送信してスプレッドシートに書き出す（100件ずつ分割送信）
     import httpx
     gas_url = os.environ.get("GAS_URL", "")
     if gas_url:
@@ -123,22 +123,42 @@ def scan_all_drives():
             sheet_name = f"ドライブ構造_{drive_name}"
             headers = ["パス", "名前", "種類", "サイズ", "作成日", "更新日", "階層", "ID"]
             rows = [[f["path"], f["name"], f["type"], f["size"], f["created"], f["modified"], f["depth"], f["id"]] for f in files]
+
+            # 最初の送信でシートを作成（上書き）
+            first_batch = rows[:100]
             payload = {
                 "action": "backup_sheet",
                 "sheet_name": sheet_name,
                 "headers": headers,
-                "rows": rows,
+                "rows": first_batch,
             }
             try:
-                response = httpx.post(gas_url, json=payload, timeout=120, follow_redirects=True)
+                response = httpx.post(gas_url, json=payload, timeout=60, follow_redirects=True)
                 result = response.json() if response.status_code == 200 else {}
                 if result.get("ok"):
-                    print(f"  ✅ スプレッドシート書き出し完了: {sheet_name}（{len(rows)}件）")
+                    print(f"  ✅ {sheet_name}: 最初の{len(first_batch)}件書き込み完了")
                 else:
-                    print(f"  ❌ GASエラー: {result}")
+                    print(f"  ❌ {sheet_name}: GASエラー {result}")
+                    continue
             except Exception as e:
-                print(f"  ❌ 通信エラー: {e}")
-            time.sleep(1)
+                print(f"  ❌ {sheet_name}: 通信エラー {e}")
+                continue
+            time.sleep(2)
+
+            # 残りは追記（append_sheetアクション）
+            for i in range(100, len(rows), 100):
+                batch = rows[i:i+100]
+                payload2 = {
+                    "action": "append_sheet",
+                    "sheet_name": sheet_name,
+                    "rows": batch,
+                }
+                try:
+                    httpx.post(gas_url, json=payload2, timeout=60, follow_redirects=True)
+                    print(f"    追記: {i}〜{i+len(batch)}件")
+                except Exception as e:
+                    print(f"    ❌ 追記エラー: {e}")
+                time.sleep(2)
 
     print("\n" + "=" * 50)
     print("全ドライブスキャン完了！")

@@ -193,6 +193,7 @@ function doPost(e) {
         case 'claude_session_log': result = _handleClaudeSessionLog(payload); break;
         case 'update_spec_sheet':  result = _handleUpdateSpecSheet(payload); break;
         case 'backup_sheet':      result = _handleBackupSheet(payload);    break;
+        case 'append_sheet':      result = _handleAppendSheet(payload);    break;
         default:                  result = { ok: true, skipped: action };   break;
       }
     }
@@ -704,6 +705,24 @@ function _handleBackupSheet(payload) {
   }
 
   return { ok: true, msg: 'バックアップ「' + sheetName + '」完了（' + rows.length + '行）' };
+}
+
+// ============================================================
+// ⑮-2 既存シートに行を追記する（分割送信用）
+// ============================================================
+function _handleAppendSheet(payload) {
+  const ss = _getSS();
+  const sheetName = String(payload.sheet_name || '');
+  if (!sheetName) return { ok: false, error: 'sheet_name が必要です' };
+
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) return { ok: false, error: 'シート「' + sheetName + '」が見つかりません' };
+
+  var rows = payload.rows || [];
+  for (var i = 0; i < rows.length; i++) {
+    sh.appendRow(rows[i]);
+  }
+  return { ok: true, msg: '追記完了（' + rows.length + '行）' };
 }
 
 /** バックアップ用スプレッドシートIDを設定する（将来、別SSに分ける場合） */
